@@ -57,11 +57,18 @@ export default function Tasks() {
   // Handle single task view
   if (id && taskData && !Array.isArray(taskData)) {
     const task = taskData as TaskWithSubtasks;
-    const completedSubtasks = task.subtasks.filter(s => s.completed).length;
-    const progress = task.subtasks.length > 0 ? Math.round((completedSubtasks / task.subtasks.length) * 100) : 0;
+    console.log('=== TASK DEBUG ===');
+    console.log('Task ID:', id);
+    console.log('Task data:', task);
+    console.log('Subtasks array:', task.subtasks);
+    console.log('Subtasks length:', task.subtasks?.length);
+    console.log('Is Array?', Array.isArray(task.subtasks));
+    
+    const completedSubtasks = task.subtasks?.filter(s => s.completed).length || 0;
+    const progress = task.subtasks?.length > 0 ? Math.round((completedSubtasks / task.subtasks.length) * 100) : 0;
 
     // Filter subtasks
-    const filteredSubtasks = task.subtasks.filter(subtask => {
+    const filteredSubtasks = (task.subtasks || []).filter(subtask => {
       switch (filter) {
         case "pending": return !subtask.completed;
         case "completed": return subtask.completed;
@@ -71,6 +78,9 @@ export default function Tasks() {
         default: return true;
       }
     });
+    
+    console.log('Filtered subtasks:', filteredSubtasks);
+    console.log('Filter:', filter);
 
     const formatDate = (dateString: string) => {
       const date = new Date(dateString);
@@ -171,7 +181,7 @@ export default function Tasks() {
                 <Filter className="mr-2 text-primary" />
                 Subtasks
                 <Badge variant="secondary" className="ml-2">
-                  {task.subtasks.length} total
+                  {task.subtasks?.length || 0} total
                 </Badge>
               </CardTitle>
               
@@ -194,19 +204,28 @@ export default function Tasks() {
           </CardHeader>
           
           <CardContent className="p-0">
-            {filteredSubtasks.length === 0 ? (
+            {!task.subtasks || task.subtasks.length === 0 ? (
               <div className="p-6 text-center text-slate-500">
-                No subtasks match the current filter.
+                No subtasks found for this task.
+              </div>
+            ) : filteredSubtasks.length === 0 ? (
+              <div className="p-6 text-center text-slate-500">
+                No subtasks match the current filter. ({task.subtasks.length} total subtasks available)
               </div>
             ) : (
-              filteredSubtasks.map((subtask, index) => (
-                <SubtaskCard
-                  key={subtask.id}
-                  subtask={subtask}
-                  onToggleComplete={handleSubtaskToggle}
-                  isLast={index === filteredSubtasks.length - 1}
-                />
-              ))
+              <div>
+                <div className="p-3 text-sm text-slate-600 border-b">
+                  Showing {filteredSubtasks.length} of {task.subtasks.length} subtasks
+                </div>
+                {filteredSubtasks.map((subtask, index) => (
+                  <SubtaskCard
+                    key={subtask.id}
+                    subtask={subtask}
+                    onToggleComplete={handleSubtaskToggle}
+                    isLast={index === filteredSubtasks.length - 1}
+                  />
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

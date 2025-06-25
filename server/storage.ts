@@ -184,7 +184,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
-    return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId)).orderBy(subtasks.createdAt);
+    return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId)).orderBy(subtasks.id);
   }
 
   async updateSubtaskCompletion(id: number, completed: boolean): Promise<void> {
