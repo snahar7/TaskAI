@@ -90,7 +90,16 @@ The build process creates optimized bundles with the frontend served as static f
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+- June 25, 2025: Built complete AI-powered task manager
+  - Implemented OpenAI GPT-4o integration for task breakdown
+  - Created React frontend with task input form and viewing pages
+  - Set up Express backend with REST API
+  - Added fallback demo system for OpenAI quota limits
+  - Configured Firebase integration (optional) with memory storage fallback
+
 ## Changelog
 
-Changelog:
-- June 24, 2025. Initial setup
+- June 25, 2025: MVP completed - AI task breakdown, frontend, backend, storage
+- June 24, 2025: Initial setup

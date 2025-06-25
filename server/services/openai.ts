@@ -17,6 +17,150 @@ export interface AITaskBreakdown {
   subtasks: AISubtask[];
 }
 
+// Demo task breakdowns for testing when OpenAI quota is exceeded
+function getDemoTaskBreakdown(taskDescription: string): AITaskBreakdown {
+  const lowerTask = taskDescription.toLowerCase();
+  
+  if (lowerTask.includes('wedding')) {
+    return {
+      subtasks: [
+        {
+          title: "Set Wedding Budget",
+          description: "Determine total budget and allocate funds for venue, catering, photography, etc.",
+          priority: "high",
+          dueDate: "Week 1",
+          estimatedHours: "3-4 hours"
+        },
+        {
+          title: "Create Guest List",
+          description: "Compile list of family and friends, determine final headcount",
+          priority: "high",
+          dueDate: "Week 2",
+          estimatedHours: "2-3 hours"
+        },
+        {
+          title: "Book Wedding Venue",
+          description: "Research and visit venues, negotiate contracts and secure date",
+          priority: "high",
+          dueDate: "Week 4",
+          estimatedHours: "8-10 hours"
+        },
+        {
+          title: "Choose Wedding Vendors",
+          description: "Book photographer, caterer, florist, and DJ/band",
+          priority: "medium",
+          dueDate: "Month 2",
+          estimatedHours: "12-15 hours"
+        },
+        {
+          title: "Send Save the Dates",
+          description: "Design and mail save-the-date cards to guests",
+          priority: "medium",
+          dueDate: "Month 3",
+          estimatedHours: "4-5 hours"
+        },
+        {
+          title: "Plan Menu and Tastings",
+          description: "Work with caterer to finalize menu and arrange tastings",
+          priority: "medium",
+          dueDate: "Month 4",
+          estimatedHours: "6-8 hours"
+        }
+      ]
+    };
+  }
+  
+  if (lowerTask.includes('marketing') || lowerTask.includes('campaign')) {
+    return {
+      subtasks: [
+        {
+          title: "Define Target Audience",
+          description: "Research and create detailed buyer personas and demographics",
+          priority: "high",
+          dueDate: "Week 1",
+          estimatedHours: "4-6 hours"
+        },
+        {
+          title: "Set Campaign Goals",
+          description: "Establish clear KPIs, budget, and success metrics",
+          priority: "high",
+          dueDate: "Week 1",
+          estimatedHours: "2-3 hours"
+        },
+        {
+          title: "Create Content Strategy",
+          description: "Plan content themes, messaging, and content calendar",
+          priority: "high",
+          dueDate: "Week 2",
+          estimatedHours: "6-8 hours"
+        },
+        {
+          title: "Design Marketing Materials",
+          description: "Create ads, social media graphics, and promotional content",
+          priority: "medium",
+          dueDate: "Week 3",
+          estimatedHours: "8-10 hours"
+        },
+        {
+          title: "Set Up Analytics",
+          description: "Configure tracking tools and measurement systems",
+          priority: "medium",
+          dueDate: "Week 2",
+          estimatedHours: "3-4 hours"
+        },
+        {
+          title: "Launch Campaign",
+          description: "Deploy across all channels and monitor initial performance",
+          priority: "low",
+          dueDate: "Week 4",
+          estimatedHours: "4-5 hours"
+        }
+      ]
+    };
+  }
+  
+  // Generic fallback breakdown
+  return {
+    subtasks: [
+      {
+        title: "Research and Planning",
+        description: "Gather information and create a detailed action plan",
+        priority: "high",
+        dueDate: "Week 1",
+        estimatedHours: "4-6 hours"
+      },
+      {
+        title: "Define Requirements",
+        description: "List specific needs, constraints, and success criteria",
+        priority: "high",
+        dueDate: "Week 1",
+        estimatedHours: "2-3 hours"
+      },
+      {
+        title: "Create Timeline",
+        description: "Establish milestones and deadlines for each phase",
+        priority: "medium",
+        dueDate: "Week 2",
+        estimatedHours: "2-3 hours"
+      },
+      {
+        title: "Execute Phase 1",
+        description: "Begin implementation of the first major milestone",
+        priority: "medium",
+        dueDate: "Week 3",
+        estimatedHours: "8-12 hours"
+      },
+      {
+        title: "Review and Adjust",
+        description: "Evaluate progress and make necessary adjustments",
+        priority: "low",
+        dueDate: "Week 4",
+        estimatedHours: "2-4 hours"
+      }
+    ]
+  };
+}
+
 export async function generateTaskBreakdown(
   taskDescription: string,
   category?: string,
@@ -82,6 +226,13 @@ Respond with JSON in this exact format:
     return result as AITaskBreakdown;
   } catch (error) {
     console.error("Error generating task breakdown:", error);
+    
+    // If it's a quota error, provide a demo breakdown so user can still test the app
+    if (error.message && error.message.includes('quota')) {
+      console.log("Using demo task breakdown due to OpenAI quota limit");
+      return getDemoTaskBreakdown(taskDescription);
+    }
+    
     throw new Error("Failed to generate task breakdown: " + (error as Error).message);
   }
 }
