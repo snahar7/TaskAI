@@ -2,15 +2,16 @@ import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import type { Task, Subtask, TaskWithSubtasks } from '@shared/schema';
 
-// Initialize Firebase Admin only if credentials are properly configured
+// Initialize Firebase Admin with project configuration
 let db: any = null;
 
 if (!getApps().length) {
   try {
+    // Try to use service account if provided
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_ADMIN_KEY;
-    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const projectId = process.env.FIREBASE_PROJECT_ID || 'trak-1c51e';
     
-    if (serviceAccountKey && projectId) {
+    if (serviceAccountKey) {
       const serviceAccount = JSON.parse(serviceAccountKey);
       
       if (serviceAccount.project_id || serviceAccount.projectId) {
@@ -19,15 +20,16 @@ if (!getApps().length) {
           projectId: projectId,
         });
         db = getFirestore();
-        console.log('Firebase initialized successfully');
+        console.log('Firebase initialized with service account');
       } else {
         console.log('Firebase service account missing project_id, using fallback storage');
       }
     } else {
-      console.log('Firebase credentials not provided, using fallback storage');
+      // Initialize with project ID for basic operations
+      console.log('Firebase Admin not configured, using database storage');
     }
   } catch (error) {
-    console.log('Firebase initialization failed, using fallback storage:', error.message);
+    console.log('Firebase initialization failed, using database storage:', (error as Error).message);
   }
 }
 

@@ -31,11 +31,11 @@ The application follows a full-stack architecture with clear separation between 
 - **Storage Abstraction**: Interface-based storage system supporting both in-memory and database storage
 
 ### Data Storage Solutions
-- **Primary Database**: PostgreSQL via Neon database service
+- **Primary Database**: PostgreSQL via Neon database service (active)
 - **ORM**: Drizzle ORM for type-safe database operations
 - **Schema Management**: Drizzle Kit for migrations and schema synchronization
-- **Fallback Storage**: In-memory storage implementation for development
-- **Optional Integration**: Firebase Firestore for cloud-based storage
+- **Firebase Integration**: Configured with project credentials for future real-time features
+- **Client-side Firebase**: Web SDK configured for analytics and potential real-time updates
 
 ### Authentication and Authorization
 Currently, the application includes a basic user schema but authentication mechanisms are not fully implemented. The system is designed to support user-based task management once authentication is added.

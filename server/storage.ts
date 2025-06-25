@@ -1,4 +1,6 @@
 import { users, tasks, subtasks, type User, type InsertUser, type Task, type InsertTask, type Subtask, type InsertSubtask, type TaskWithSubtasks } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -116,4 +118,84 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const [task] = await db
+      .insert(tasks)
+      .values({
+        ...insertTask,
+        category: insertTask.category || null,
+        targetDate: insertTask.targetDate || null,
+      })
+      .returning();
+    return task;
+  }
+
+  async getAllTasks(): Promise<Task[]> {
+    return await db.select().from(tasks).orderBy(tasks.createdAt);
+  }
+
+  async getTask(id: number): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
+  }
+
+  async getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined> {
+    const task = await this.getTask(id);
+    if (!task) return undefined;
+
+    const taskSubtasks = await this.getSubtasksByTaskId(id);
+    return {
+      ...task,
+      subtasks: taskSubtasks
+    };
+  }
+
+  async createSubtask(insertSubtask: InsertSubtask): Promise<Subtask> {
+    const [subtask] = await db
+      .insert(subtasks)
+      .values({
+        ...insertSubtask,
+        description: insertSubtask.description || null,
+        dueDate: insertSubtask.dueDate || null,
+        estimatedHours: insertSubtask.estimatedHours || null,
+      })
+      .returning();
+    return subtask;
+  }
+
+  async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
+    return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId)).orderBy(subtasks.createdAt);
+  }
+
+  async updateSubtaskCompletion(id: number, completed: boolean): Promise<void> {
+    await db
+      .update(subtasks)
+      .set({
+        completed,
+        completedAt: completed ? new Date() : null,
+      })
+      .where(eq(subtasks.id, id));
+  }
+}
+
+export const storage = new DatabaseStorage();
