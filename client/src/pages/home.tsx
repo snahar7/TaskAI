@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { TaskInputForm } from "@/components/task-input-form";
+import { TaskApproval } from "@/components/task-approval";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,13 @@ import type { TaskWithSubtasks } from "@shared/schema";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const [pendingTask, setPendingTask] = useState<{
+    title: string;
+    description: string;
+    category?: string;
+    targetDate?: string;
+    subtasks: any[];
+  } | null>(null);
 
   // Fetch recent tasks
   const { data: recentTasks = [] } = useQuery<TaskWithSubtasks[]>({
@@ -18,6 +26,7 @@ export default function Home() {
     enabled: true,
   });
 
+  // Generate task breakdown for preview
   const generateTaskMutation = useMutation({
     mutationFn: async (taskData: {
       title: string;
@@ -29,7 +38,25 @@ export default function Home() {
       return response.json();
     },
     onSuccess: (data: TaskWithSubtasks) => {
+      // Show approval modal instead of directly creating
+      setPendingTask({
+        title: data.title,
+        description: data.description,
+        category: data.category || undefined,
+        targetDate: data.targetDate || undefined,
+        subtasks: data.subtasks || []
+      });
+    },
+  });
+
+  // Create approved task
+  const createTaskMutation = useMutation({
+    mutationFn: async (taskData: any) => {
+      return apiRequest('POST', '/api/tasks/generate', taskData);
+    },
+    onSuccess: (data: TaskWithSubtasks) => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setPendingTask(null);
       setLocation(`/tasks/${data.id}`);
     },
   });
@@ -41,6 +68,16 @@ export default function Home() {
     targetDate?: string;
   }) => {
     generateTaskMutation.mutate(taskData);
+  };
+
+  const handleApproveTask = () => {
+    if (pendingTask) {
+      createTaskMutation.mutate(pendingTask);
+    }
+  };
+
+  const handleRejectTask = () => {
+    setPendingTask(null);
   };
 
   const getStatusColor = (subtasks: any[]) => {
@@ -78,11 +115,22 @@ export default function Home() {
 
       {/* Task Input Form */}
       <div className="mb-8">
-        <TaskInputForm 
-          onSubmit={handleTaskSubmit}
-          isLoading={generateTaskMutation.isPending}
-          error={generateTaskMutation.error?.message}
-        />
+        {pendingTask ? (
+          <TaskApproval
+            title={pendingTask.title}
+            description={pendingTask.description}
+            subtasks={pendingTask.subtasks}
+            onApprove={handleApproveTask}
+            onReject={handleRejectTask}
+            isLoading={createTaskMutation.isPending}
+          />
+        ) : (
+          <TaskInputForm 
+            onSubmit={handleTaskSubmit}
+            isLoading={generateTaskMutation.isPending}
+            error={generateTaskMutation.error?.message}
+          />
+        )}
       </div>
 
       {/* Feature Highlights */}

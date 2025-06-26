@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Clock, User, CheckCircle } from "lucide-react";
+import { Calendar, Clock, User, CheckCircle, Plus } from "lucide-react";
 import type { Subtask } from "@shared/schema";
 
 interface SubtaskCardProps {
@@ -116,32 +116,49 @@ export function SubtaskCard({ subtask, onToggleComplete, isLast = false }: Subta
               </p>
             )}
             
-            <div className="flex items-center space-x-4 text-xs text-slate-500">
-              {subtask.completed && subtask.completedAt ? (
-                <span className="flex items-center text-green-600">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  {formatCompletedDate(subtask.completedAt)}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4 text-xs text-slate-500">
+                {subtask.completed && subtask.completedAt ? (
+                  <span className="flex items-center text-green-600">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    {formatCompletedDate(subtask.completedAt)}
+                  </span>
+                ) : (
+                  <>
+                    {subtask.dueDate && (
+                      <span className="flex items-center">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Due: {formatDate(subtask.dueDate)}
+                      </span>
+                    )}
+                    {subtask.estimatedHours && (
+                      <span className="flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        Est: {subtask.estimatedHours}h
+                      </span>
+                    )}
+                  </>
+                )}
+                <span className="flex items-center">
+                  <User className="w-3 h-3 mr-1" />
+                  Assigned to you
                 </span>
-              ) : (
-                <>
-                  {subtask.dueDate && (
-                    <span className="flex items-center">
-                      <Calendar className="w-3 h-3 mr-1" />
-                      Due: {formatDate(subtask.dueDate)}
-                    </span>
-                  )}
-                  {subtask.estimatedHours && (
-                    <span className="flex items-center">
-                      <Clock className="w-3 h-3 mr-1" />
-                      Est: {subtask.estimatedHours}
-                    </span>
-                  )}
-                </>
+              </div>
+              
+              {!subtask.completed && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2 text-xs"
+                  onClick={() => {
+                    // TODO: Implement subtask subdivision
+                    console.log('Subdivide task:', subtask.title);
+                  }}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Break Down
+                </Button>
               )}
-              <span className="flex items-center">
-                <User className="w-3 h-3 mr-1" />
-                Assigned to you
-              </span>
             </div>
           </div>
         </div>

@@ -10,7 +10,7 @@ export interface AISubtask {
   description: string;
   priority: 'high' | 'medium' | 'low';
   dueDate?: string;
-  estimatedHours?: string;
+  estimatedHours?: number;
 }
 
 export interface AITaskBreakdown {
@@ -18,88 +18,106 @@ export interface AITaskBreakdown {
 }
 
 // Demo task breakdowns for testing when OpenAI quota is exceeded
-function getDemoTaskBreakdown(taskDescription: string): AITaskBreakdown {
+function generateRealisticDates(targetDate: string | null, numSubtasks: number) {
+  const today = new Date();
+  const target = targetDate ? new Date(targetDate) : new Date(today.getTime() + (60 * 24 * 60 * 60 * 1000)); // 60 days from now if no target
+  
+  const totalDays = Math.max(7, Math.floor((target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)));
+  const dates: string[] = [];
+  
+  for (let i = 0; i < numSubtasks; i++) {
+    const dayOffset = Math.floor((totalDays / numSubtasks) * (i + 1));
+    const date = new Date(today.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
+    dates.push(date.toISOString().split('T')[0]);
+  }
+  
+  return dates;
+}
+
+function getDemoTaskBreakdown(taskDescription: string, targetDate: string | null = null): AITaskBreakdown {
   const lowerTask = taskDescription.toLowerCase();
   
   if (lowerTask.includes('wedding')) {
+    const dates = generateRealisticDates(targetDate, 6);
     return {
       subtasks: [
         {
           title: "Set Wedding Budget",
           description: "Determine total budget and allocate funds for venue, catering, photography, etc.",
           priority: "high",
-          dueDate: "Week 1",
-          estimatedHours: "3-4 hours"
+          dueDate: dates[0],
+          estimatedHours: 4
         },
         {
           title: "Create Guest List",
           description: "Compile list of family and friends, determine final headcount",
           priority: "high",
-          dueDate: "Week 2",
-          estimatedHours: "2-3 hours"
+          dueDate: dates[1],
+          estimatedHours: 3
         },
         {
           title: "Book Wedding Venue",
           description: "Research and visit venues, negotiate contracts and secure date",
           priority: "high",
-          dueDate: "Week 4",
-          estimatedHours: "8-10 hours"
+          dueDate: dates[2],
+          estimatedHours: 10
         },
         {
           title: "Choose Wedding Vendors",
           description: "Book photographer, caterer, florist, and DJ/band",
           priority: "medium",
-          dueDate: "Month 2",
-          estimatedHours: "12-15 hours"
+          dueDate: dates[3],
+          estimatedHours: 15
         },
         {
           title: "Send Save the Dates",
           description: "Design and mail save-the-date cards to guests",
           priority: "medium",
-          dueDate: "Month 3",
-          estimatedHours: "4-5 hours"
+          dueDate: dates[4],
+          estimatedHours: 5
         },
         {
           title: "Plan Menu and Tastings",
           description: "Work with caterer to finalize menu and arrange tastings",
           priority: "medium",
-          dueDate: "Month 4",
-          estimatedHours: "6-8 hours"
+          dueDate: dates[5],
+          estimatedHours: 8
         }
       ]
     };
   }
   
   if (lowerTask.includes('marketing') || lowerTask.includes('campaign')) {
+    const dates = generateRealisticDates(targetDate, 5);
     return {
       subtasks: [
         {
           title: "Define Target Audience",
           description: "Research and create detailed buyer personas and demographics",
           priority: "high",
-          dueDate: "Week 1",
-          estimatedHours: "4-6 hours"
+          dueDate: dates[0],
+          estimatedHours: 5
         },
         {
           title: "Set Campaign Goals",
           description: "Establish clear KPIs, budget, and success metrics",
           priority: "high",
-          dueDate: "Week 1",
-          estimatedHours: "2-3 hours"
+          dueDate: dates[1],
+          estimatedHours: 3
         },
         {
           title: "Create Content Strategy",
           description: "Plan content themes, messaging, and content calendar",
           priority: "high",
-          dueDate: "Week 2",
-          estimatedHours: "6-8 hours"
+          dueDate: dates[2],
+          estimatedHours: 7
         },
         {
           title: "Design Marketing Materials",
           description: "Create ads, social media graphics, and promotional content",
           priority: "medium",
-          dueDate: "Week 3",
-          estimatedHours: "8-10 hours"
+          dueDate: dates[3],
+          estimatedHours: 9
         },
         {
           title: "Set Up Analytics",
@@ -230,7 +248,7 @@ Respond with JSON in this exact format:
     // If it's a quota error, provide a demo breakdown so user can still test the app
     if (error.message && error.message.includes('quota')) {
       console.log("Using demo task breakdown due to OpenAI quota limit");
-      return getDemoTaskBreakdown(taskDescription);
+      return getDemoTaskBreakdown(taskDescription, targetDate);
     }
     
     throw new Error("Failed to generate task breakdown: " + (error as Error).message);

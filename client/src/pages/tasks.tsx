@@ -2,6 +2,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { SubtaskCard } from "@/components/subtask-card";
+import { CalendarTimeline } from "@/components/calendar-timeline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, Tag, Target, Plus, RefreshCw, Share, ArrowLeft, Filter } from "lucide-react";
 import type { TaskWithSubtasks } from "@shared/schema";
 import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Tasks() {
   const { id } = useParams();
@@ -206,29 +208,44 @@ export default function Tasks() {
           </CardHeader>
           
           <CardContent className="p-0">
-            {!task.subtasks || task.subtasks.length === 0 ? (
-              <div className="p-6 text-center text-slate-500">
-                No subtasks found for this task.
-              </div>
-            ) : filteredSubtasks.length === 0 ? (
-              <div className="p-6 text-center text-slate-500">
-                No subtasks match the current filter. ({task.subtasks.length} total subtasks available)
-              </div>
-            ) : (
-              <div>
-                <div className="p-3 text-sm text-slate-600 border-b">
-                  Showing {filteredSubtasks.length} of {task.subtasks.length} subtasks
+            <Tabs defaultValue="subtasks" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mx-4 mt-4 w-auto">
+                <TabsTrigger value="subtasks">Subtasks</TabsTrigger>
+                <TabsTrigger value="timeline">Calendar Timeline</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="subtasks" className="mt-0">
+                {!task.subtasks || task.subtasks.length === 0 ? (
+                  <div className="p-6 text-center text-slate-500">
+                    No subtasks found for this task.
+                  </div>
+                ) : filteredSubtasks.length === 0 ? (
+                  <div className="p-6 text-center text-slate-500">
+                    No subtasks match the current filter. ({task.subtasks.length} total subtasks available)
+                  </div>
+                ) : (
+                  <div>
+                    <div className="p-3 text-sm text-slate-600 border-b">
+                      Showing {filteredSubtasks.length} of {task.subtasks.length} subtasks
+                    </div>
+                    {filteredSubtasks.map((subtask, index) => (
+                      <SubtaskCard
+                        key={subtask.id}
+                        subtask={subtask}
+                        onToggleComplete={handleSubtaskToggle}
+                        isLast={index === filteredSubtasks.length - 1}
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="timeline" className="mt-0">
+                <div className="p-4">
+                  <CalendarTimeline subtasks={task.subtasks || []} />
                 </div>
-                {filteredSubtasks.map((subtask, index) => (
-                  <SubtaskCard
-                    key={subtask.id}
-                    subtask={subtask}
-                    onToggleComplete={handleSubtaskToggle}
-                    isLast={index === filteredSubtasks.length - 1}
-                  />
-                ))}
-              </div>
-            )}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

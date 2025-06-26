@@ -92,6 +92,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 26, 2025: Enhanced task manager with approval workflow and calendar features
+  - Implemented task approval workflow - users can review AI breakdowns before adding to calendar
+  - Added calendar timeline view with realistic due dates based on user's target completion date
+  - Changed estimated hours to numeric format with proper time calculations
+  - Added "Break Down" button for further AI subdivision of complex subtasks
+  - Created tabs interface: Subtasks view and Calendar Timeline view
+  - Updated AI service to generate realistic dates distributed from today to target date
+
 - June 26, 2025: Fixed task detail view routing issue
   - Resolved bug where all task details showed first task's subtasks
   - Fixed React Query caching and API endpoint routing
