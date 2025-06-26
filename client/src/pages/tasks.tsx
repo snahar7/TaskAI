@@ -16,10 +16,16 @@ export default function Tasks() {
   const [filter, setFilter] = useState<string>("all");
 
   // If we have an ID, fetch specific task, otherwise fetch all tasks
-  const { data: taskData, isLoading } = useQuery<TaskWithSubtasks | TaskWithSubtasks[]>({
+  const { data: taskData, isLoading, error } = useQuery<TaskWithSubtasks | TaskWithSubtasks[]>({
     queryKey: id ? ['/api/tasks', id] : ['/api/tasks'],
     enabled: true,
   });
+
+  // Debug logging for all cases
+  console.log('Tasks page - ID:', id);
+  console.log('Tasks page - isLoading:', isLoading);
+  console.log('Tasks page - error:', error);
+  console.log('Tasks page - taskData:', taskData);
 
   const updateSubtaskMutation = useMutation({
     mutationFn: async ({ subtaskId, completed }: { subtaskId: string | number, completed: boolean }) => {
@@ -55,14 +61,22 @@ export default function Tasks() {
   }
 
   // Handle single task view
-  if (id && taskData && !Array.isArray(taskData)) {
-    const task = taskData as TaskWithSubtasks;
+  if (id && taskData) {
+    // API returns array even for single task, so get first item
+    const task = Array.isArray(taskData) ? taskData[0] : taskData as TaskWithSubtasks;
     console.log('=== TASK DEBUG ===');
     console.log('Task ID:', id);
     console.log('Task data:', task);
     console.log('Subtasks array:', task.subtasks);
     console.log('Subtasks length:', task.subtasks?.length);
     console.log('Is Array?', Array.isArray(task.subtasks));
+    
+    // Alert to make sure we can see this
+    if (!task.subtasks || task.subtasks.length === 0) {
+      console.error('NO SUBTASKS FOUND!');
+    } else {
+      console.log('✓ Found', task.subtasks.length, 'subtasks');
+    }
     
     const completedSubtasks = task.subtasks?.filter(s => s.completed).length || 0;
     const progress = task.subtasks?.length > 0 ? Math.round((completedSubtasks / task.subtasks.length) * 100) : 0;
