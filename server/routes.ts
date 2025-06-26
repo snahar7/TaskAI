@@ -280,6 +280,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create individual hierarchy items
+  app.post("/api/hierarchy/create", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { level, title, description, targetDate, estimatedHours, parentId } = req.body;
+
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      let result;
+      const baseData = {
+        title,
+        description: description || null,
+        urgency: "medium" as const,
+        approved: true
+      };
+
+      switch (level) {
+        case 'goal':
+          result = await storage.createGoal({
+            ...baseData,
+            targetDate: targetDate || null,
+            estimatedDuration: estimatedHours ? `${estimatedHours} hours` : null
+          });
+          break;
+
+        case 'project':
+          if (!parentId) {
+            return res.status(400).json({ error: "Parent goal ID is required for projects" });
+          }
+          result = await storage.createProject({
+            ...baseData,
+            goalId: parentId,
+            targetDate: targetDate || null,
+            estimatedDuration: estimatedHours ? `${estimatedHours} hours` : null
+          });
+          break;
+
+        case 'task':
+          if (!parentId) {
+            return res.status(400).json({ error: "Parent project ID is required for tasks" });
+          }
+          result = await storage.createTask({
+            ...baseData,
+            projectId: parentId,
+            completed: false,
+            completedAt: null,
+            dueDate: targetDate || null,
+            estimatedHours: estimatedHours || null
+          });
+          break;
+
+        case 'subtask':
+          if (!parentId) {
+            return res.status(400).json({ error: "Parent task ID is required for subtasks" });
+          }
+          result = await storage.createSubtask({
+            ...baseData,
+            taskId: parentId,
+            completed: false,
+            completedAt: null,
+            dueDate: targetDate || null,
+            estimatedHours: estimatedHours || null,
+            attachments: null
+          });
+          break;
+
+        default:
+          return res.status(400).json({ error: "Invalid hierarchy level" });
+      }
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get hierarchy data for parent selection
+  app.get("/api/goals/hierarchy", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const goals = await storage.getAllGoals();
+      const hierarchyData = [];
+
+      for (const goal of goals) {
+        const projects = await storage.getProjectsByGoalId(goal.id);
+        const projectsWithTasks = [];
+
+        for (const project of projects) {
+          const tasks = await storage.getTasksByProjectId(project.id);
+          projectsWithTasks.push({
+            ...project,
+            tasks
+          });
+        }
+
+        hierarchyData.push({
+          ...goal,
+          projects: projectsWithTasks
+        });
+      }
+
+      res.json(hierarchyData);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Push schema changes to database
   app.post("/api/db/push", async (req: Request, res: Response, next: NextFunction) => {
     try {

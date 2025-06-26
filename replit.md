@@ -92,11 +92,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- June 26, 2025: Complete rebuild with 4-level hierarchy (Goal → Project → Task → Sub-task)
+- June 26, 2025: Complete rebuild with 4-level hierarchy + hierarchical input categorization
   - Restructured entire application architecture from 2-level to 4-level hierarchy
   - Created new database schema: goals, projects, tasks, subtasks, pending_breakdowns tables
   - Built comprehensive OpenAI integration for structured hierarchy generation
   - Implemented approval workflow: input goal → AI breakdown → review → approve/reject → create full hierarchy
+  - Added hierarchical input form with level selection (Goal/Project/Task/Subtask)
+  - Enabled proper parent linking: projects link to goals, tasks to projects, subtasks to tasks
+  - Created tabbed interface: "AI Goal Breakdown" vs "Add Specific Item"
+  - Built parent selection dropdowns showing existing goals/projects/tasks for proper hierarchy linking
+  - Added individual item creation API endpoints for manual hierarchy building
   - Created collapsible nested UI components for goal/project/task/subtask display
   - Added visual progress tracking at each hierarchy level
   - Enabled completion tracking and editing capabilities for all levels

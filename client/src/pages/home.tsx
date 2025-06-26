@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoalInputForm } from "@/components/goal-input-form";
+import { HierarchicalInputForm } from "@/components/hierarchical-input-form";
 import { GoalBreakdownApproval } from "@/components/goal-breakdown-approval";
 import { GoalHierarchyDisplay } from "@/components/goal-hierarchy-display";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Target, ListTodo } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Target, ListTodo, Sparkles, FolderPlus } from "lucide-react";
 import { AIBreakdown, GoalWithProjects } from "@shared/schema";
 
 interface PendingBreakdownResponse {
@@ -35,7 +37,7 @@ export default function Home() {
     enabled: !!selectedGoalId && currentStep === 'display'
   });
 
-  // Create goal breakdown mutation
+  // Create goal breakdown mutation (AI-powered)
   const createBreakdownMutation = useMutation({
     mutationFn: async (data: { goalInput: string; targetDate?: string }) => {
       const response = await apiRequest('/api/goals/breakdown', {
@@ -139,8 +141,44 @@ export default function Home() {
     },
   });
 
+  // Create individual hierarchy item mutation
+  const createHierarchyMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('/api/hierarchy/create', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/goals/hierarchy'] });
+      
+      if (variables.level === 'goal') {
+        setSelectedGoalId(data.id);
+        setCurrentStep('display');
+      }
+      
+      toast({
+        title: `${variables.level.charAt(0).toUpperCase() + variables.level.slice(1)} Created`,
+        description: `Successfully created ${variables.level}: ${data.title}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create item",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleGoalSubmit = (data: { goalInput: string; targetDate?: string }) => {
     createBreakdownMutation.mutate(data);
+  };
+
+  const handleHierarchySubmit = (data: any) => {
+    createHierarchyMutation.mutate(data);
   };
 
   const handleApprove = (pendingId: number) => {
@@ -192,14 +230,37 @@ export default function Home() {
           <p className="text-gray-600">AI-powered task management with intelligent goal breakdown</p>
         </div>
 
-        {/* Step 1: Goal Input */}
+        {/* Step 1: Input Options */}
         {currentStep === 'input' && (
           <div className="space-y-6">
-            <GoalInputForm
-              onSubmit={handleGoalSubmit}
-              isLoading={createBreakdownMutation.isPending}
-              error={createBreakdownMutation.error?.message}
-            />
+            <Tabs defaultValue="ai-goal" className="w-full max-w-2xl mx-auto">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="ai-goal" className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  AI Goal Breakdown
+                </TabsTrigger>
+                <TabsTrigger value="manual" className="flex items-center gap-2">
+                  <FolderPlus className="w-4 h-4" />
+                  Add Specific Item
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="ai-goal" className="mt-6">
+                <GoalInputForm
+                  onSubmit={handleGoalSubmit}
+                  isLoading={createBreakdownMutation.isPending}
+                  error={createBreakdownMutation.error?.message}
+                />
+              </TabsContent>
+              
+              <TabsContent value="manual" className="mt-6">
+                <HierarchicalInputForm
+                  onSubmit={handleHierarchySubmit}
+                  isLoading={createHierarchyMutation.isPending}
+                  error={createHierarchyMutation.error?.message}
+                />
+              </TabsContent>
+            </Tabs>
 
             {/* Show existing goals if any */}
             {!goalsLoading && goals.length > 0 && (
@@ -212,7 +273,7 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {goals.map((goal: any) => (
+                    {(goals as any[]).map((goal: any) => (
                       <div key={goal.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
                         <div>
                           <h4 className="font-medium">{goal.title}</h4>
