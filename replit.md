@@ -92,12 +92,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 26, 2025: Fixed task detail view routing issue
+  - Resolved bug where all task details showed first task's subtasks
+  - Fixed React Query caching and API endpoint routing
+  - Task detail pages now correctly display individual task subtasks
+  - Confirmed full functionality: task creation, AI breakdown, progress tracking, filtering
+
 - June 25, 2025: Built complete AI-powered task manager
   - Implemented OpenAI GPT-4o integration for task breakdown
   - Created React frontend with task input form and viewing pages
   - Set up Express backend with REST API
   - Added fallback demo system for OpenAI quota limits
-  - Configured Firebase integration (optional) with memory storage fallback
+  - Configured Firebase integration (optional) with database storage active
 
 ## Changelog
 
