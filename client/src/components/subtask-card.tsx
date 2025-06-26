@@ -20,13 +20,14 @@ export function SubtaskCard({ subtask, onToggleComplete, isLast = false }: Subta
 
   const subdivideSubtaskMutation = useMutation({
     mutationFn: async (subtaskId: number) => {
-      return apiRequest('POST', `/api/subtasks/${subtaskId}/subdivide`, {});
+      const response = await apiRequest('POST', `/api/subtasks/${subtaskId}/subdivide`, {});
+      return response.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       toast({
         title: "Subtask subdivided",
-        description: `Created ${data.newSubtasks.length} smaller tasks for "${subtask.title}"`
+        description: `Created ${data?.newSubtasks?.length || 0} smaller tasks for "${subtask.title}"`
       });
     },
     onError: (error: any) => {
