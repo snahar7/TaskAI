@@ -178,12 +178,7 @@ export class DatabaseStorage implements IStorage {
   async createSubtask(insertSubtask: InsertSubtask): Promise<Subtask> {
     const [subtask] = await db
       .insert(subtasks)
-      .values({
-        ...insertSubtask,
-        description: insertSubtask.description || null,
-        dueDate: insertSubtask.dueDate || null,
-        estimatedHours: insertSubtask.estimatedHours || null,
-      })
+      .values(insertSubtask)
       .returning();
     return subtask;
   }

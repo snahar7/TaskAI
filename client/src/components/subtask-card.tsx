@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Clock, User, CheckCircle, Plus } from "lucide-react";
+import { Calendar, Clock, User, CheckCircle, Plus, ChevronRight, ChevronDown } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -12,11 +12,16 @@ interface SubtaskCardProps {
   subtask: Subtask;
   onToggleComplete: (id: string | number, completed: boolean) => void;
   isLast?: boolean;
+  isChild?: boolean;
 }
 
-export function SubtaskCard({ subtask, onToggleComplete, isLast = false }: SubtaskCardProps) {
+export function SubtaskCard({ subtask, onToggleComplete, isLast = false, isChild = false }: SubtaskCardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
+
+  // Check if this is a subdivided task based on the arrow notation in title
+  const isSubdivided = subtask.title.includes(' → ');
+  const shouldIndent = isChild || isSubdivided;
 
   const subdivideSubtaskMutation = useMutation({
     mutationFn: async (subtaskId: number) => {
@@ -116,8 +121,20 @@ export function SubtaskCard({ subtask, onToggleComplete, isLast = false }: Subta
 
   return (
     <div className={`border-b border-slate-100 ${isLast ? 'border-b-0' : ''}`}>
-      <div className={`p-6 hover:bg-slate-50 transition-colors ${subtask.completed ? 'opacity-75' : ''}`}>
+      <div 
+        className={`p-6 hover:bg-slate-50 transition-colors ${subtask.completed ? 'opacity-75' : ''}`}
+        style={{ 
+          marginLeft: shouldIndent ? '32px' : '0px',
+          borderLeft: shouldIndent ? '3px solid #e2e8f0' : 'none',
+          backgroundColor: shouldIndent ? '#f8fafc' : 'transparent'
+        }}
+      >
         <div className="flex items-start space-x-4">
+          {shouldIndent && (
+            <div className="flex items-center mr-2">
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+            </div>
+          )}
           <div className="mt-1">
             <Checkbox
               checked={subtask.completed}
