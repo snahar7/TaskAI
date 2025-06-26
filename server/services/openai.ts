@@ -123,57 +123,58 @@ function getDemoTaskBreakdown(taskDescription: string, targetDate: string | null
           title: "Set Up Analytics",
           description: "Configure tracking tools and measurement systems",
           priority: "medium",
-          dueDate: "Week 2",
-          estimatedHours: "3-4 hours"
+          dueDate: dates[1],
+          estimatedHours: 4
         },
         {
           title: "Launch Campaign",
           description: "Deploy across all channels and monitor initial performance",
           priority: "low",
-          dueDate: "Week 4",
-          estimatedHours: "4-5 hours"
+          dueDate: dates[3],
+          estimatedHours: 5
         }
       ]
     };
   }
   
   // Generic fallback breakdown
+  const fallbackDates = generateRealisticDates(targetDate, 5);
   return {
     subtasks: [
       {
         title: "Research and Planning",
         description: "Gather information and create a detailed action plan",
         priority: "high",
-        dueDate: "Week 1",
-        estimatedHours: "4-6 hours"
+        dueDate: fallbackDates[0],
+        estimatedHours: 5
       },
       {
         title: "Define Requirements",
         description: "List specific needs, constraints, and success criteria",
         priority: "high",
-        dueDate: "Week 1",
-        estimatedHours: "2-3 hours"
+        dueDate: fallbackDates[0],
+        estimatedHours: 3
       },
       {
         title: "Create Timeline",
         description: "Establish milestones and deadlines for each phase",
         priority: "medium",
-        dueDate: "Week 2",
-        estimatedHours: "2-3 hours"
+        dueDate: fallbackDates[1],
+        estimatedHours: 2
       },
       {
         title: "Execute Phase 1",
         description: "Begin implementation of the first major milestone",
         priority: "medium",
-        dueDate: "Week 3",
-        estimatedHours: "8-12 hours"
+        dueDate: fallbackDates[2],
+        estimatedHours: 10
       },
       {
         title: "Review and Adjust",
         description: "Evaluate progress and make necessary adjustments",
         priority: "low",
-        dueDate: "Week 4",
-        estimatedHours: "2-4 hours"
+        dueDate: fallbackDates[3],
+        estimatedHours: 3
       }
     ]
   };
@@ -246,11 +247,11 @@ Respond with JSON in this exact format:
     console.error("Error generating task breakdown:", error);
     
     // If it's a quota error, provide a demo breakdown so user can still test the app
-    if (error.message && error.message.includes('quota')) {
+    if (error instanceof Error && error.message.includes('quota')) {
       console.log("Using demo task breakdown due to OpenAI quota limit");
       return getDemoTaskBreakdown(taskDescription, targetDate);
     }
     
-    throw new Error("Failed to generate task breakdown: " + (error as Error).message);
+    throw new Error("Failed to generate task breakdown: " + (error instanceof Error ? error.message : 'Unknown error'));
   }
 }

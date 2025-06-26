@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Clock, User, CheckCircle, Plus } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Subtask } from "@shared/schema";
 
 interface SubtaskCardProps {
@@ -13,6 +16,27 @@ interface SubtaskCardProps {
 
 export function SubtaskCard({ subtask, onToggleComplete, isLast = false }: SubtaskCardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const { toast } = useToast();
+
+  const subdivideSubtaskMutation = useMutation({
+    mutationFn: async (subtaskId: number) => {
+      return apiRequest('POST', `/api/subtasks/${subtaskId}/subdivide`, {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      toast({
+        title: "Subtask subdivided",
+        description: `Created ${data.newSubtasks.length} smaller tasks for "${subtask.title}"`
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to subdivide subtask",
+        variant: "destructive"
+      });
+    }
+  });
 
   const handleToggle = async (checked: boolean) => {
     setIsUpdating(true);
@@ -150,13 +174,11 @@ export function SubtaskCard({ subtask, onToggleComplete, isLast = false }: Subta
                   variant="ghost" 
                   size="sm" 
                   className="h-6 px-2 text-xs"
-                  onClick={() => {
-                    // TODO: Implement subtask subdivision
-                    console.log('Subdivide task:', subtask.title);
-                  }}
+                  onClick={() => subdivideSubtaskMutation.mutate(subtask.id)}
+                  disabled={subdivideSubtaskMutation.isPending}
                 >
                   <Plus className="w-3 h-3 mr-1" />
-                  Break Down
+                  {subdivideSubtaskMutation.isPending ? "Breaking Down..." : "Break Down"}
                 </Button>
               )}
             </div>

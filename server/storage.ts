@@ -13,6 +13,7 @@ export interface IStorage {
   getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined>;
   
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
+  getSubtask(id: number): Promise<Subtask | undefined>;
   getSubtasksByTaskId(taskId: number): Promise<Subtask[]>;
   updateSubtaskCompletion(id: number, completed: boolean): Promise<void>;
 }
@@ -102,6 +103,10 @@ export class MemStorage implements IStorage {
     return subtask;
   }
 
+  async getSubtask(id: number): Promise<Subtask | undefined> {
+    return this.subtasks.get(id);
+  }
+
   async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
     return Array.from(this.subtasks.values())
       .filter(subtask => subtask.taskId === taskId)
@@ -181,6 +186,11 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return subtask;
+  }
+
+  async getSubtask(id: number): Promise<Subtask | undefined> {
+    const [subtask] = await db.select().from(subtasks).where(eq(subtasks.id, id));
+    return subtask || undefined;
   }
 
   async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {

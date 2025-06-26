@@ -215,6 +215,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Subdivide a subtask into smaller tasks
+  app.post("/api/subtasks/:id/subdivide", async (req, res) => {
+    try {
+      const subtaskId = parseInt(req.params.id);
+      
+      if (isNaN(subtaskId)) {
+        return res.status(400).json({ message: "Invalid subtask ID" });
+      }
+
+      // Get the original subtask
+      const originalSubtask = await storage.getSubtask(subtaskId);
+      if (!originalSubtask) {
+        return res.status(404).json({ message: "Subtask not found" });
+      }
+
+      // Get the parent task for context
+      const parentTask = await storage.getTask(originalSubtask.taskId);
+      if (!parentTask) {
+        return res.status(404).json({ message: "Parent task not found" });
+      }
+
+      // Generate sub-breakdown using AI
+      const contextualDescription = `Break down this subtask from the larger project "${parentTask.title}":
+
+Subtask: ${originalSubtask.title}
+Description: ${originalSubtask.description || 'Complete this specific part of the project'}
+
+Create 3-5 smaller, specific action items that together complete this subtask. Each should be:
+- A clear, actionable step that can be completed in 30 minutes to 2 hours
+- Specific enough to know exactly what to do
+- Logically ordered from first to last step`;
+
+      const aiBreakdown = await generateTaskBreakdown(contextualDescription, parentTask.targetDate || undefined);
+      
+      // Create the sub-subtasks
+      const createdSubtasks = [];
+      for (const aiSubtask of aiBreakdown.subtasks) {
+        const subtask = await storage.createSubtask({
+          taskId: originalSubtask.taskId,
+          title: `${originalSubtask.title} → ${aiSubtask.title}`,
+          description: aiSubtask.description,
+          priority: aiSubtask.priority,
+          dueDate: aiSubtask.dueDate,
+          estimatedHours: aiSubtask.estimatedHours
+        });
+        createdSubtasks.push(subtask);
+      }
+
+      res.json({
+        message: `Created ${createdSubtasks.length} sub-tasks for "${originalSubtask.title}"`,
+        originalSubtask,
+        newSubtasks: createdSubtasks
+      });
+
+    } catch (error) {
+      console.error("Error subdividing subtask:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to subdivide subtask" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
