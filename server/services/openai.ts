@@ -1,231 +1,71 @@
 import OpenAI from "openai";
+import { AIBreakdown } from "@shared/schema";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export interface AISubtask {
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  dueDate?: string;
-  estimatedHours?: number;
-}
-
-export interface AITaskBreakdown {
-  subtasks: AISubtask[];
-}
-
-// Demo task breakdowns for testing when OpenAI quota is exceeded
-function generateRealisticDates(targetDate: string | null, numSubtasks: number) {
-  const today = new Date();
-  const target = targetDate ? new Date(targetDate) : new Date(today.getTime() + (60 * 24 * 60 * 60 * 1000)); // 60 days from now if no target
-  
-  const totalDays = Math.max(7, Math.floor((target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)));
-  const dates: string[] = [];
-  
-  for (let i = 0; i < numSubtasks; i++) {
-    const dayOffset = Math.floor((totalDays / numSubtasks) * (i + 1));
-    const date = new Date(today.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
-    dates.push(date.toISOString().split('T')[0]);
-  }
-  
-  return dates;
-}
-
-function getDemoTaskBreakdown(taskDescription: string, targetDate: string | null = null): AITaskBreakdown {
-  const lowerTask = taskDescription.toLowerCase();
-  
-  if (lowerTask.includes('wedding')) {
-    const dates = generateRealisticDates(targetDate, 6);
-    return {
-      subtasks: [
-        {
-          title: "Set Wedding Budget",
-          description: "Determine total budget and allocate funds for venue, catering, photography, etc.",
-          priority: "high",
-          dueDate: dates[0],
-          estimatedHours: 4
-        },
-        {
-          title: "Create Guest List",
-          description: "Compile list of family and friends, determine final headcount",
-          priority: "high",
-          dueDate: dates[1],
-          estimatedHours: 3
-        },
-        {
-          title: "Book Wedding Venue",
-          description: "Research and visit venues, negotiate contracts and secure date",
-          priority: "high",
-          dueDate: dates[2],
-          estimatedHours: 10
-        },
-        {
-          title: "Choose Wedding Vendors",
-          description: "Book photographer, caterer, florist, and DJ/band",
-          priority: "medium",
-          dueDate: dates[3],
-          estimatedHours: 15
-        },
-        {
-          title: "Send Save the Dates",
-          description: "Design and mail save-the-date cards to guests",
-          priority: "medium",
-          dueDate: dates[4],
-          estimatedHours: 5
-        },
-        {
-          title: "Plan Menu and Tastings",
-          description: "Work with caterer to finalize menu and arrange tastings",
-          priority: "medium",
-          dueDate: dates[5],
-          estimatedHours: 8
-        }
-      ]
-    };
-  }
-  
-  if (lowerTask.includes('marketing') || lowerTask.includes('campaign')) {
-    const dates = generateRealisticDates(targetDate, 5);
-    return {
-      subtasks: [
-        {
-          title: "Define Target Audience",
-          description: "Research and create detailed buyer personas and demographics",
-          priority: "high",
-          dueDate: dates[0],
-          estimatedHours: 5
-        },
-        {
-          title: "Set Campaign Goals",
-          description: "Establish clear KPIs, budget, and success metrics",
-          priority: "high",
-          dueDate: dates[1],
-          estimatedHours: 3
-        },
-        {
-          title: "Create Content Strategy",
-          description: "Plan content themes, messaging, and content calendar",
-          priority: "high",
-          dueDate: dates[2],
-          estimatedHours: 7
-        },
-        {
-          title: "Design Marketing Materials",
-          description: "Create ads, social media graphics, and promotional content",
-          priority: "medium",
-          dueDate: dates[3],
-          estimatedHours: 9
-        },
-        {
-          title: "Set Up Analytics",
-          description: "Configure tracking tools and measurement systems",
-          priority: "medium",
-          dueDate: dates[1],
-          estimatedHours: 4
-        },
-        {
-          title: "Launch Campaign",
-          description: "Deploy across all channels and monitor initial performance",
-          priority: "low",
-          dueDate: dates[3],
-          estimatedHours: 5
-        }
-      ]
-    };
-  }
-  
-  // Generic fallback breakdown
-  const fallbackDates = generateRealisticDates(targetDate, 5);
-  return {
-    subtasks: [
-      {
-        title: "Research and Planning",
-        description: "Gather information and create a detailed action plan",
-        priority: "high",
-        dueDate: fallbackDates[0],
-        estimatedHours: 5
-      },
-      {
-        title: "Define Requirements",
-        description: "List specific needs, constraints, and success criteria",
-        priority: "high",
-        dueDate: fallbackDates[0],
-        estimatedHours: 3
-      },
-      {
-        title: "Create Timeline",
-        description: "Establish milestones and deadlines for each phase",
-        priority: "medium",
-        dueDate: fallbackDates[1],
-        estimatedHours: 2
-      },
-      {
-        title: "Execute Phase 1",
-        description: "Begin implementation of the first major milestone",
-        priority: "medium",
-        dueDate: fallbackDates[2],
-        estimatedHours: 10
-      },
-      {
-        title: "Review and Adjust",
-        description: "Evaluate progress and make necessary adjustments",
-        priority: "low",
-        dueDate: fallbackDates[3],
-        estimatedHours: 3
-      }
-    ]
-  };
-}
-
-export async function generateTaskBreakdown(
-  taskDescription: string,
-  category?: string,
-  targetDate?: string
-): Promise<AITaskBreakdown> {
+export async function generateGoalBreakdown(
+  goalInput: string,
+  targetDate?: string | null
+): Promise<AIBreakdown> {
   try {
-    const prompt = `
-You are an expert project manager and productivity consultant. Break down the following high-level task into specific, actionable subtasks.
+    const prompt = `You are an expert project manager. Break down this high-level goal into a structured 4-level hierarchy: Goal → Projects → Tasks → Sub-tasks.
 
-Task: ${taskDescription}
-${category ? `Category: ${category}` : ''}
-${targetDate ? `Target completion date: ${targetDate}` : ''}
+User Input: "${goalInput}"
+${targetDate ? `Target Completion: ${targetDate}` : ''}
 
-Please provide a comprehensive breakdown with 6-12 subtasks. For each subtask, include:
-- A clear, specific title
-- A detailed description of what needs to be done
-- Priority level (high, medium, or low)
-- Suggested due date (if target date provided, work backwards; otherwise suggest realistic timeline)
-- Estimated time required (e.g., "2-3 hours", "1 day", "30 minutes")
-
-Focus on making each subtask:
-1. Specific and actionable
-2. Appropriately sized (not too big or too small)
-3. Logically ordered
-4. Realistic and achievable
-
-Respond with JSON in this exact format:
+Create a JSON response with this exact structure:
 {
-  "subtasks": [
+  "goal": {
+    "title": "refined version of user input",
+    "description": "brief overview of what this goal involves",
+    "estimatedDuration": "realistic timeframe (e.g., '3 months', '6 weeks')",
+    "targetDate": "${targetDate || 'TBD'}",
+    "urgency": "low|medium|high"
+  },
+  "projects": [
     {
-      "title": "Specific task title",
-      "description": "Detailed description of what to do",
-      "priority": "high|medium|low",
-      "dueDate": "YYYY-MM-DD or relative date like 'Week 1'",
-      "estimatedHours": "time estimate"
+      "title": "Major category/area (e.g., 'Venue & Decor')",
+      "description": "what this project covers",
+      "estimatedDuration": "timeframe for this project",
+      "urgency": "low|medium|high",
+      "tasks": [
+        {
+          "title": "Specific actionable item (e.g., 'Book a venue')",
+          "description": "what needs to be done",
+          "estimatedHours": 4,
+          "dueDate": "YYYY-MM-DD",
+          "urgency": "low|medium|high",
+          "subtasks": [
+            {
+              "title": "Small actionable step (e.g., 'Call venues')",
+              "description": "specific action to take",
+              "estimatedHours": 1,
+              "urgency": "low|medium|high"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
-`;
+
+Guidelines:
+- Create 2-4 projects per goal
+- Each project should have 3-6 tasks
+- Each task should have 2-5 subtasks
+- Subtasks should be very specific, actionable items
+- Use realistic time estimates
+- Distribute due dates logically from now to target date
+- Make titles concise but descriptive
+- Consider dependencies and logical order`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are a helpful project management assistant that breaks down complex tasks into actionable subtasks. Always respond with valid JSON."
+          content: "You are an expert project manager who creates detailed, realistic project breakdowns. Always respond with valid JSON in the exact format requested."
         },
         {
           role: "user",
@@ -236,22 +76,150 @@ Respond with JSON in this exact format:
       temperature: 0.7,
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const breakdown = JSON.parse(response.choices[0].message.content || '{}');
     
-    if (!result.subtasks || !Array.isArray(result.subtasks)) {
-      throw new Error("Invalid response format from OpenAI");
+    // Validate the structure
+    if (!breakdown.goal || !breakdown.projects || !Array.isArray(breakdown.projects)) {
+      throw new Error('Invalid breakdown structure from AI');
     }
 
-    return result as AITaskBreakdown;
+    return breakdown as AIBreakdown;
+
   } catch (error) {
-    console.error("Error generating task breakdown:", error);
+    console.error('OpenAI API error:', error);
     
-    // If it's a quota error, provide a demo breakdown so user can still test the app
-    if (error instanceof Error && error.message.includes('quota')) {
-      console.log("Using demo task breakdown due to OpenAI quota limit");
-      return getDemoTaskBreakdown(taskDescription, targetDate);
-    }
-    
-    throw new Error("Failed to generate task breakdown: " + (error instanceof Error ? error.message : 'Unknown error'));
+    // Fallback demo breakdown
+    return getDemoBreakdown(goalInput, targetDate);
   }
+}
+
+function getDemoBreakdown(goalInput: string, targetDate?: string | null): AIBreakdown {
+  const today = new Date();
+  const futureDate = targetDate ? new Date(targetDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  
+  return {
+    goal: {
+      title: goalInput,
+      description: `Complete breakdown for: ${goalInput}`,
+      estimatedDuration: "3 months",
+      targetDate: targetDate || futureDate.toISOString().split('T')[0],
+      urgency: "medium"
+    },
+    projects: [
+      {
+        title: "Planning & Preparation",
+        description: "Initial research and planning phase",
+        estimatedDuration: "2 weeks",
+        urgency: "high",
+        tasks: [
+          {
+            title: "Research requirements",
+            description: "Gather information and understand scope",
+            estimatedHours: 8,
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            urgency: "high",
+            subtasks: [
+              {
+                title: "Create research checklist",
+                description: "List all areas that need investigation",
+                estimatedHours: 1,
+                urgency: "high"
+              },
+              {
+                title: "Conduct online research",
+                description: "Search for best practices and examples",
+                estimatedHours: 3,
+                urgency: "medium"
+              },
+              {
+                title: "Document findings",
+                description: "Compile research into organized notes",
+                estimatedHours: 2,
+                urgency: "medium"
+              }
+            ]
+          },
+          {
+            title: "Create timeline",
+            description: "Develop detailed project schedule",
+            estimatedHours: 4,
+            dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            urgency: "high",
+            subtasks: [
+              {
+                title: "List all major milestones",
+                description: "Identify key deadlines and checkpoints",
+                estimatedHours: 1,
+                urgency: "high"
+              },
+              {
+                title: "Estimate task durations",
+                description: "Assign realistic time estimates to each task",
+                estimatedHours: 2,
+                urgency: "medium"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        title: "Implementation",
+        description: "Execute the main work and activities",
+        estimatedDuration: "6 weeks",
+        urgency: "medium",
+        tasks: [
+          {
+            title: "Execute core activities",
+            description: "Complete the primary work items",
+            estimatedHours: 20,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            urgency: "medium",
+            subtasks: [
+              {
+                title: "Start with high-priority items",
+                description: "Focus on most critical components first",
+                estimatedHours: 8,
+                urgency: "high"
+              },
+              {
+                title: "Complete supporting tasks",
+                description: "Finish remaining work items",
+                estimatedHours: 12,
+                urgency: "medium"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        title: "Review & Finalization",
+        description: "Quality check and final preparations",
+        estimatedDuration: "1 week",
+        urgency: "medium",
+        tasks: [
+          {
+            title: "Final review",
+            description: "Check all components are complete",
+            estimatedHours: 4,
+            dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            urgency: "medium",
+            subtasks: [
+              {
+                title: "Quality checklist review",
+                description: "Verify all requirements are met",
+                estimatedHours: 2,
+                urgency: "medium"
+              },
+              {
+                title: "Make final adjustments",
+                description: "Address any remaining issues",
+                estimatedHours: 2,
+                urgency: "low"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
 }

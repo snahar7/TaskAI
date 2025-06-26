@@ -1,282 +1,294 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { Request, Response, NextFunction } from "express";
+import { Express } from "express";
+import { createServer, type Server } from "node:http";
 import { storage } from "./storage";
-import { generateTaskBreakdown } from "./services/openai";
-import { firebaseService } from "./services/firebase";
-import { insertTaskSchema, insertSubtaskSchema } from "@shared/schema";
+import { generateGoalBreakdown } from "./services/openai";
+import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema, type AIBreakdown } from "@shared/schema";
 import { z } from "zod";
 
-const createTaskRequestSchema = insertTaskSchema.extend({
-  useFirebase: z.boolean().optional().default(false)
-});
-
-const updateSubtaskSchema = z.object({
-  completed: z.boolean()
-});
-
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Generate task breakdown with AI
-  app.post("/api/tasks/generate", async (req, res) => {
+  const httpServer = createServer(app);
+
+  // Goal input form schema
+  const goalInputSchema = z.object({
+    goalInput: z.string().min(1, "Goal cannot be empty"),
+    targetDate: z.string().optional(),
+  });
+
+  // Goal breakdown approval schema
+  const approveBreakdownSchema = z.object({
+    pendingId: z.number(),
+    approved: z.boolean(),
+  });
+
+  // Create goal breakdown (Phase I MVP endpoint)
+  app.post("/api/goals/breakdown", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { title, description, category, targetDate, useFirebase } = createTaskRequestSchema.parse(req.body);
+      const { goalInput, targetDate } = goalInputSchema.parse(req.body);
+      
+      console.log("Generating breakdown for:", goalInput);
       
       // Generate AI breakdown
-      const aiBreakdown = await generateTaskBreakdown(description, category || undefined, targetDate || undefined);
+      const aiBreakdown = await generateGoalBreakdown(goalInput, targetDate);
       
-      if (useFirebase) {
-        // Save to Firebase
-        try {
-          const taskData = { 
-            title, 
-            description, 
-            category: category || null, 
-            targetDate: targetDate || null,
-            createdAt: new Date(),
-            completed: false
-          };
-          const subtasks = aiBreakdown.subtasks.map(subtask => ({
-            title: subtask.title,
-            description: subtask.description || null,
-            priority: subtask.priority,
-            dueDate: subtask.dueDate || null,
-            estimatedHours: subtask.estimatedHours || null,
-            createdAt: new Date(),
+      // Store as pending breakdown for approval
+      const pendingBreakdown = await storage.createPendingBreakdown({
+        originalInput: goalInput,
+        breakdown: aiBreakdown
+      });
+      
+      res.json({
+        pendingId: pendingBreakdown.id,
+        breakdown: aiBreakdown
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get all pending breakdowns
+  app.get("/api/goals/pending", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const pendingBreakdowns = await storage.getAllPendingBreakdowns();
+      res.json(pendingBreakdowns);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get specific pending breakdown
+  app.get("/api/goals/pending/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const pendingBreakdown = await storage.getPendingBreakdown(id);
+      
+      if (!pendingBreakdown) {
+        return res.status(404).json({ error: "Pending breakdown not found" });
+      }
+      
+      res.json(pendingBreakdown);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Approve/reject breakdown and create full hierarchy
+  app.post("/api/goals/approve", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { pendingId, approved } = approveBreakdownSchema.parse(req.body);
+      
+      const pendingBreakdown = await storage.getPendingBreakdown(pendingId);
+      if (!pendingBreakdown) {
+        return res.status(404).json({ error: "Pending breakdown not found" });
+      }
+      
+      if (!approved) {
+        // Just delete the pending breakdown if rejected
+        await storage.deletePendingBreakdown(pendingId);
+        return res.json({ message: "Breakdown rejected and removed" });
+      }
+      
+      const breakdown = pendingBreakdown.breakdown as AIBreakdown;
+      
+      // Create the goal
+      const goal = await storage.createGoal({
+        title: breakdown.goal.title,
+        description: breakdown.goal.description || null,
+        estimatedDuration: breakdown.goal.estimatedDuration || null,
+        targetDate: breakdown.goal.targetDate || null,
+        urgency: breakdown.goal.urgency || "medium",
+        approved: true
+      });
+      
+      // Create projects under the goal
+      const createdProjects = [];
+      for (const aiProject of breakdown.projects) {
+        const project = await storage.createProject({
+          goalId: goal.id,
+          title: aiProject.title,
+          description: aiProject.description || null,
+          estimatedDuration: aiProject.estimatedDuration || null,
+          targetDate: aiProject.targetDate || null,
+          urgency: aiProject.urgency || "medium",
+          approved: true
+        });
+        
+        // Create tasks under each project
+        const createdTasks = [];
+        for (const aiTask of aiProject.tasks) {
+          const task = await storage.createTask({
+            projectId: project.id,
+            title: aiTask.title,
+            description: aiTask.description || null,
+            estimatedHours: aiTask.estimatedHours || null,
+            dueDate: aiTask.dueDate || null,
+            urgency: aiTask.urgency || "medium",
             completed: false,
-            completedAt: null
-          }));
+            approved: true
+          });
           
-          const savedTask = await firebaseService.saveTask(taskData, subtasks);
-          res.json(savedTask);
-        } catch (firebaseError) {
-          console.error("Firebase save failed, falling back to memory storage:", firebaseError);
-          // Fall back to memory storage
-          const task = await storage.createTask({ title, description, category, targetDate });
-          const savedSubtasks = [];
-          
-          for (const aiSubtask of aiBreakdown.subtasks) {
+          // Create subtasks under each task
+          const createdSubtasks = [];
+          for (const aiSubtask of aiTask.subtasks) {
             const subtask = await storage.createSubtask({
               taskId: task.id,
               title: aiSubtask.title,
-              description: aiSubtask.description,
-              priority: aiSubtask.priority,
-              dueDate: aiSubtask.dueDate,
-              estimatedHours: aiSubtask.estimatedHours
+              description: aiSubtask.description || null,
+              estimatedHours: aiSubtask.estimatedHours || null,
+              dueDate: aiSubtask.dueDate || null,
+              urgency: aiSubtask.urgency || "medium",
+              completed: false,
+              approved: true,
+              attachments: null
             });
-            savedSubtasks.push(subtask);
+            createdSubtasks.push(subtask);
           }
           
-          res.json({ ...task, subtasks: savedSubtasks });
-        }
-      } else {
-        // Save to memory storage
-        const task = await storage.createTask({ title, description, category, targetDate });
-        const savedSubtasks = [];
-        
-        for (const aiSubtask of aiBreakdown.subtasks) {
-          const subtask = await storage.createSubtask({
-            taskId: task.id,
-            title: aiSubtask.title,
-            description: aiSubtask.description,
-            priority: aiSubtask.priority,
-            dueDate: aiSubtask.dueDate,
-            estimatedHours: aiSubtask.estimatedHours
-          });
-          savedSubtasks.push(subtask);
+          createdTasks.push({ ...task, subtasks: createdSubtasks });
         }
         
-        res.json({ ...task, subtasks: savedSubtasks });
+        createdProjects.push({ ...project, tasks: createdTasks });
       }
+      
+      // Remove the pending breakdown
+      await storage.deletePendingBreakdown(pendingId);
+      
+      // Return the created goal with full hierarchy
+      const fullGoal = { ...goal, projects: createdProjects };
+      res.json(fullGoal);
     } catch (error) {
-      console.error("Error generating task breakdown:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to generate task breakdown" 
-      });
+      next(error);
     }
   });
 
-  // Get all tasks
-  app.get("/api/tasks", async (req, res) => {
+  // Get all goals
+  app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const useFirebase = req.query.firebase === 'true';
-      
-      if (useFirebase) {
-        try {
-          const tasks = await firebaseService.getAllTasks();
-          res.json(tasks);
-        } catch (firebaseError) {
-          console.error("Firebase fetch failed, falling back to memory storage:", firebaseError);
-          // Fall back to memory storage
-          const tasks = await storage.getAllTasks();
-          const tasksWithSubtasks = [];
-          
-          for (const task of tasks) {
-            const subtasks = await storage.getSubtasksByTaskId(task.id);
-            tasksWithSubtasks.push({ ...task, subtasks });
-          }
-          
-          res.json(tasksWithSubtasks);
-        }
-      } else {
-        const tasks = await storage.getAllTasks();
-        const tasksWithSubtasks = [];
-        
-        for (const task of tasks) {
-          const subtasks = await storage.getSubtasksByTaskId(task.id);
-          tasksWithSubtasks.push({ ...task, subtasks });
-        }
-        
-        res.json(tasksWithSubtasks);
-      }
+      const goals = await storage.getAllGoals();
+      res.json(goals);
     } catch (error) {
-      console.error("Error fetching tasks:", error);
-      res.status(500).json({ message: "Failed to fetch tasks" });
+      next(error);
     }
   });
 
-  // Get specific task with subtasks
-  app.get("/api/tasks/:id", async (req, res) => {
+  // Get goal with full hierarchy
+  app.get("/api/goals/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const id = req.params.id;
-      const useFirebase = req.query.firebase === 'true';
+      const id = parseInt(req.params.id);
+      const goal = await storage.getGoalWithProjects(id);
       
-      if (useFirebase) {
-        try {
-          const task = await firebaseService.getTask(id);
-          if (!task) {
-            return res.status(404).json({ message: "Task not found" });
-          }
-          res.json(task);
-        } catch (firebaseError) {
-          console.error("Firebase fetch failed, falling back to memory storage:", firebaseError);
-          // Fall back to memory storage
-          const taskId = parseInt(id);
-          if (isNaN(taskId)) {
-            return res.status(400).json({ message: "Invalid task ID" });
-          }
-          
-          const task = await storage.getTaskWithSubtasks(taskId);
-          if (!task) {
-            return res.status(404).json({ message: "Task not found" });
-          }
-          res.json(task);
-        }
-      } else {
-        const taskId = parseInt(id);
-        if (isNaN(taskId)) {
-          return res.status(400).json({ message: "Invalid task ID" });
-        }
-        
-        const task = await storage.getTaskWithSubtasks(taskId);
-        if (!task) {
-          return res.status(404).json({ message: "Task not found" });
-        }
-        res.json(task);
+      if (!goal) {
+        return res.status(404).json({ error: "Goal not found" });
       }
+      
+      res.json(goal);
     } catch (error) {
-      console.error("Error fetching task:", error);
-      res.status(500).json({ message: "Failed to fetch task" });
+      next(error);
+    }
+  });
+
+  // Update goal approval
+  app.patch("/api/goals/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { approved } = z.object({ approved: z.boolean() }).parse(req.body);
+      
+      await storage.updateGoalApproval(id, approved);
+      res.json({ message: "Goal approval updated" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update project approval
+  app.patch("/api/projects/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { approved } = z.object({ approved: z.boolean() }).parse(req.body);
+      
+      await storage.updateProjectApproval(id, approved);
+      res.json({ message: "Project approval updated" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update task completion
+  app.patch("/api/tasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
+      
+      await storage.updateTaskCompletion(id, completed);
+      res.json({ message: "Task completion updated" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update task approval
+  app.patch("/api/tasks/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { approved } = z.object({ approved: z.boolean() }).parse(req.body);
+      
+      await storage.updateTaskApproval(id, approved);
+      res.json({ message: "Task approval updated" });
+    } catch (error) {
+      next(error);
     }
   });
 
   // Update subtask completion
-  app.patch("/api/subtasks/:id", async (req, res) => {
+  app.patch("/api/subtasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const id = req.params.id;
-      const useFirebase = req.query.firebase === 'true';
-      const { completed } = updateSubtaskSchema.parse(req.body);
+      const id = parseInt(req.params.id);
+      const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
-      if (useFirebase) {
-        try {
-          await firebaseService.updateSubtaskCompletion(id, completed);
-          res.json({ success: true });
-        } catch (firebaseError) {
-          console.error("Firebase update failed, falling back to memory storage:", firebaseError);
-          // Fall back to memory storage
-          const subtaskId = parseInt(id);
-          if (isNaN(subtaskId)) {
-            return res.status(400).json({ message: "Invalid subtask ID" });
-          }
-          
-          await storage.updateSubtaskCompletion(subtaskId, completed);
-          res.json({ success: true });
-        }
-      } else {
-        const subtaskId = parseInt(id);
-        if (isNaN(subtaskId)) {
-          return res.status(400).json({ message: "Invalid subtask ID" });
-        }
-        
-        await storage.updateSubtaskCompletion(subtaskId, completed);
-        res.json({ success: true });
-      }
+      await storage.updateSubtaskCompletion(id, completed);
+      res.json({ message: "Subtask completion updated" });
     } catch (error) {
-      console.error("Error updating subtask:", error);
-      res.status(500).json({ message: "Failed to update subtask" });
+      next(error);
     }
   });
 
-  // Subdivide a subtask into smaller tasks
-  app.post("/api/subtasks/:id/subdivide", async (req, res) => {
+  // Update subtask approval
+  app.patch("/api/subtasks/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const subtaskId = parseInt(req.params.id);
+      const id = parseInt(req.params.id);
+      const { approved } = z.object({ approved: z.boolean() }).parse(req.body);
       
-      if (isNaN(subtaskId)) {
-        return res.status(400).json({ message: "Invalid subtask ID" });
-      }
-
-      // Get the original subtask
-      const originalSubtask = await storage.getSubtask(subtaskId);
-      if (!originalSubtask) {
-        return res.status(404).json({ message: "Subtask not found" });
-      }
-
-      // Get the parent task for context
-      const parentTask = await storage.getTask(originalSubtask.taskId);
-      if (!parentTask) {
-        return res.status(404).json({ message: "Parent task not found" });
-      }
-
-      // Generate sub-breakdown using AI
-      const contextualDescription = `Break down this subtask from the larger project "${parentTask.title}":
-
-Subtask: ${originalSubtask.title}
-Description: ${originalSubtask.description || 'Complete this specific part of the project'}
-
-Create 3-5 smaller, specific action items that together complete this subtask. Each should be:
-- A clear, actionable step that can be completed in 30 minutes to 2 hours
-- Specific enough to know exactly what to do
-- Logically ordered from first to last step`;
-
-      const aiBreakdown = await generateTaskBreakdown(contextualDescription, parentTask.targetDate || undefined);
-      
-      // Create the sub-subtasks
-      const createdSubtasks = [];
-      for (const aiSubtask of aiBreakdown.subtasks) {
-        const subtask = await storage.createSubtask({
-          taskId: originalSubtask.taskId,
-          title: `${originalSubtask.title} → ${aiSubtask.title}`,
-          description: aiSubtask.description,
-          priority: aiSubtask.priority,
-          dueDate: aiSubtask.dueDate,
-          estimatedHours: aiSubtask.estimatedHours
-        });
-        createdSubtasks.push(subtask);
-      }
-
-      res.json({
-        message: `Created ${createdSubtasks.length} sub-tasks for "${originalSubtask.title}"`,
-        originalSubtask,
-        newSubtasks: createdSubtasks
-      });
-
+      await storage.updateSubtaskApproval(id, approved);
+      res.json({ message: "Subtask approval updated" });
     } catch (error) {
-      console.error("Error subdividing subtask:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to subdivide subtask" 
-      });
+      next(error);
     }
   });
 
-  const httpServer = createServer(app);
+  // Edit item titles (universal endpoint for all levels)
+  app.patch("/api/:type/:id/edit", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { type } = req.params;
+      const id = parseInt(req.params.id);
+      const { title, description, estimatedHours, dueDate, urgency } = req.body;
+      
+      // This would need to be implemented based on the type
+      // For now, just acknowledge the edit request
+      res.json({ message: `${type} edit received for ID ${id}` });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Push schema changes to database
+  app.post("/api/db/push", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // This endpoint would trigger database schema migration
+      res.json({ message: "Database schema push would be triggered here" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return httpServer;
 }

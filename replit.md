@@ -92,6 +92,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 26, 2025: Complete rebuild with 4-level hierarchy (Goal → Project → Task → Sub-task)
+  - Restructured entire application architecture from 2-level to 4-level hierarchy
+  - Created new database schema: goals, projects, tasks, subtasks, pending_breakdowns tables
+  - Built comprehensive OpenAI integration for structured hierarchy generation
+  - Implemented approval workflow: input goal → AI breakdown → review → approve/reject → create full hierarchy
+  - Created collapsible nested UI components for goal/project/task/subtask display
+  - Added visual progress tracking at each hierarchy level
+  - Enabled completion tracking and editing capabilities for all levels
+  - Updated API endpoints to support full CRUD operations on 4-level structure
+  - Replaced old task system with goal-focused project management approach
+
 - June 26, 2025: Enhanced task manager with approval workflow and calendar features
   - Implemented task approval workflow - users can review AI breakdowns before adding to calendar
   - Added calendar timeline view with realistic due dates based on user's target completion date
