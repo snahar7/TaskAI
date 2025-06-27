@@ -171,6 +171,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get hierarchy data for parent selection
+  app.get("/api/hierarchy", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const goals = await storage.getAllGoals();
+      const hierarchyData = [];
+
+      for (const goal of goals) {
+        const projects = await storage.getProjectsByGoalId(goal.id);
+        const projectsWithTasks = [];
+
+        for (const project of projects) {
+          const tasks = await storage.getTasksByProjectId(project.id);
+          projectsWithTasks.push({
+            ...project,
+            tasks
+          });
+        }
+
+        hierarchyData.push({
+          ...goal,
+          projects: projectsWithTasks
+        });
+      }
+
+      res.json(hierarchyData);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get goal with full hierarchy
   app.get("/api/goals/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -357,35 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get hierarchy data for parent selection
-  app.get("/api/goals/hierarchy", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const goals = await storage.getAllGoals();
-      const hierarchyData = [];
 
-      for (const goal of goals) {
-        const projects = await storage.getProjectsByGoalId(goal.id);
-        const projectsWithTasks = [];
-
-        for (const project of projects) {
-          const tasks = await storage.getTasksByProjectId(project.id);
-          projectsWithTasks.push({
-            ...project,
-            tasks
-          });
-        }
-
-        hierarchyData.push({
-          ...goal,
-          projects: projectsWithTasks
-        });
-      }
-
-      res.json(hierarchyData);
-    } catch (error) {
-      next(error);
-    }
-  });
 
   // Push schema changes to database
   app.post("/api/db/push", async (req: Request, res: Response, next: NextFunction) => {
