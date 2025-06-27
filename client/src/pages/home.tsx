@@ -40,10 +40,7 @@ export default function Home() {
   // Create goal breakdown mutation (AI-powered)
   const createBreakdownMutation = useMutation({
     mutationFn: async (data: { goalInput: string; targetDate?: string }) => {
-      const response = await apiRequest('/api/goals/breakdown', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest('POST', '/api/goals/breakdown', data);
       return response.json();
     },
     onSuccess: (data: PendingBreakdownResponse) => {
@@ -66,10 +63,7 @@ export default function Home() {
   // Approve breakdown mutation
   const approveBreakdownMutation = useMutation({
     mutationFn: async (data: { pendingId: number; approved: boolean }) => {
-      const response = await apiRequest('/api/goals/approve', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest('POST', '/api/goals/approve', data);
       return response.json();
     },
     onSuccess: (data: GoalWithProjects) => {
@@ -94,10 +88,7 @@ export default function Home() {
   // Task completion mutation
   const taskCompletionMutation = useMutation({
     mutationFn: async (data: { taskId: number; completed: boolean }) => {
-      const response = await apiRequest(`/api/tasks/${data.taskId}/complete`, {
-        method: 'PATCH',
-        body: JSON.stringify({ completed: data.completed }),
-      });
+      const response = await apiRequest('PATCH', `/api/tasks/${data.taskId}/complete`, { completed: data.completed });
       return response.json();
     },
     onSuccess: () => {
@@ -119,10 +110,7 @@ export default function Home() {
   // Subtask completion mutation
   const subtaskCompletionMutation = useMutation({
     mutationFn: async (data: { subtaskId: number; completed: boolean }) => {
-      const response = await apiRequest(`/api/subtasks/${data.subtaskId}/complete`, {
-        method: 'PATCH',
-        body: JSON.stringify({ completed: data.completed }),
-      });
+      const response = await apiRequest('PATCH', `/api/subtasks/${data.subtaskId}/complete`, { completed: data.completed });
       return response.json();
     },
     onSuccess: () => {
@@ -144,10 +132,7 @@ export default function Home() {
   // Create individual hierarchy item mutation
   const createHierarchyMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest('/api/hierarchy/create', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest('POST', '/api/hierarchy/create', data);
       return response.json();
     },
     onSuccess: (data, variables) => {
