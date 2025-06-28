@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useRoute } from "wouter";
 import { GoalInputForm } from "@/components/goal-input-form";
 import { HierarchicalInputForm } from "@/components/hierarchical-input-form";
 import { EditableBreakdownApproval } from "@/components/editable-breakdown-approval";
@@ -19,10 +20,11 @@ interface PendingBreakdownResponse {
 }
 
 export default function Home() {
+  const [location, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState<'input' | 'approval' | 'display'>('display');
   const [pendingBreakdown, setPendingBreakdown] = useState<PendingBreakdownResponse | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -31,11 +33,18 @@ export default function Home() {
     queryKey: ['/api/goals']
   });
 
-  // Fetch specific goal with full hierarchy
-  const { data: selectedGoal, isLoading: goalLoading } = useQuery<GoalWithProjects>({
-    queryKey: ['/api/goals', selectedGoalId],
-    enabled: !!selectedGoalId && currentStep === 'display'
-  });
+  // Set default to wedding goal when data loads
+  useEffect(() => {
+    if (!selectedGoalId && goals.length > 0) {
+      const weddingGoal = goals.find(g => g.title.toLowerCase().includes('wedding'));
+      if (weddingGoal) {
+        setSelectedGoalId(weddingGoal.id);
+      }
+    }
+  }, [goals]);
+
+  // Get selected goal from already loaded goals data
+  const selectedGoal = selectedGoalId ? goals.find(goal => goal.id === selectedGoalId) : null;
 
   // Create goal breakdown mutation (AI-powered)
   const createBreakdownMutation = useMutation({
@@ -439,12 +448,7 @@ export default function Home() {
                   )}
                 </div>
 
-                {goalLoading ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="text-gray-600 mt-2">Loading goal...</p>
-                  </div>
-                ) : selectedGoal ? (
+                {selectedGoal ? (
                   <SimpleGoalHierarchy
                     goal={selectedGoal}
                     onTaskComplete={handleTaskComplete}
