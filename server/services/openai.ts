@@ -8,6 +8,12 @@ export async function generateGoalBreakdown(
   goalInput: string,
   targetDate?: string | null
 ): Promise<AIBreakdown> {
+  // Check if OpenAI is available, otherwise use demo
+  if (!process.env.OPENAI_API_KEY) {
+    console.log("No OpenAI API key found, using demo breakdown");
+    return getDemoBreakdown(goalInput, targetDate);
+  }
+
   try {
     const prompt = `You are an expert project manager. Break down this high-level goal into a structured 4-level hierarchy: Goal → Projects → Tasks → Sub-tasks.
 
@@ -60,21 +66,26 @@ Guidelines:
 - Make titles concise but descriptive
 - Consider dependencies and logical order`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert project manager who creates detailed, realistic project breakdowns. Always respond with valid JSON in the exact format requested."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    });
+    const response = await Promise.race([
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert project manager who creates detailed, realistic project breakdowns. Always respond with valid JSON in the exact format requested."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('OpenAI API timeout')), 10000)
+      )
+    ]) as any;
 
     const breakdown = JSON.parse(response.choices[0].message.content || '{}');
     

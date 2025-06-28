@@ -92,6 +92,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 27, 2025: Implemented editable breakdown approval feature
+  - Created comprehensive editable breakdown approval component with inline editing
+  - Added hover-triggered edit buttons for all fields (titles, descriptions, dates, hours, urgency)
+  - Implemented both single-line input and multi-line textarea editing support
+  - Updated server API to accept and process edited breakdowns from user modifications
+  - Fixed null safety issues in goal hierarchy display component to prevent crashes
+  - Added proper error handling and timeout management for OpenAI API calls
+  - Enhanced approval workflow: users can now modify AI-generated content before creating hierarchy
+  - Tested complete workflow: goal input → AI generation → user editing → approval → hierarchy creation
+  - Resolved compilation errors and type safety issues throughout the editing system
+
 - June 26, 2025: Complete rebuild with 4-level hierarchy + hierarchical input categorization
   - Restructured entire application architecture from 2-level to 4-level hierarchy
   - Created new database schema: goals, projects, tasks, subtasks, pending_breakdowns tables

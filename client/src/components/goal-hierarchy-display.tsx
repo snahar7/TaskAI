@@ -84,7 +84,7 @@ export function GoalHierarchyDisplay({
   };
 
   const getGoalProgress = () => {
-    const allTasks = goal.projects.flatMap(p => p.tasks || []);
+    const allTasks = (goal.projects || []).flatMap(p => p.tasks || []);
     return calculateProgress(allTasks);
   };
 
@@ -138,7 +138,7 @@ export function GoalHierarchyDisplay({
               </Badge>
             )}
             <Badge variant="outline" className="text-sm">
-              {goal.projects.length} projects
+              {(goal.projects || []).length} projects
             </Badge>
           </div>
         </CardHeader>
@@ -146,7 +146,7 @@ export function GoalHierarchyDisplay({
 
       {/* Projects */}
       <div className="space-y-4">
-        {goal.projects.map((project) => (
+        {(goal.projects || []).map((project) => (
           <Card key={project.id} className="border border-gray-200">
             <Collapsible 
               open={expandedProjects.has(project.id)}
