@@ -1,8 +1,8 @@
-# Trak - AI-Powered Task Management Application
+# Taflo - AI-Powered Task Management Application
 
 ## Overview
 
-Trak is a modern task management application that leverages AI to automatically break down high-level tasks into actionable subtasks. The application features a clean, responsive interface built with React and TypeScript, powered by an Express.js backend with PostgreSQL database integration.
+Taflo is a modern task management application that leverages AI to automatically break down high-level tasks into actionable subtasks. The application features a clean, responsive interface built with React and TypeScript, powered by an Express.js backend with PostgreSQL database integration.
 
 ## System Architecture
 

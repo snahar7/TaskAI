@@ -21,7 +21,7 @@ export function Navigation() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <CheckSquare className="text-white" size={16} />
               </div>
-              <h1 className="text-xl font-semibold text-slate-900">Trak</h1>
+              <h1 className="text-xl font-semibold text-slate-900">Taflo</h1>
             </div>
           </Link>
           

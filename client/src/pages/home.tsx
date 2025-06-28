@@ -284,7 +284,7 @@ export default function Home() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Trak</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Taflo</h1>
           <p className="text-gray-600">AI-powered task management with intelligent goal breakdown</p>
         </div>
 
