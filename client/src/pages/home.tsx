@@ -28,9 +28,12 @@ export default function Home() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch all goals
+  // Fetch all goals with caching and background refresh
   const { data: goals = [], isLoading: goalsLoading } = useQuery<GoalWithProjects[]>({
-    queryKey: ['/api/goals']
+    queryKey: ['/api/goals'],
+    staleTime: 60000, // 1 minute - data stays fresh longer
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnMount: false, // Only fetch on mount if no data
   });
 
   // Set default to wedding goal when data loads
@@ -94,47 +97,95 @@ export default function Home() {
     },
   });
 
-  // Task completion mutation
+  // Task completion mutation with optimistic updates
   const taskCompletionMutation = useMutation({
     mutationFn: async (data: { taskId: number; completed: boolean }) => {
       const response = await apiRequest('PATCH', `/api/tasks/${data.taskId}/complete`, { completed: data.completed });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
-      toast({
-        title: "Task Updated",
-        description: "Task completion status updated successfully.",
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/goals'] });
+      
+      // Snapshot the previous value
+      const previousGoals = queryClient.getQueryData(['/api/goals']);
+      
+      // Optimistically update
+      queryClient.setQueryData(['/api/goals'], (old: GoalWithProjects[] | undefined) => {
+        if (!old) return old;
+        return old.map(goal => ({
+          ...goal,
+          projects: goal.projects.map(project => ({
+            ...project,
+            tasks: project.tasks.map(task => 
+              task.id === variables.taskId 
+                ? { ...task, completed: variables.completed }
+                : task
+            )
+          }))
+        }));
       });
+      
+      return { previousGoals };
     },
-    onError: (error: any) => {
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousGoals) {
+        queryClient.setQueryData(['/api/goals'], context.previousGoals);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to update task",
+        description: "Failed to update task",
         variant: "destructive",
       });
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+    },
   });
 
-  // Subtask completion mutation
+  // Subtask completion mutation with optimistic updates
   const subtaskCompletionMutation = useMutation({
     mutationFn: async (data: { subtaskId: number; completed: boolean }) => {
       const response = await apiRequest('PATCH', `/api/subtasks/${data.subtaskId}/complete`, { completed: data.completed });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
-      toast({
-        title: "Subtask Updated",
-        description: "Subtask completion status updated successfully.",
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/goals'] });
+      const previousGoals = queryClient.getQueryData(['/api/goals']);
+      
+      queryClient.setQueryData(['/api/goals'], (old: GoalWithProjects[] | undefined) => {
+        if (!old) return old;
+        return old.map(goal => ({
+          ...goal,
+          projects: goal.projects.map(project => ({
+            ...project,
+            tasks: project.tasks.map(task => ({
+              ...task,
+              subtasks: task.subtasks.map(subtask => 
+                subtask.id === variables.subtaskId 
+                  ? { ...subtask, completed: variables.completed }
+                  : subtask
+              )
+            }))
+          }))
+        }));
       });
+      
+      return { previousGoals };
     },
-    onError: (error: any) => {
+    onError: (err, variables, context) => {
+      if (context?.previousGoals) {
+        queryClient.setQueryData(['/api/goals'], context.previousGoals);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to update subtask",
+        description: "Failed to update subtask",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
     },
   });
 

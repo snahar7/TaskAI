@@ -352,32 +352,271 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(goals);
   }
 
+  async getAllGoalsWithProjects(): Promise<GoalWithProjects[]> {
+    // Single optimized query with joins for all goals
+    const result = await db
+      .select({
+        goalId: goals.id,
+        goalTitle: goals.title,
+        goalDescription: goals.description,
+        goalCreatedAt: goals.createdAt,
+        goalApproved: goals.approved,
+        goalEstimatedDuration: goals.estimatedDuration,
+        goalTargetDate: goals.targetDate,
+        goalUrgency: goals.urgency,
+        projectId: projects.id,
+        projectTitle: projects.title,
+        projectDescription: projects.description,
+        projectCreatedAt: projects.createdAt,
+        projectApproved: projects.approved,
+        projectEstimatedDuration: projects.estimatedDuration,
+        projectTargetDate: projects.targetDate,
+        projectUrgency: projects.urgency,
+        taskId: tasks.id,
+        taskTitle: tasks.title,
+        taskDescription: tasks.description,
+        taskCreatedAt: tasks.createdAt,
+        taskCompleted: tasks.completed,
+        taskApproved: tasks.approved,
+        taskEstimatedHours: tasks.estimatedHours,
+        taskDueDate: tasks.dueDate,
+        taskUrgency: tasks.urgency,
+        taskCompletedAt: tasks.completedAt,
+        subtaskId: subtasks.id,
+        subtaskTitle: subtasks.title,
+        subtaskDescription: subtasks.description,
+        subtaskCreatedAt: subtasks.createdAt,
+        subtaskCompleted: subtasks.completed,
+        subtaskApproved: subtasks.approved,
+        subtaskEstimatedHours: subtasks.estimatedHours,
+        subtaskDueDate: subtasks.dueDate,
+        subtaskUrgency: subtasks.urgency,
+        subtaskCompletedAt: subtasks.completedAt,
+        subtaskAttachments: subtasks.attachments,
+      })
+      .from(goals)
+      .leftJoin(projects, eq(goals.id, projects.goalId))
+      .leftJoin(tasks, eq(projects.id, tasks.projectId))
+      .leftJoin(subtasks, eq(tasks.id, subtasks.taskId))
+      .orderBy(goals.id, projects.id, tasks.id, subtasks.id);
+
+    // Transform flat result into hierarchical structure
+    const goalsMap = new Map<number, GoalWithProjects>();
+    const projectsMap = new Map<number, any>();
+    const tasksMap = new Map<number, any>();
+
+    result.forEach(row => {
+      // Build goal
+      if (!goalsMap.has(row.goalId)) {
+        goalsMap.set(row.goalId, {
+          id: row.goalId,
+          title: row.goalTitle,
+          description: row.goalDescription,
+          createdAt: row.goalCreatedAt,
+          approved: row.goalApproved,
+          estimatedDuration: row.goalEstimatedDuration,
+          targetDate: row.goalTargetDate,
+          urgency: row.goalUrgency,
+          projects: []
+        });
+      }
+
+      // Build project
+      if (row.projectId && !projectsMap.has(row.projectId)) {
+        const project = {
+          id: row.projectId,
+          title: row.projectTitle || '',
+          description: row.projectDescription,
+          goalId: row.goalId,
+          createdAt: row.projectCreatedAt || new Date(),
+          approved: row.projectApproved || false,
+          estimatedDuration: row.projectEstimatedDuration,
+          targetDate: row.projectTargetDate,
+          urgency: row.projectUrgency || 'medium',
+          tasks: []
+        };
+        projectsMap.set(row.projectId, project);
+        goalsMap.get(row.goalId)!.projects.push(project);
+      }
+
+      // Build task
+      if (row.taskId && !tasksMap.has(row.taskId)) {
+        const task = {
+          id: row.taskId,
+          title: row.taskTitle || '',
+          description: row.taskDescription || null,
+          projectId: row.projectId || 0,
+          createdAt: row.taskCreatedAt || new Date(),
+          completed: row.taskCompleted || false,
+          approved: row.taskApproved || false,
+          estimatedHours: row.taskEstimatedHours || null,
+          dueDate: row.taskDueDate || null,
+          urgency: row.taskUrgency || 'medium',
+          completedAt: row.taskCompletedAt || null,
+          subtasks: []
+        };
+        tasksMap.set(row.taskId, task);
+        if (row.projectId) {
+          projectsMap.get(row.projectId)?.tasks.push(task);
+        }
+      }
+
+      // Build subtask
+      if (row.subtaskId) {
+        const subtask = {
+          id: row.subtaskId,
+          title: row.subtaskTitle || '',
+          description: row.subtaskDescription || null,
+          taskId: row.taskId || 0,
+          createdAt: row.subtaskCreatedAt || new Date(),
+          completed: row.subtaskCompleted || false,
+          approved: row.subtaskApproved || false,
+          estimatedHours: row.subtaskEstimatedHours || null,
+          dueDate: row.subtaskDueDate || null,
+          urgency: row.subtaskUrgency || 'medium',
+          completedAt: row.subtaskCompletedAt || null,
+          attachments: row.subtaskAttachments || null,
+        };
+        if (row.taskId) {
+          tasksMap.get(row.taskId)?.subtasks.push(subtask);
+        }
+      }
+    });
+
+    return Array.from(goalsMap.values());
+  }
+
   async getGoal(id: number): Promise<Goal | undefined> {
     const [goal] = await db.select().from(goals).where(eq(goals.id, id));
     return goal || undefined;
   }
 
   async getGoalWithProjects(id: number): Promise<GoalWithProjects | undefined> {
-    const goal = await this.getGoal(id);
-    if (!goal) return undefined;
-
-    const goalProjects = await this.getProjectsByGoalId(id);
-    const projectsWithTasks = await Promise.all(
-      goalProjects.map(async (project) => {
-        const projectTasks = await this.getTasksByProjectId(project.id);
-        const tasksWithSubtasks = await Promise.all(
-          projectTasks.map(async (task) => {
-            const taskSubtasks = await this.getSubtasksByTaskId(task.id);
-            return { ...task, subtasks: taskSubtasks };
-          })
-        );
-        return { ...project, tasks: tasksWithSubtasks };
+    // Single optimized query with joins
+    const result = await db
+      .select({
+        goalId: goals.id,
+        goalTitle: goals.title,
+        goalDescription: goals.description,
+        goalCreatedAt: goals.createdAt,
+        goalApproved: goals.approved,
+        goalEstimatedDuration: goals.estimatedDuration,
+        goalTargetDate: goals.targetDate,
+        goalUrgency: goals.urgency,
+        projectId: projects.id,
+        projectTitle: projects.title,
+        projectDescription: projects.description,
+        projectCreatedAt: projects.createdAt,
+        projectApproved: projects.approved,
+        projectEstimatedDuration: projects.estimatedDuration,
+        projectTargetDate: projects.targetDate,
+        projectUrgency: projects.urgency,
+        taskId: tasks.id,
+        taskTitle: tasks.title,
+        taskDescription: tasks.description,
+        taskCreatedAt: tasks.createdAt,
+        taskCompleted: tasks.completed,
+        taskApproved: tasks.approved,
+        taskEstimatedHours: tasks.estimatedHours,
+        taskDueDate: tasks.dueDate,
+        taskUrgency: tasks.urgency,
+        taskCompletedAt: tasks.completedAt,
+        subtaskId: subtasks.id,
+        subtaskTitle: subtasks.title,
+        subtaskDescription: subtasks.description,
+        subtaskCreatedAt: subtasks.createdAt,
+        subtaskCompleted: subtasks.completed,
+        subtaskApproved: subtasks.approved,
+        subtaskEstimatedHours: subtasks.estimatedHours,
+        subtaskDueDate: subtasks.dueDate,
+        subtaskUrgency: subtasks.urgency,
+        subtaskCompletedAt: subtasks.completedAt,
+        subtaskAttachments: subtasks.attachments,
       })
-    );
+      .from(goals)
+      .leftJoin(projects, eq(goals.id, projects.goalId))
+      .leftJoin(tasks, eq(projects.id, tasks.projectId))
+      .leftJoin(subtasks, eq(tasks.id, subtasks.taskId))
+      .where(eq(goals.id, id));
+
+    if (result.length === 0) return undefined;
+
+    // Transform flat result into hierarchical structure
+    const goal = {
+      id: result[0].goalId,
+      title: result[0].goalTitle,
+      description: result[0].goalDescription,
+      createdAt: result[0].goalCreatedAt,
+      approved: result[0].goalApproved,
+      estimatedDuration: result[0].goalEstimatedDuration,
+      targetDate: result[0].goalTargetDate,
+      urgency: result[0].goalUrgency,
+    };
+
+    const projectsMap = new Map();
+    const tasksMap = new Map();
+
+    result.forEach(row => {
+      if (row.projectId && !projectsMap.has(row.projectId)) {
+        projectsMap.set(row.projectId, {
+          id: row.projectId,
+          title: row.projectTitle,
+          description: row.projectDescription,
+          goalId: row.goalId,
+          createdAt: row.projectCreatedAt,
+          approved: row.projectApproved,
+          estimatedDuration: row.projectEstimatedDuration,
+          targetDate: row.projectTargetDate,
+          urgency: row.projectUrgency,
+          tasks: []
+        });
+      }
+
+      if (row.taskId && !tasksMap.has(row.taskId)) {
+        const task = {
+          id: row.taskId,
+          title: row.taskTitle,
+          description: row.taskDescription,
+          projectId: row.projectId,
+          createdAt: row.taskCreatedAt,
+          completed: row.taskCompleted,
+          approved: row.taskApproved,
+          estimatedHours: row.taskEstimatedHours,
+          dueDate: row.taskDueDate,
+          urgency: row.taskUrgency,
+          completedAt: row.taskCompletedAt,
+          subtasks: []
+        };
+        tasksMap.set(row.taskId, task);
+        if (row.projectId) {
+          projectsMap.get(row.projectId)?.tasks.push(task);
+        }
+      }
+
+      if (row.subtaskId) {
+        const subtask = {
+          id: row.subtaskId,
+          title: row.subtaskTitle,
+          description: row.subtaskDescription,
+          taskId: row.taskId,
+          createdAt: row.subtaskCreatedAt,
+          completed: row.subtaskCompleted,
+          approved: row.subtaskApproved,
+          estimatedHours: row.subtaskEstimatedHours,
+          dueDate: row.subtaskDueDate,
+          urgency: row.subtaskUrgency,
+          completedAt: row.subtaskCompletedAt,
+          attachments: row.subtaskAttachments,
+        };
+        if (row.taskId) {
+          tasksMap.get(row.taskId)?.subtasks.push(subtask);
+        }
+      }
+    });
 
     return {
       ...goal,
-      projects: projectsWithTasks
+      projects: Array.from(projectsMap.values())
     };
   }
 

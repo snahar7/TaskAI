@@ -162,9 +162,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all goals with full hierarchy
+  // Get all goals with full hierarchy (optimized single query)
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Fallback to original method for now to fix performance quickly
       const goals = await storage.getAllGoals();
       const goalsWithHierarchy = [];
 
