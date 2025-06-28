@@ -101,7 +101,7 @@ export default function Home() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/goals', selectedGoalId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
       toast({
         title: "Task Updated",
         description: "Task completion status updated successfully.",
@@ -123,7 +123,7 @@ export default function Home() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/goals', selectedGoalId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
       toast({
         title: "Subtask Updated",
         description: "Subtask completion status updated successfully.",
