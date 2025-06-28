@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoalInputForm } from "@/components/goal-input-form";
 import { HierarchicalInputForm } from "@/components/hierarchical-input-form";
 import { EditableBreakdownApproval } from "@/components/editable-breakdown-approval";
-import { GoalHierarchyDisplay } from "@/components/goal-hierarchy-display";
+import { SimpleGoalHierarchy } from "@/components/simple-goal-hierarchy";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,13 +26,13 @@ export default function Home() {
   const queryClient = useQueryClient();
 
   // Fetch all goals
-  const { data: goals = [], isLoading: goalsLoading } = useQuery({
+  const { data: goals = [], isLoading: goalsLoading } = useQuery<GoalWithProjects[]>({
     queryKey: ['/api/goals'],
     enabled: currentStep === 'display'
   });
 
   // Fetch specific goal with full hierarchy
-  const { data: selectedGoal, isLoading: goalLoading } = useQuery({
+  const { data: selectedGoal, isLoading: goalLoading } = useQuery<GoalWithProjects>({
     queryKey: ['/api/goals', selectedGoalId],
     enabled: !!selectedGoalId && currentStep === 'display'
   });
@@ -266,7 +266,7 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {(goals as any[]).map((goal: any) => (
+                    {goals.map((goal) => (
                       <div key={goal.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
                         <div>
                           <h4 className="font-medium">{goal.title}</h4>
@@ -322,7 +322,7 @@ export default function Home() {
                     onChange={(e) => viewGoal(parseInt(e.target.value))}
                     className="border rounded px-3 py-1 text-sm"
                   >
-                    {goals.map((goal: any) => (
+                    {goals.map((goal) => (
                       <option key={goal.id} value={goal.id}>
                         {goal.title}
                       </option>
@@ -338,7 +338,7 @@ export default function Home() {
                 <p className="text-gray-600 mt-2">Loading goal...</p>
               </div>
             ) : selectedGoal ? (
-              <GoalHierarchyDisplay
+              <SimpleGoalHierarchy
                 goal={selectedGoal}
                 onTaskComplete={handleTaskComplete}
                 onSubtaskComplete={handleSubtaskComplete}

@@ -44,7 +44,10 @@ export function GoalHierarchyDisplay({
   onSubtaskComplete, 
   onEdit 
 }: GoalHierarchyDisplayProps) {
-  const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set(goal.projects?.[0]?.id ? [goal.projects[0].id] : []));
+  // Start with all projects expanded for better visibility
+  const [expandedProjects, setExpandedProjects] = useState<Set<number>>(
+    new Set((goal.projects || []).map(p => p.id))
+  );
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
 
   const toggleProject = (projectId: number) => {
@@ -317,7 +320,7 @@ export function GoalHierarchyDisplay({
                                           {urgencyIcons[subtask.urgency] || urgencyIcons.medium}
                                         </Badge>
                                       )}
-                                      {subtask.attachments && (
+                                      {subtask.attachments && subtask.attachments.length > 0 && (
                                         <Badge variant="outline" className="text-xs">
                                           <Paperclip className="w-2 h-2 mr-1" />
                                           Files
