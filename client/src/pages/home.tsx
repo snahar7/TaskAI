@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoalInputForm } from "@/components/goal-input-form";
 import { HierarchicalInputForm } from "@/components/hierarchical-input-form";
-import { GoalBreakdownApproval } from "@/components/goal-breakdown-approval";
+import { EditableBreakdownApproval } from "@/components/editable-breakdown-approval";
 import { GoalHierarchyDisplay } from "@/components/goal-hierarchy-display";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -62,7 +62,7 @@ export default function Home() {
 
   // Approve breakdown mutation
   const approveBreakdownMutation = useMutation({
-    mutationFn: async (data: { pendingId: number; approved: boolean }) => {
+    mutationFn: async (data: { pendingId: number; approved: boolean; editedBreakdown?: AIBreakdown }) => {
       const response = await apiRequest('POST', '/api/goals/approve', data);
       return response.json();
     },
@@ -164,6 +164,14 @@ export default function Home() {
 
   const handleHierarchySubmit = (data: any) => {
     createHierarchyMutation.mutate(data);
+  };
+
+  const handleApproval = (pendingId: number, editedBreakdown: AIBreakdown) => {
+    approveBreakdownMutation.mutate({ pendingId, approved: true, editedBreakdown });
+  };
+
+  const handleRejection = (pendingId: number) => {
+    approveBreakdownMutation.mutate({ pendingId, approved: false });
   };
 
   const handleApprove = (pendingId: number) => {
@@ -287,11 +295,11 @@ export default function Home() {
               </Button>
             </div>
             
-            <GoalBreakdownApproval
+            <EditableBreakdownApproval
               breakdown={pendingBreakdown.breakdown}
               pendingId={pendingBreakdown.pendingId}
-              onApprove={handleApprove}
-              onReject={handleReject}
+              onApprove={handleApproval}
+              onReject={handleRejection}
               isLoading={approveBreakdownMutation.isPending}
             />
           </div>

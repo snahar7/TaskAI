@@ -26,13 +26,13 @@ interface GoalHierarchyDisplayProps {
   onEdit?: (type: 'goal' | 'project' | 'task' | 'subtask', id: number) => void;
 }
 
-const urgencyColors = {
+const urgencyColors: Record<string, string> = {
   low: "bg-green-100 text-green-800",
   medium: "bg-yellow-100 text-yellow-800", 
   high: "bg-red-100 text-red-800"
 };
 
-const urgencyIcons = {
+const urgencyIcons: Record<string, React.ReactElement> = {
   low: <Clock className="w-3 h-3" />,
   medium: <AlertTriangle className="w-3 h-3" />,
   high: <AlertTriangle className="w-3 h-3" />
@@ -44,7 +44,7 @@ export function GoalHierarchyDisplay({
   onSubtaskComplete, 
   onEdit 
 }: GoalHierarchyDisplayProps) {
-  const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set([goal.projects[0]?.id]));
+  const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set(goal.projects?.[0]?.id ? [goal.projects[0].id] : []));
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
 
   const toggleProject = (projectId: number) => {
@@ -132,8 +132,8 @@ export function GoalHierarchyDisplay({
               </Badge>
             )}
             {goal.urgency && (
-              <Badge className={`text-sm ${urgencyColors[goal.urgency]}`}>
-                {urgencyIcons[goal.urgency]}
+              <Badge className={`text-sm ${urgencyColors[goal.urgency] || urgencyColors.medium}`}>
+                {urgencyIcons[goal.urgency] || urgencyIcons.medium}
                 <span className="ml-1 capitalize">{goal.urgency}</span>
               </Badge>
             )}
@@ -169,8 +169,8 @@ export function GoalHierarchyDisplay({
                         {getProjectProgress(project)}% Complete
                       </Badge>
                       {project.urgency && (
-                        <Badge className={`text-xs ${urgencyColors[project.urgency]}`}>
-                          {urgencyIcons[project.urgency]}
+                        <Badge className={`text-xs ${urgencyColors[project.urgency] || urgencyColors.medium}`}>
+                          {urgencyIcons[project.urgency] || urgencyIcons.medium}
                           <span className="ml-1 capitalize">{project.urgency}</span>
                         </Badge>
                       )}
@@ -248,8 +248,8 @@ export function GoalHierarchyDisplay({
                                     </Badge>
                                   )}
                                   {task.urgency && (
-                                    <Badge className={`text-xs ${urgencyColors[task.urgency]}`}>
-                                      {urgencyIcons[task.urgency]}
+                                    <Badge className={`text-xs ${urgencyColors[task.urgency] || urgencyColors.medium}`}>
+                                      {urgencyIcons[task.urgency] || urgencyIcons.medium}
                                     </Badge>
                                   )}
                                   <Badge variant="outline" className="text-xs">
@@ -313,8 +313,8 @@ export function GoalHierarchyDisplay({
                                         </Badge>
                                       )}
                                       {subtask.urgency && (
-                                        <Badge className={`text-xs ${urgencyColors[subtask.urgency]}`}>
-                                          {urgencyIcons[subtask.urgency]}
+                                        <Badge className={`text-xs ${urgencyColors[subtask.urgency] || urgencyColors.medium}`}>
+                                          {urgencyIcons[subtask.urgency] || urgencyIcons.medium}
                                         </Badge>
                                       )}
                                       {subtask.attachments && (

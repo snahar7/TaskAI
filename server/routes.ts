@@ -75,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Approve/reject breakdown and create full hierarchy
   app.post("/api/goals/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { pendingId, approved } = approveBreakdownSchema.parse(req.body);
+      const { pendingId, approved, editedBreakdown } = req.body;
       
       const pendingBreakdown = await storage.getPendingBreakdown(pendingId);
       if (!pendingBreakdown) {
@@ -88,7 +88,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ message: "Breakdown rejected and removed" });
       }
       
-      const breakdown = pendingBreakdown.breakdown as AIBreakdown;
+      // Use edited breakdown if provided, otherwise use original
+      const breakdown = editedBreakdown || pendingBreakdown.breakdown as AIBreakdown;
       
       // Create the goal
       const goal = await storage.createGoal({
@@ -356,7 +357,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...baseData,
             projectId: parentId,
             completed: false,
-            completedAt: null,
             dueDate: targetDate || null,
             estimatedHours: estimatedHours || null
           });
@@ -370,7 +370,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...baseData,
             taskId: parentId,
             completed: false,
-            completedAt: null,
             dueDate: targetDate || null,
             estimatedHours: estimatedHours || null,
             attachments: null
