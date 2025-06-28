@@ -1,11 +1,14 @@
 import { 
-  users, goals, projects, tasks, subtasks, pendingBreakdowns,
+  users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags,
   type User, type InsertUser,
   type Goal, type InsertGoal,
   type Project, type InsertProject, 
   type Task, type InsertTask,
   type Subtask, type InsertSubtask,
   type PendingBreakdown, type InsertPendingBreakdown,
+  type Team, type InsertTeam,
+  type Category, type InsertCategory,
+  type Tag, type InsertTag,
   type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";

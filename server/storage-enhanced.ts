@@ -1,0 +1,926 @@
+import { 
+  users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags,
+  files, comments, dependencies, entityTags, followers, teamMembers, entityLinks,
+  type User, type InsertUser,
+  type Goal, type InsertGoal,
+  type Project, type InsertProject, 
+  type Task, type InsertTask,
+  type Subtask, type InsertSubtask,
+  type PendingBreakdown, type InsertPendingBreakdown,
+  type Team, type InsertTeam,
+  type Category, type InsertCategory,
+  type Tag, type InsertTag,
+  type Comment, type InsertComment,
+  type File, type InsertFile,
+  type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks,
+  type GoalWithDetails, type ProjectWithDetails, type TaskWithDetails
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, and, or, sql } from "drizzle-orm";
+
+export interface IEnhancedStorage {
+  // Users
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<InsertUser>): Promise<User>;
+  
+  // Goals - enhanced with relational fields
+  createGoal(goal: InsertGoal): Promise<Goal>;
+  getAllGoals(): Promise<Goal[]>;
+  getGoal(id: number): Promise<Goal | undefined>;
+  getGoalWithProjects(id: number): Promise<GoalWithProjects | undefined>;
+  getGoalWithDetails(id: number): Promise<GoalWithDetails | undefined>;
+  updateGoal(id: number, updates: Partial<InsertGoal>): Promise<Goal>;
+  updateGoalApproval(id: number, approved: boolean): Promise<void>;
+  updateGoalProgress(id: number, percentComplete: number): Promise<void>;
+  
+  // Projects - enhanced with relational fields
+  createProject(project: InsertProject): Promise<Project>;
+  getProjectsByGoalId(goalId: number): Promise<Project[]>;
+  getProject(id: number): Promise<Project | undefined>;
+  getProjectWithTasks(id: number): Promise<ProjectWithTasks | undefined>;
+  getProjectWithDetails(id: number): Promise<ProjectWithDetails | undefined>;
+  updateProject(id: number, updates: Partial<InsertProject>): Promise<Project>;
+  updateProjectApproval(id: number, approved: boolean): Promise<void>;
+  updateProjectProgress(id: number, percentComplete: number): Promise<void>;
+  
+  // Tasks - enhanced with relational fields
+  createTask(task: InsertTask): Promise<Task>;
+  getTasksByProjectId(projectId: number): Promise<Task[]>;
+  getTask(id: number): Promise<Task | undefined>;
+  getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined>;
+  getTaskWithDetails(id: number): Promise<TaskWithDetails | undefined>;
+  updateTask(id: number, updates: Partial<InsertTask>): Promise<Task>;
+  updateTaskCompletion(id: number, completed: boolean): Promise<void>;
+  updateTaskApproval(id: number, approved: boolean): Promise<void>;
+  updateTaskProgress(id: number, percentComplete: number): Promise<void>;
+  
+  // Subtasks - enhanced with relational fields
+  createSubtask(subtask: InsertSubtask): Promise<Subtask>;
+  getSubtasksByTaskId(taskId: number): Promise<Subtask[]>;
+  getSubtask(id: number): Promise<Subtask | undefined>;
+  updateSubtask(id: number, updates: Partial<InsertSubtask>): Promise<Subtask>;
+  updateSubtaskCompletion(id: number, completed: boolean): Promise<void>;
+  updateSubtaskApproval(id: number, approved: boolean): Promise<void>;
+  
+  // Teams
+  createTeam(team: InsertTeam): Promise<Team>;
+  getAllTeams(): Promise<Team[]>;
+  getTeam(id: number): Promise<Team | undefined>;
+  updateTeam(id: number, updates: Partial<InsertTeam>): Promise<Team>;
+  addTeamMember(teamId: number, userId: number, role?: string): Promise<void>;
+  removeTeamMember(teamId: number, userId: number): Promise<void>;
+  getTeamMembers(teamId: number): Promise<User[]>;
+  
+  // Categories
+  createCategory(category: InsertCategory): Promise<Category>;
+  getAllCategories(): Promise<Category[]>;
+  getCategory(id: number): Promise<Category | undefined>;
+  updateCategory(id: number, updates: Partial<InsertCategory>): Promise<Category>;
+  
+  // Tags
+  createTag(tag: InsertTag): Promise<Tag>;
+  getAllTags(): Promise<Tag[]>;
+  getTag(id: number): Promise<Tag | undefined>;
+  updateTag(id: number, updates: Partial<InsertTag>): Promise<Tag>;
+  tagEntity(entityType: string, entityId: number, tagId: number): Promise<void>;
+  untagEntity(entityType: string, entityId: number, tagId: number): Promise<void>;
+  getEntityTags(entityType: string, entityId: number): Promise<Tag[]>;
+  
+  // Comments
+  createComment(comment: InsertComment): Promise<Comment>;
+  getEntityComments(entityType: string, entityId: number): Promise<Comment[]>;
+  updateComment(id: number, content: string): Promise<Comment>;
+  deleteComment(id: number): Promise<void>;
+  
+  // Files
+  createFile(file: InsertFile): Promise<File>;
+  getEntityFiles(entityType: string, entityId: number): Promise<File[]>;
+  deleteFile(id: number): Promise<void>;
+  
+  // Dependencies
+  addDependency(dependentType: string, dependentId: number, dependsOnType: string, dependsOnId: number, dependencyType?: string): Promise<void>;
+  removeDependency(dependentType: string, dependentId: number, dependsOnType: string, dependsOnId: number): Promise<void>;
+  getEntityDependencies(entityType: string, entityId: number): Promise<any[]>;
+  
+  // Followers
+  followEntity(entityType: string, entityId: number, userId: number): Promise<void>;
+  unfollowEntity(entityType: string, entityId: number, userId: number): Promise<void>;
+  getEntityFollowers(entityType: string, entityId: number): Promise<User[]>;
+  getUserFollowedEntities(userId: number): Promise<any[]>;
+  
+  // Entity Links
+  linkEntities(sourceType: string, sourceId: number, targetType: string, targetId: number, linkType?: string): Promise<void>;
+  unlinkEntities(sourceType: string, sourceId: number, targetType: string, targetId: number): Promise<void>;
+  getEntityLinks(entityType: string, entityId: number): Promise<any[]>;
+  
+  // Search & Analytics
+  searchEntities(query: string, entityTypes?: string[]): Promise<any[]>;
+  getProjectProgress(projectId: number): Promise<{ totalTasks: number; completedTasks: number; percentComplete: number }>;
+  getGoalProgress(goalId: number): Promise<{ totalProjects: number; completedProjects: number; percentComplete: number }>;
+  getUserWorkload(userId: number): Promise<{ goals: number; projects: number; tasks: number; subtasks: number }>;
+  
+  // Pending breakdowns (legacy support)
+  createPendingBreakdown(breakdown: InsertPendingBreakdown): Promise<PendingBreakdown>;
+  getAllPendingBreakdowns(): Promise<PendingBreakdown[]>;
+  getPendingBreakdown(id: number): Promise<PendingBreakdown | undefined>;
+  deletePendingBreakdown(id: number): Promise<void>;
+}
+
+export class EnhancedDatabaseStorage implements IEnhancedStorage {
+  private db = db;
+
+  // Helper method to ensure compatibility with legacy title/name fields
+  private ensureNameField(data: any): any {
+    if (data.title && !data.name) {
+      data.name = data.title;
+    }
+    if (!data.title && data.name) {
+      data.title = data.name;
+    }
+    return data;
+  }
+
+  // Helper method to add default timestamps
+  private addTimestamps(data: any): any {
+    const now = new Date();
+    return {
+      ...data,
+      createdAt: data.createdAt || now,
+      updatedAt: data.updatedAt || now,
+    };
+  }
+
+  // Users
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await this.db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const userData = this.addTimestamps(insertUser);
+    const [user] = await this.db
+      .insert(users)
+      .values(userData)
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<InsertUser>): Promise<User> {
+    const updateData = { ...updates, updatedAt: new Date() };
+    const [user] = await this.db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  // Goals - Enhanced with comprehensive fields
+  async createGoal(insertGoal: InsertGoal): Promise<Goal> {
+    const goalData = this.addTimestamps(this.ensureNameField(insertGoal));
+    const [goal] = await this.db
+      .insert(goals)
+      .values(goalData)
+      .returning();
+    return goal;
+  }
+
+  async getAllGoals(): Promise<Goal[]> {
+    return await this.db.select().from(goals);
+  }
+
+  async getGoal(id: number): Promise<Goal | undefined> {
+    const [goal] = await this.db.select().from(goals).where(eq(goals.id, id));
+    return goal || undefined;
+  }
+
+  async getGoalWithProjects(id: number): Promise<GoalWithProjects | undefined> {
+    const goal = await this.getGoal(id);
+    if (!goal) return undefined;
+
+    const goalProjects = await this.db.select().from(projects).where(eq(projects.goalId, id));
+    
+    const projectsWithTasks = await Promise.all(
+      goalProjects.map(async (project) => {
+        const projectTasks = await this.db.select().from(tasks).where(eq(tasks.projectId, project.id));
+        
+        const tasksWithSubtasks = await Promise.all(
+          projectTasks.map(async (task) => {
+            const taskSubtasks = await this.db.select().from(subtasks).where(eq(subtasks.taskId, task.id));
+            return { ...task, subtasks: taskSubtasks };
+          })
+        );
+        
+        return { ...project, tasks: tasksWithSubtasks };
+      })
+    );
+
+    return { ...goal, projects: projectsWithTasks };
+  }
+
+  async getGoalWithDetails(id: number): Promise<GoalWithDetails | undefined> {
+    const goalWithProjects = await this.getGoalWithProjects(id);
+    if (!goalWithProjects) return undefined;
+
+    // Add relational data
+    const assignedUser = goalWithProjects.assignedTo 
+      ? await this.getUser(goalWithProjects.assignedTo) 
+      : undefined;
+    
+    const category = goalWithProjects.categoryId 
+      ? await this.getCategory(goalWithProjects.categoryId) 
+      : undefined;
+    
+    const team = goalWithProjects.teamId 
+      ? await this.getTeam(goalWithProjects.teamId) 
+      : undefined;
+    
+    const goalComments = await this.getEntityComments('goal', id);
+    const goalFiles = await this.getEntityFiles('goal', id);
+    const goalTags = await this.getEntityTags('goal', id);
+
+    return {
+      ...goalWithProjects,
+      assignedUser,
+      category,
+      team,
+      comments: goalComments,
+      files: goalFiles,
+      tags: goalTags,
+    };
+  }
+
+  async updateGoal(id: number, updates: Partial<InsertGoal>): Promise<Goal> {
+    const updateData = this.ensureNameField({ ...updates, updatedAt: new Date() });
+    const [goal] = await this.db
+      .update(goals)
+      .set(updateData)
+      .where(eq(goals.id, id))
+      .returning();
+    return goal;
+  }
+
+  async updateGoalApproval(id: number, approved: boolean): Promise<void> {
+    await this.db
+      .update(goals)
+      .set({ approved, updatedAt: new Date() })
+      .where(eq(goals.id, id));
+  }
+
+  async updateGoalProgress(id: number, percentComplete: number): Promise<void> {
+    await this.db
+      .update(goals)
+      .set({ percentComplete: percentComplete.toString(), updatedAt: new Date() })
+      .where(eq(goals.id, id));
+  }
+
+  // Projects - Enhanced with comprehensive fields
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const projectData = this.addTimestamps(this.ensureNameField(insertProject));
+    const [project] = await this.db
+      .insert(projects)
+      .values(projectData)
+      .returning();
+    return project;
+  }
+
+  async getProjectsByGoalId(goalId: number): Promise<Project[]> {
+    return await this.db.select().from(projects).where(eq(projects.goalId, goalId));
+  }
+
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await this.db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+
+  async getProjectWithTasks(id: number): Promise<ProjectWithTasks | undefined> {
+    const project = await this.getProject(id);
+    if (!project) return undefined;
+
+    const projectTasks = await this.db.select().from(tasks).where(eq(tasks.projectId, id));
+    
+    const tasksWithSubtasks = await Promise.all(
+      projectTasks.map(async (task) => {
+        const taskSubtasks = await this.db.select().from(subtasks).where(eq(subtasks.taskId, task.id));
+        return { ...task, subtasks: taskSubtasks };
+      })
+    );
+
+    return { ...project, tasks: tasksWithSubtasks };
+  }
+
+  async getProjectWithDetails(id: number): Promise<ProjectWithDetails | undefined> {
+    const projectWithTasks = await this.getProjectWithTasks(id);
+    if (!projectWithTasks) return undefined;
+
+    const assignedUser = projectWithTasks.assignedTo 
+      ? await this.getUser(projectWithTasks.assignedTo) 
+      : undefined;
+    
+    const category = projectWithTasks.categoryId 
+      ? await this.getCategory(projectWithTasks.categoryId) 
+      : undefined;
+    
+    const team = projectWithTasks.teamId 
+      ? await this.getTeam(projectWithTasks.teamId) 
+      : undefined;
+
+    const projectComments = await this.getEntityComments('project', id);
+    const projectFiles = await this.getEntityFiles('project', id);
+    const projectTags = await this.getEntityTags('project', id);
+
+    return {
+      ...projectWithTasks,
+      assignedUser,
+      category,
+      team,
+      comments: projectComments,
+      files: projectFiles,
+      tags: projectTags,
+    };
+  }
+
+  async updateProject(id: number, updates: Partial<InsertProject>): Promise<Project> {
+    const updateData = this.ensureNameField({ ...updates, updatedAt: new Date() });
+    const [project] = await this.db
+      .update(projects)
+      .set(updateData)
+      .where(eq(projects.id, id))
+      .returning();
+    return project;
+  }
+
+  async updateProjectApproval(id: number, approved: boolean): Promise<void> {
+    await this.db
+      .update(projects)
+      .set({ approved, updatedAt: new Date() })
+      .where(eq(projects.id, id));
+  }
+
+  async updateProjectProgress(id: number, percentComplete: number): Promise<void> {
+    await this.db
+      .update(projects)
+      .set({ percentComplete: percentComplete.toString(), updatedAt: new Date() })
+      .where(eq(projects.id, id));
+  }
+
+  // Tasks - Enhanced with comprehensive fields
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const taskData = this.addTimestamps(this.ensureNameField(insertTask));
+    const [task] = await this.db
+      .insert(tasks)
+      .values(taskData)
+      .returning();
+    return task;
+  }
+
+  async getTasksByProjectId(projectId: number): Promise<Task[]> {
+    return await this.db.select().from(tasks).where(eq(tasks.projectId, projectId));
+  }
+
+  async getTask(id: number): Promise<Task | undefined> {
+    const [task] = await this.db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
+  }
+
+  async getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined> {
+    const task = await this.getTask(id);
+    if (!task) return undefined;
+
+    const taskSubtasks = await this.db.select().from(subtasks).where(eq(subtasks.taskId, id));
+    return { ...task, subtasks: taskSubtasks };
+  }
+
+  async getTaskWithDetails(id: number): Promise<TaskWithDetails | undefined> {
+    const taskWithSubtasks = await this.getTaskWithSubtasks(id);
+    if (!taskWithSubtasks) return undefined;
+
+    const assignedUser = taskWithSubtasks.assignedTo 
+      ? await this.getUser(taskWithSubtasks.assignedTo) 
+      : undefined;
+    
+    const category = taskWithSubtasks.categoryId 
+      ? await this.getCategory(taskWithSubtasks.categoryId) 
+      : undefined;
+    
+    const team = taskWithSubtasks.teamId 
+      ? await this.getTeam(taskWithSubtasks.teamId) 
+      : undefined;
+
+    const taskComments = await this.getEntityComments('task', id);
+    const taskFiles = await this.getEntityFiles('task', id);
+    const taskTags = await this.getEntityTags('task', id);
+
+    return {
+      ...taskWithSubtasks,
+      assignedUser,
+      category,
+      team,
+      comments: taskComments,
+      files: taskFiles,
+      tags: taskTags,
+    };
+  }
+
+  async updateTask(id: number, updates: Partial<InsertTask>): Promise<Task> {
+    const updateData = this.ensureNameField({ ...updates, updatedAt: new Date() });
+    const [task] = await this.db
+      .update(tasks)
+      .set(updateData)
+      .where(eq(tasks.id, id))
+      .returning();
+    return task;
+  }
+
+  async updateTaskCompletion(id: number, completed: boolean): Promise<void> {
+    const updateData: any = { 
+      completed, 
+      updatedAt: new Date() 
+    };
+    
+    if (completed) {
+      updateData.completedAt = new Date();
+      updateData.status = 'completed';
+      updateData.percentComplete = '100.00';
+    } else {
+      updateData.completedAt = null;
+      updateData.status = 'in_progress';
+    }
+
+    await this.db
+      .update(tasks)
+      .set(updateData)
+      .where(eq(tasks.id, id));
+  }
+
+  async updateTaskApproval(id: number, approved: boolean): Promise<void> {
+    await this.db
+      .update(tasks)
+      .set({ approved, updatedAt: new Date() })
+      .where(eq(tasks.id, id));
+  }
+
+  async updateTaskProgress(id: number, percentComplete: number): Promise<void> {
+    await this.db
+      .update(tasks)
+      .set({ percentComplete: percentComplete.toString(), updatedAt: new Date() })
+      .where(eq(tasks.id, id));
+  }
+
+  // Subtasks - Enhanced with comprehensive fields
+  async createSubtask(insertSubtask: InsertSubtask): Promise<Subtask> {
+    const subtaskData = this.addTimestamps(this.ensureNameField(insertSubtask));
+    const [subtask] = await this.db
+      .insert(subtasks)
+      .values(subtaskData)
+      .returning();
+    return subtask;
+  }
+
+  async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
+    return await this.db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
+  }
+
+  async getSubtask(id: number): Promise<Subtask | undefined> {
+    const [subtask] = await this.db.select().from(subtasks).where(eq(subtasks.id, id));
+    return subtask || undefined;
+  }
+
+  async updateSubtask(id: number, updates: Partial<InsertSubtask>): Promise<Subtask> {
+    const updateData = this.ensureNameField({ ...updates, updatedAt: new Date() });
+    const [subtask] = await this.db
+      .update(subtasks)
+      .set(updateData)
+      .where(eq(subtasks.id, id))
+      .returning();
+    return subtask;
+  }
+
+  async updateSubtaskCompletion(id: number, completed: boolean): Promise<void> {
+    const updateData: any = { 
+      completed, 
+      updatedAt: new Date() 
+    };
+    
+    if (completed) {
+      updateData.completedAt = new Date();
+      updateData.status = 'completed';
+    } else {
+      updateData.completedAt = null;
+      updateData.status = 'in_progress';
+    }
+
+    await this.db
+      .update(subtasks)
+      .set(updateData)
+      .where(eq(subtasks.id, id));
+  }
+
+  async updateSubtaskApproval(id: number, approved: boolean): Promise<void> {
+    await this.db
+      .update(subtasks)
+      .set({ approved, updatedAt: new Date() })
+      .where(eq(subtasks.id, id));
+  }
+
+  // Teams
+  async createTeam(insertTeam: InsertTeam): Promise<Team> {
+    const teamData = this.addTimestamps(insertTeam);
+    const [team] = await this.db
+      .insert(teams)
+      .values(teamData)
+      .returning();
+    return team;
+  }
+
+  async getAllTeams(): Promise<Team[]> {
+    return await this.db.select().from(teams);
+  }
+
+  async getTeam(id: number): Promise<Team | undefined> {
+    const [team] = await this.db.select().from(teams).where(eq(teams.id, id));
+    return team || undefined;
+  }
+
+  async updateTeam(id: number, updates: Partial<InsertTeam>): Promise<Team> {
+    const updateData = { ...updates, updatedAt: new Date() };
+    const [team] = await this.db
+      .update(teams)
+      .set(updateData)
+      .where(eq(teams.id, id))
+      .returning();
+    return team;
+  }
+
+  async addTeamMember(teamId: number, userId: number, role: string = 'member'): Promise<void> {
+    await this.db
+      .insert(teamMembers)
+      .values({ teamId, userId, role, createdAt: new Date() });
+  }
+
+  async removeTeamMember(teamId: number, userId: number): Promise<void> {
+    await this.db
+      .delete(teamMembers)
+      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  }
+
+  async getTeamMembers(teamId: number): Promise<User[]> {
+    const members = await this.db
+      .select({ user: users })
+      .from(teamMembers)
+      .innerJoin(users, eq(teamMembers.userId, users.id))
+      .where(eq(teamMembers.teamId, teamId));
+    return members.map(m => m.user);
+  }
+
+  // Categories
+  async createCategory(insertCategory: InsertCategory): Promise<Category> {
+    const [category] = await this.db
+      .insert(categories)
+      .values({ ...insertCategory, createdAt: new Date() })
+      .returning();
+    return category;
+  }
+
+  async getAllCategories(): Promise<Category[]> {
+    return await this.db.select().from(categories);
+  }
+
+  async getCategory(id: number): Promise<Category | undefined> {
+    const [category] = await this.db.select().from(categories).where(eq(categories.id, id));
+    return category || undefined;
+  }
+
+  async updateCategory(id: number, updates: Partial<InsertCategory>): Promise<Category> {
+    const [category] = await this.db
+      .update(categories)
+      .set(updates)
+      .where(eq(categories.id, id))
+      .returning();
+    return category;
+  }
+
+  // Tags
+  async createTag(insertTag: InsertTag): Promise<Tag> {
+    const [tag] = await this.db
+      .insert(tags)
+      .values({ ...insertTag, createdAt: new Date() })
+      .returning();
+    return tag;
+  }
+
+  async getAllTags(): Promise<Tag[]> {
+    return await this.db.select().from(tags);
+  }
+
+  async getTag(id: number): Promise<Tag | undefined> {
+    const [tag] = await this.db.select().from(tags).where(eq(tags.id, id));
+    return tag || undefined;
+  }
+
+  async updateTag(id: number, updates: Partial<InsertTag>): Promise<Tag> {
+    const [tag] = await this.db
+      .update(tags)
+      .set(updates)
+      .where(eq(tags.id, id))
+      .returning();
+    return tag;
+  }
+
+  async tagEntity(entityType: string, entityId: number, tagId: number): Promise<void> {
+    await this.db
+      .insert(entityTags)
+      .values({ entityType, entityId, tagId, createdAt: new Date() });
+  }
+
+  async untagEntity(entityType: string, entityId: number, tagId: number): Promise<void> {
+    await this.db
+      .delete(entityTags)
+      .where(and(
+        eq(entityTags.entityType, entityType),
+        eq(entityTags.entityId, entityId),
+        eq(entityTags.tagId, tagId)
+      ));
+  }
+
+  async getEntityTags(entityType: string, entityId: number): Promise<Tag[]> {
+    const tagResults = await this.db
+      .select({ tag: tags })
+      .from(entityTags)
+      .innerJoin(tags, eq(entityTags.tagId, tags.id))
+      .where(and(eq(entityTags.entityType, entityType), eq(entityTags.entityId, entityId)));
+    return tagResults.map(r => r.tag);
+  }
+
+  // Comments
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const commentData = this.addTimestamps(insertComment);
+    const [comment] = await this.db
+      .insert(comments)
+      .values(commentData)
+      .returning();
+    return comment;
+  }
+
+  async getEntityComments(entityType: string, entityId: number): Promise<Comment[]> {
+    return await this.db
+      .select()
+      .from(comments)
+      .where(and(eq(comments.entityType, entityType), eq(comments.entityId, entityId)));
+  }
+
+  async updateComment(id: number, content: string): Promise<Comment> {
+    const [comment] = await this.db
+      .update(comments)
+      .set({ content, updatedAt: new Date() })
+      .where(eq(comments.id, id))
+      .returning();
+    return comment;
+  }
+
+  async deleteComment(id: number): Promise<void> {
+    await this.db.delete(comments).where(eq(comments.id, id));
+  }
+
+  // Files
+  async createFile(insertFile: InsertFile): Promise<File> {
+    const [file] = await this.db
+      .insert(files)
+      .values({ ...insertFile, createdAt: new Date() })
+      .returning();
+    return file;
+  }
+
+  async getEntityFiles(entityType: string, entityId: number): Promise<File[]> {
+    return await this.db
+      .select()
+      .from(files)
+      .where(and(eq(files.entityType, entityType), eq(files.entityId, entityId)));
+  }
+
+  async deleteFile(id: number): Promise<void> {
+    await this.db.delete(files).where(eq(files.id, id));
+  }
+
+  // Dependencies
+  async addDependency(dependentType: string, dependentId: number, dependsOnType: string, dependsOnId: number, dependencyType: string = 'finish_to_start'): Promise<void> {
+    await this.db
+      .insert(dependencies)
+      .values({ 
+        dependentType, 
+        dependentId, 
+        dependsOnType, 
+        dependsOnId, 
+        dependencyType,
+        createdAt: new Date() 
+      });
+  }
+
+  async removeDependency(dependentType: string, dependentId: number, dependsOnType: string, dependsOnId: number): Promise<void> {
+    await this.db
+      .delete(dependencies)
+      .where(and(
+        eq(dependencies.dependentType, dependentType),
+        eq(dependencies.dependentId, dependentId),
+        eq(dependencies.dependsOnType, dependsOnType),
+        eq(dependencies.dependsOnId, dependsOnId)
+      ));
+  }
+
+  async getEntityDependencies(entityType: string, entityId: number): Promise<any[]> {
+    return await this.db
+      .select()
+      .from(dependencies)
+      .where(and(eq(dependencies.dependentType, entityType), eq(dependencies.dependentId, entityId)));
+  }
+
+  // Followers
+  async followEntity(entityType: string, entityId: number, userId: number): Promise<void> {
+    await this.db
+      .insert(followers)
+      .values({ entityType, entityId, userId, createdAt: new Date() });
+  }
+
+  async unfollowEntity(entityType: string, entityId: number, userId: number): Promise<void> {
+    await this.db
+      .delete(followers)
+      .where(and(
+        eq(followers.entityType, entityType),
+        eq(followers.entityId, entityId),
+        eq(followers.userId, userId)
+      ));
+  }
+
+  async getEntityFollowers(entityType: string, entityId: number): Promise<User[]> {
+    const followerResults = await this.db
+      .select({ user: users })
+      .from(followers)
+      .innerJoin(users, eq(followers.userId, users.id))
+      .where(and(eq(followers.entityType, entityType), eq(followers.entityId, entityId)));
+    return followerResults.map(r => r.user);
+  }
+
+  async getUserFollowedEntities(userId: number): Promise<any[]> {
+    return await this.db
+      .select()
+      .from(followers)
+      .where(eq(followers.userId, userId));
+  }
+
+  // Entity Links
+  async linkEntities(sourceType: string, sourceId: number, targetType: string, targetId: number, linkType: string = 'related'): Promise<void> {
+    await this.db
+      .insert(entityLinks)
+      .values({ sourceType, sourceId, targetType, targetId, linkType, createdAt: new Date() });
+  }
+
+  async unlinkEntities(sourceType: string, sourceId: number, targetType: string, targetId: number): Promise<void> {
+    await this.db
+      .delete(entityLinks)
+      .where(and(
+        eq(entityLinks.sourceType, sourceType),
+        eq(entityLinks.sourceId, sourceId),
+        eq(entityLinks.targetType, targetType),
+        eq(entityLinks.targetId, targetId)
+      ));
+  }
+
+  async getEntityLinks(entityType: string, entityId: number): Promise<any[]> {
+    return await this.db
+      .select()
+      .from(entityLinks)
+      .where(or(
+        and(eq(entityLinks.sourceType, entityType), eq(entityLinks.sourceId, entityId)),
+        and(eq(entityLinks.targetType, entityType), eq(entityLinks.targetId, entityId))
+      ));
+  }
+
+  // Search & Analytics
+  async searchEntities(query: string, entityTypes: string[] = ['goal', 'project', 'task', 'subtask']): Promise<any[]> {
+    const results: any[] = [];
+    const searchTerm = `%${query}%`;
+
+    if (entityTypes.includes('goal')) {
+      const goalResults = await this.db
+        .select()
+        .from(goals)
+        .where(or(
+          sql`${goals.title} ILIKE ${searchTerm}`,
+          sql`${goals.description} ILIKE ${searchTerm}`,
+          sql`${goals.name} ILIKE ${searchTerm}`
+        ));
+      results.push(...goalResults.map(g => ({ ...g, entityType: 'goal' })));
+    }
+
+    if (entityTypes.includes('project')) {
+      const projectResults = await this.db
+        .select()
+        .from(projects)
+        .where(or(
+          sql`${projects.title} ILIKE ${searchTerm}`,
+          sql`${projects.description} ILIKE ${searchTerm}`,
+          sql`${projects.name} ILIKE ${searchTerm}`
+        ));
+      results.push(...projectResults.map(p => ({ ...p, entityType: 'project' })));
+    }
+
+    if (entityTypes.includes('task')) {
+      const taskResults = await this.db
+        .select()
+        .from(tasks)
+        .where(or(
+          sql`${tasks.title} ILIKE ${searchTerm}`,
+          sql`${tasks.description} ILIKE ${searchTerm}`,
+          sql`${tasks.name} ILIKE ${searchTerm}`
+        ));
+      results.push(...taskResults.map(t => ({ ...t, entityType: 'task' })));
+    }
+
+    if (entityTypes.includes('subtask')) {
+      const subtaskResults = await this.db
+        .select()
+        .from(subtasks)
+        .where(or(
+          sql`${subtasks.title} ILIKE ${searchTerm}`,
+          sql`${subtasks.description} ILIKE ${searchTerm}`,
+          sql`${subtasks.name} ILIKE ${searchTerm}`
+        ));
+      results.push(...subtaskResults.map(s => ({ ...s, entityType: 'subtask' })));
+    }
+
+    return results;
+  }
+
+  async getProjectProgress(projectId: number): Promise<{ totalTasks: number; completedTasks: number; percentComplete: number }> {
+    const projectTasks = await this.getTasksByProjectId(projectId);
+    const totalTasks = projectTasks.length;
+    const completedTasks = projectTasks.filter(task => task.completed).length;
+    const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    return { totalTasks, completedTasks, percentComplete };
+  }
+
+  async getGoalProgress(goalId: number): Promise<{ totalProjects: number; completedProjects: number; percentComplete: number }> {
+    const goalProjects = await this.getProjectsByGoalId(goalId);
+    const totalProjects = goalProjects.length;
+    
+    let completedProjects = 0;
+    for (const project of goalProjects) {
+      const progress = await this.getProjectProgress(project.id);
+      if (progress.percentComplete === 100) {
+        completedProjects++;
+      }
+    }
+    
+    const percentComplete = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
+
+    return { totalProjects, completedProjects, percentComplete };
+  }
+
+  async getUserWorkload(userId: number): Promise<{ goals: number; projects: number; tasks: number; subtasks: number }> {
+    const userGoals = await this.db.select().from(goals).where(eq(goals.assignedTo, userId));
+    const userProjects = await this.db.select().from(projects).where(eq(projects.assignedTo, userId));
+    const userTasks = await this.db.select().from(tasks).where(eq(tasks.assignedTo, userId));
+    const userSubtasks = await this.db.select().from(subtasks).where(eq(subtasks.assignedTo, userId));
+
+    return {
+      goals: userGoals.length,
+      projects: userProjects.length,
+      tasks: userTasks.length,
+      subtasks: userSubtasks.length,
+    };
+  }
+
+  // Pending breakdowns (legacy support)
+  async createPendingBreakdown(insertBreakdown: InsertPendingBreakdown): Promise<PendingBreakdown> {
+    const [breakdown] = await this.db
+      .insert(pendingBreakdowns)
+      .values({ ...insertBreakdown, createdAt: new Date() })
+      .returning();
+    return breakdown;
+  }
+
+  async getAllPendingBreakdowns(): Promise<PendingBreakdown[]> {
+    return await this.db.select().from(pendingBreakdowns);
+  }
+
+  async getPendingBreakdown(id: number): Promise<PendingBreakdown | undefined> {
+    const [breakdown] = await this.db.select().from(pendingBreakdowns).where(eq(pendingBreakdowns.id, id));
+    return breakdown || undefined;
+  }
+
+  async deletePendingBreakdown(id: number): Promise<void> {
+    await this.db.delete(pendingBreakdowns).where(eq(pendingBreakdowns.id, id));
+  }
+}
+
+// Export both enhanced and legacy storage interfaces
+export const enhancedStorage = new EnhancedDatabaseStorage();
+export const storage = enhancedStorage; // Legacy compatibility

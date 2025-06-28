@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Express } from "express";
 import { createServer, type Server } from "node:http";
-import { storage } from "./storage";
+import { storage } from "./storage-enhanced";
 import { generateGoalBreakdown } from "./services/openai";
 import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema, type AIBreakdown } from "@shared/schema";
 import { z } from "zod";
