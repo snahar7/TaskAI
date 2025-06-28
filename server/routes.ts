@@ -162,11 +162,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all goals
+  // Get all goals with full hierarchy
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const goals = await storage.getAllGoals();
-      res.json(goals);
+      const goalsWithHierarchy = [];
+
+      for (const goal of goals) {
+        const goalWithProjects = await storage.getGoalWithProjects(goal.id);
+        if (goalWithProjects) {
+          goalsWithHierarchy.push(goalWithProjects);
+        }
+      }
+
+      res.json(goalsWithHierarchy);
     } catch (error) {
       next(error);
     }
