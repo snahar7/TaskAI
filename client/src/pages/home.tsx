@@ -8,8 +8,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Target, ListTodo, Sparkles, FolderPlus } from "lucide-react";
+import { Plus, Target, ListTodo, Sparkles, FolderPlus, Calendar, AlertTriangle } from "lucide-react";
 import { AIBreakdown, GoalWithProjects } from "@shared/schema";
 
 interface PendingBreakdownResponse {
@@ -18,7 +19,7 @@ interface PendingBreakdownResponse {
 }
 
 export default function Home() {
-  const [currentStep, setCurrentStep] = useState<'input' | 'approval' | 'display'>('input');
+  const [currentStep, setCurrentStep] = useState<'input' | 'approval' | 'display'>('display');
   const [pendingBreakdown, setPendingBreakdown] = useState<PendingBreakdownResponse | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   
@@ -27,8 +28,7 @@ export default function Home() {
 
   // Fetch all goals
   const { data: goals = [], isLoading: goalsLoading } = useQuery<GoalWithProjects[]>({
-    queryKey: ['/api/goals'],
-    enabled: currentStep === 'display'
+    queryKey: ['/api/goals']
   });
 
   // Fetch specific goal with full hierarchy
@@ -214,6 +214,11 @@ export default function Home() {
     setCurrentStep('display');
   };
 
+  const showAllGoals = () => {
+    setCurrentStep('display');
+    setSelectedGoalId(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
@@ -314,40 +319,144 @@ export default function Home() {
                 Create New Goal
               </Button>
               
-              {goals.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Switch goal:</span>
-                  <select 
-                    value={selectedGoalId || ''} 
-                    onChange={(e) => viewGoal(parseInt(e.target.value))}
-                    className="border rounded px-3 py-1 text-sm"
-                  >
-                    {goals.map((goal) => (
-                      <option key={goal.id} value={goal.id}>
-                        {goal.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <Button variant="outline" onClick={showAllGoals}>
+                <ListTodo className="w-4 h-4 mr-2" />
+                View All Goals
+              </Button>
             </div>
 
-            {goalLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-600 mt-2">Loading goal...</p>
+            {!selectedGoalId ? (
+              /* All Goals View */
+              <div className="max-w-4xl mx-auto space-y-4">
+                <h2 className="text-2xl font-bold text-center mb-6">Your Goals</h2>
+                
+                {goalsLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-gray-600 mt-2">Loading your goals...</p>
+                  </div>
+                ) : goals.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <Target className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-600 mb-2">No goals yet</h3>
+                      <p className="text-gray-500 mb-4">Create your first goal to get started with AI-powered task breakdown</p>
+                      <Button onClick={startNewGoal}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Your First Goal
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {goals.map((goal) => {
+                      const allTasks = (goal.projects || []).flatMap(p => p.tasks || []);
+                      const completedTasks = allTasks.filter(t => t.completed).length;
+                      const progressPercent = allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0;
+                      
+                      return (
+                        <Card key={goal.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => viewGoal(goal.id)}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Target className="w-5 h-5 text-blue-600" />
+                                <div>
+                                  <CardTitle className="text-lg">{goal.title}</CardTitle>
+                                  {goal.description && (
+                                    <p className="text-sm text-gray-600 mt-1">{goal.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  {progressPercent}% Complete
+                                </Badge>
+                                <Badge variant="outline">
+                                  {(goal.projects || []).length} projects
+                                </Badge>
+                                <Badge variant="outline">
+                                  {allTasks.length} tasks
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            {/* Progress Bar */}
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {goal.targetDate && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  Due: {goal.targetDate}
+                                </Badge>
+                              )}
+                              {goal.urgency && (
+                                <Badge className={`text-xs ${
+                                  goal.urgency === 'high' ? 'bg-red-100 text-red-800' :
+                                  goal.urgency === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  {goal.urgency}
+                                </Badge>
+                              )}
+                            </div>
+                          </CardHeader>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ) : selectedGoal ? (
-              <SimpleGoalHierarchy
-                goal={selectedGoal}
-                onTaskComplete={handleTaskComplete}
-                onSubtaskComplete={handleSubtaskComplete}
-                onEdit={handleEdit}
-              />
             ) : (
-              <div className="text-center py-12">
-                <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Select a goal to view its breakdown</p>
+              /* Single Goal View */
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 max-w-4xl mx-auto">
+                  <Button variant="outline" size="sm" onClick={showAllGoals}>
+                    ← Back to All Goals
+                  </Button>
+                  
+                  {goals.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Switch goal:</span>
+                      <select 
+                        value={selectedGoalId || ''} 
+                        onChange={(e) => viewGoal(parseInt(e.target.value))}
+                        className="border rounded px-3 py-1 text-sm"
+                      >
+                        {goals.map((goal) => (
+                          <option key={goal.id} value={goal.id}>
+                            {goal.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {goalLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-gray-600 mt-2">Loading goal...</p>
+                  </div>
+                ) : selectedGoal ? (
+                  <SimpleGoalHierarchy
+                    goal={selectedGoal}
+                    onTaskComplete={handleTaskComplete}
+                    onSubtaskComplete={handleSubtaskComplete}
+                    onEdit={handleEdit}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">Goal not found</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
