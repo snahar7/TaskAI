@@ -34,7 +34,18 @@ export function Navigation() {
                 className="text-sm font-medium"
               >
                 <Home className="w-4 h-4 mr-2" />
-                Home
+                Chat
+              </Button>
+            </Link>
+            
+            <Link href="/hierarchy">
+              <Button
+                variant={isActive("/hierarchy") ? "default" : "ghost"}
+                size="sm"
+                className="text-sm font-medium"
+              >
+                <ListChecks className="w-4 h-4 mr-2" />
+                Hierarchy
               </Button>
             </Link>
             
