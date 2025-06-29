@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, ListChecks, CheckSquare } from "lucide-react";
+import { Home, Database, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navigation() {
@@ -38,14 +38,14 @@ export function Navigation() {
               </Button>
             </Link>
             
-            <Link href="/tasks">
+            <Link href="/database">
               <Button
-                variant={isActive("/tasks") ? "default" : "ghost"}
+                variant={isActive("/database") ? "default" : "ghost"}
                 size="sm"
                 className="text-sm font-medium"
               >
-                <ListChecks className="w-4 h-4 mr-2" />
-                Tasks
+                <Database className="w-4 h-4 mr-2" />
+                Database
               </Button>
             </Link>
           </div>
