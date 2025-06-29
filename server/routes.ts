@@ -3,7 +3,6 @@ import { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage } from "./storage-enhanced";
 import { generateGoalBreakdown } from "./services/openai";
-import { analyzeUserInput } from "./services/chat-analyzer";
 import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema, type AIBreakdown } from "@shared/schema";
 import { z } from "zod";
 
@@ -397,63 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Individual entity creation endpoints for chat interface
-  app.post("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const goalData = insertGoalSchema.parse(req.body);
-      const goal = await storage.createGoal(goalData);
-      res.json(goal);
-    } catch (error) {
-      next(error);
-    }
-  });
 
-  app.post("/api/projects", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const projectData = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject(projectData);
-      res.json(project);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/api/tasks", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const taskData = insertTaskSchema.parse(req.body);
-      const task = await storage.createTask(taskData);
-      res.json(task);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/api/subtasks", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const subtaskData = insertSubtaskSchema.parse(req.body);
-      const subtask = await storage.createSubtask(subtaskData);
-      res.json(subtask);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Chat analysis endpoint
-  app.post("/api/chat/analyze", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { input } = req.body;
-      
-      if (!input || typeof input !== 'string') {
-        return res.status(400).json({ error: 'Input is required and must be a string' });
-      }
-
-      const result = await analyzeUserInput(input);
-      res.json(result);
-    } catch (error) {
-      console.error('Error in chat analysis:', error);
-      next(error);
-    }
-  });
 
   // Push schema changes to database
   app.post("/api/db/push", async (req: Request, res: Response, next: NextFunction) => {

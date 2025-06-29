@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Target, ListTodo, Sparkles, FolderPlus, Calendar, AlertTriangle } from "lucide-react";
-import { Navigation } from "@/components/navigation";
 import { AIBreakdown, GoalWithProjects } from "@shared/schema";
 
 interface PendingBreakdownResponse {
@@ -281,10 +280,8 @@ export default function Home() {
   };
 
   return (
-    <>
-      <Navigation />
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Taflo</h1>
@@ -521,6 +518,5 @@ export default function Home() {
         )}
       </div>
     </div>
-    </>
   );
 }
