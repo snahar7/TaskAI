@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronDown, ChevronRight, Plus, Target, FolderOpen, CheckSquare, ListTodo, Calendar, User, Tag, Clock, FileText, AlertCircle, Percent } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Target, FolderOpen, CheckSquare, ListTodo, Calendar, User, Tag, Clock, FileText, AlertCircle, Percent, Check } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import type { GoalWithProjects } from "@shared/schema";
 
@@ -32,6 +33,25 @@ export default function DatabasePage() {
     },
   });
 
+  const completionMutation = useMutation({
+    mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
+      const endpoint = type === "goal" ? `/api/goals/${id}/approve` :
+                      type === "project" ? `/api/projects/${id}/approve` :
+                      type === "task" ? `/api/tasks/${id}/complete` :
+                      `/api/subtasks/${id}/complete`;
+      
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed }),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+    },
+  });
+
   const handleAddBreakdown = (level: string, parentId?: number) => {
     const input = prompt(`Enter a ${level} to break down:`);
     if (input) {
@@ -41,6 +61,14 @@ export default function DatabasePage() {
         parentId,
       });
     }
+  };
+
+  const handleCompletionToggle = (type: string, id: number, currentStatus: boolean) => {
+    completionMutation.mutate({
+      type,
+      id,
+      completed: !currentStatus,
+    });
   };
 
   const toggleExpanded = (type: string, id: number) => {
@@ -118,6 +146,13 @@ export default function DatabasePage() {
             ) : (
               <div className="w-6" />
             )}
+          </TableCell>
+          
+          <TableCell>
+            <Checkbox
+              checked={item.status === 'completed' || item.completed}
+              onCheckedChange={() => handleCompletionToggle(type, item.id, item.status === 'completed' || item.completed)}
+            />
           </TableCell>
           
           <TableCell>
@@ -232,13 +267,13 @@ export default function DatabasePage() {
         {/* Render children when expanded */}
         {isExpanded && (
           <>
-            {type === "goal" && item.projects?.map((project: any) => 
+            {type === "goal" && item.projects?.map((project: any, index: number) => 
               renderTableRow(project, "project", level + 1)
             )}
-            {type === "project" && item.tasks?.map((task: any) => 
+            {type === "project" && item.tasks?.map((task: any, index: number) => 
               renderTableRow(task, "task", level + 1)
             )}
-            {type === "task" && item.subtasks?.map((subtask: any) => 
+            {type === "task" && item.subtasks?.map((subtask: any, index: number) => 
               renderTableRow(subtask, "subtask", level + 1)
             )}
           </>
@@ -277,6 +312,7 @@ export default function DatabasePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[50px]">Done</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead className="w-[100px]">Type</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
