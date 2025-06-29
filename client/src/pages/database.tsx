@@ -40,10 +40,12 @@ export default function DatabasePage() {
                       type === "task" ? `/api/tasks/${id}/complete` :
                       `/api/subtasks/${id}/complete`;
       
+      const body = type === "goal" || type === "project" ? { approved: completed } : { completed };
+      
       const response = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed }),
+        body: JSON.stringify(body),
       });
       return response.json();
     },
@@ -132,23 +134,22 @@ export default function DatabasePage() {
 
     return (
       <>
-        <TableRow key={`${type}-${item.id}`} className={level > 0 ? "bg-gray-50" : ""}>
+        <TableRow 
+          key={`${type}-${item.id}`} 
+          className={`${level > 0 ? "bg-gray-50" : ""} ${hasChildren ? "cursor-pointer hover:bg-gray-100" : ""}`}
+          onClick={hasChildren ? () => toggleExpanded(type, item.id) : undefined}
+        >
           <TableCell>
             {hasChildren ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => toggleExpanded(type, item.id)}
-                className="p-1"
-              >
+              <div className="flex items-center justify-center">
                 {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </Button>
+              </div>
             ) : (
               <div className="w-6" />
             )}
           </TableCell>
           
-          <TableCell>
+          <TableCell onClick={(e) => e.stopPropagation()}>
             <Checkbox
               checked={item.status === 'completed' || item.completed}
               onCheckedChange={() => handleCompletionToggle(type, item.id, item.status === 'completed' || item.completed)}
@@ -248,7 +249,7 @@ export default function DatabasePage() {
             </div>
           </TableCell>
 
-          <TableCell>
+          <TableCell onClick={(e) => e.stopPropagation()}>
             <Button
               variant="outline"
               size="sm"
