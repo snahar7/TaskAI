@@ -69,25 +69,41 @@ export default function DatabasePage() {
         
         return old.map((goal: any) => {
           if (type === "goal" && goal.id === id) {
-            return { ...goal, status: completed ? 'completed' : 'not_started' };
+            return { 
+              ...goal, 
+              status: completed ? 'completed' : 'not_started',
+              percentComplete: completed ? "100.00" : goal.percentComplete 
+            };
           }
           
           if (goal.projects) {
             const updatedProjects = goal.projects.map((project: any) => {
               if (type === "project" && project.id === id) {
-                return { ...project, status: completed ? 'completed' : 'not_started' };
+                return { 
+                  ...project, 
+                  status: completed ? 'completed' : 'not_started',
+                  percentComplete: completed ? "100.00" : project.percentComplete 
+                };
               }
               
               if (project.tasks) {
                 const updatedTasks = project.tasks.map((task: any) => {
                   if (type === "task" && task.id === id) {
-                    return { ...task, completed };
+                    return { 
+                      ...task, 
+                      completed,
+                      percentComplete: completed ? "100.00" : task.percentComplete 
+                    };
                   }
                   
                   if (task.subtasks) {
                     const updatedSubtasks = task.subtasks.map((subtask: any) => {
                       if (type === "subtask" && subtask.id === id) {
-                        return { ...subtask, completed };
+                        return { 
+                          ...subtask, 
+                          completed,
+                          percentComplete: completed ? "100.00" : subtask.percentComplete 
+                        };
                       }
                       return subtask;
                     });
@@ -243,8 +259,8 @@ export default function DatabasePage() {
           </TableCell>
 
           <TableCell>
-            <Badge className={getStatusColor(item.status)}>
-              {item.status || 'pending'}
+            <Badge className={getStatusColor(parseFloat(item.percentComplete) === 100 ? 'completed' : item.status)}>
+              {parseFloat(item.percentComplete) === 100 ? 'completed' : (item.status || 'pending')}
             </Badge>
           </TableCell>
 
@@ -341,20 +357,14 @@ export default function DatabasePage() {
         {/* Render children when expanded */}
         {isExpanded && (
           <>
-            {type === "goal" && item.projects?.map((project: any) => 
-              <React.Fragment key={`project-fragment-${project.id}`}>
-                {renderTableRow(project, "project", level + 1)}
-              </React.Fragment>
+            {type === "goal" && item.projects?.map((project: any, index: number) => 
+              renderTableRow(project, "project", level + 1)
             )}
-            {type === "project" && item.tasks?.map((task: any) => 
-              <React.Fragment key={`task-fragment-${task.id}`}>
-                {renderTableRow(task, "task", level + 1)}
-              </React.Fragment>
+            {type === "project" && item.tasks?.map((task: any, index: number) => 
+              renderTableRow(task, "task", level + 1)
             )}
-            {type === "task" && item.subtasks?.map((subtask: any) => 
-              <React.Fragment key={`subtask-fragment-${subtask.id}`}>
-                {renderTableRow(subtask, "subtask", level + 1)}
-              </React.Fragment>
+            {type === "task" && item.subtasks?.map((subtask: any, index: number) => 
+              renderTableRow(subtask, "subtask", level + 1)
             )}
           </>
         )}
