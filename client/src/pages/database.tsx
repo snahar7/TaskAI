@@ -369,7 +369,7 @@ export default function DatabasePage() {
 
   const filteredItems = filterAndSortItems(goals);
 
-  const renderTableRow = (item: any, type: string, level: number = 0) => {
+  const renderTableRow = (item: any, type: string, level: number = 0, index: number | string = 0) => {
     const isExpanded = type === "goal" ? expandedGoals.has(item.id) :
                       type === "project" ? expandedProjects.has(item.id) :
                       expandedTasks.has(item.id);
@@ -393,7 +393,7 @@ export default function DatabasePage() {
     return (
       <>
         <TableRow 
-          key={`${type}-${item.id}`} 
+          key={`${type}-${item.id}-${index}`} 
           className={`${level > 0 ? "bg-gray-50" : ""} ${hasChildren ? "cursor-pointer hover:bg-gray-100" : ""}`}
           onClick={hasChildren ? () => toggleExpanded(type, item.id) : undefined}
         >
@@ -407,7 +407,10 @@ export default function DatabasePage() {
             )}
           </TableCell>
           
-          <TableCell onClick={(e) => e.stopPropagation()}>
+          <TableCell 
+            className="sticky left-0 z-10 bg-white border-r shadow-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Checkbox
               checked={item.status === 'completed' || item.completed || parseFloat(item.percentComplete) === 100}
               onCheckedChange={() => {
@@ -525,14 +528,14 @@ export default function DatabasePage() {
         {/* Render children when expanded */}
         {isExpanded && (
           <>
-            {type === "goal" && item.projects?.map((project: any) => 
-              renderTableRow(project, "project", level + 1)
+            {type === "goal" && item.projects?.map((project: any, childIndex: number) => 
+              renderTableRow(project, "project", level + 1, childIndex)
             )}
-            {type === "project" && item.tasks?.map((task: any) => 
-              renderTableRow(task, "task", level + 1)
+            {type === "project" && item.tasks?.map((task: any, childIndex: number) => 
+              renderTableRow(task, "task", level + 1, childIndex)
             )}
-            {type === "task" && item.subtasks?.map((subtask: any) => 
-              renderTableRow(subtask, "subtask", level + 1)
+            {type === "task" && item.subtasks?.map((subtask: any, childIndex: number) => 
+              renderTableRow(subtask, "subtask", level + 1, childIndex)
             )}
           </>
         )}
@@ -670,27 +673,29 @@ export default function DatabasePage() {
             <p className="text-muted-foreground">No goals found. Create your first goal to get started!</p>
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]"></TableHead>
-                  <TableHead className="w-[50px]">Done</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="w-[100px]">Type</TableHead>
-                  <TableHead className="w-[120px]">Status</TableHead>
-                  <TableHead className="w-[100px]">Priority</TableHead>
-                  <TableHead className="w-[120px]">Progress</TableHead>
-                  <TableHead className="w-[120px]">Deadline</TableHead>
-                  <TableHead className="w-[100px]">Assigned</TableHead>
-                  <TableHead className="w-[80px]">Info</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item) => renderTableRow(item, item.type, item.level))}
-              </TableBody>
-            </Table>
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-auto max-h-[calc(100vh-400px)] relative">
+              <Table>
+                <TableHeader className="sticky top-0 z-20 bg-white shadow-sm">
+                  <TableRow>
+                    <TableHead className="w-[50px] bg-white"></TableHead>
+                    <TableHead className="w-[50px] bg-white sticky left-0 z-30 border-r shadow-sm">Done</TableHead>
+                    <TableHead className="bg-white">Name</TableHead>
+                    <TableHead className="w-[100px] bg-white">Type</TableHead>
+                    <TableHead className="w-[120px] bg-white">Status</TableHead>
+                    <TableHead className="w-[100px] bg-white">Priority</TableHead>
+                    <TableHead className="w-[120px] bg-white">Progress</TableHead>
+                    <TableHead className="w-[120px] bg-white">Deadline</TableHead>
+                    <TableHead className="w-[100px] bg-white">Assigned</TableHead>
+                    <TableHead className="w-[80px] bg-white">Info</TableHead>
+                    <TableHead className="w-[100px] bg-white">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems.map((item, index) => renderTableRow(item, item.type, item.level, index))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>
