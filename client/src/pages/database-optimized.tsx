@@ -23,8 +23,10 @@ export default function DatabaseOptimizedPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Toggle functions
-  const toggleGoalExpansion = (goalId: number) => {
+  // Toggle functions with better event handling
+  const toggleGoalExpansion = (goalId: number, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const newExpanded = new Set(expandedGoals);
     if (newExpanded.has(goalId)) {
       newExpanded.delete(goalId);
@@ -34,7 +36,9 @@ export default function DatabaseOptimizedPage() {
     setExpandedGoals(newExpanded);
   };
 
-  const toggleProjectExpansion = (projectId: number) => {
+  const toggleProjectExpansion = (projectId: number, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
       newExpanded.delete(projectId);
@@ -44,7 +48,9 @@ export default function DatabaseOptimizedPage() {
     setExpandedProjects(newExpanded);
   };
 
-  const toggleTaskExpansion = (taskId: number) => {
+  const toggleTaskExpansion = (taskId: number, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const newExpanded = new Set(expandedTasks);
     if (newExpanded.has(taskId)) {
       newExpanded.delete(taskId);
@@ -85,8 +91,9 @@ export default function DatabaseOptimizedPage() {
               <TableCell className="pl-8">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => toggleProjectExpansion(project.id)}
-                    className="p-1 hover:bg-gray-100 rounded"
+                    onClick={(e) => toggleProjectExpansion(project.id, e)}
+                    className="p-2 hover:bg-gray-100 rounded touch-manipulation select-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    type="button"
                   >
                     {expandedProjects.has(project.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
@@ -97,13 +104,13 @@ export default function DatabaseOptimizedPage() {
               <TableCell>
                 <Badge variant="secondary">Project</Badge>
               </TableCell>
-              <TableCell>{project.status || "Active"}</TableCell>
-              <TableCell>{project.priority || "Medium"}</TableCell>
+              <TableCell className="hidden sm:table-cell">{project.status || "Active"}</TableCell>
+              <TableCell className="hidden md:table-cell">{project.priority || "Medium"}</TableCell>
               <TableCell>
                 <Progress value={parseFloat(project.percentComplete || "0")} className="w-20" />
               </TableCell>
-              <TableCell>{project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}</TableCell>
-              <TableCell>{project.assignedTo || "Unassigned"}</TableCell>
+              <TableCell className="hidden lg:table-cell">{project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}</TableCell>
+              <TableCell className="hidden lg:table-cell">{project.assignedTo || "Unassigned"}</TableCell>
               <TableCell>
                 <Checkbox
                   checked={project.status === "completed"}
@@ -142,8 +149,9 @@ export default function DatabaseOptimizedPage() {
               <TableCell className="pl-16">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => toggleTaskExpansion(task.id)}
-                    className="p-1 hover:bg-gray-100 rounded"
+                    onClick={(e) => toggleTaskExpansion(task.id, e)}
+                    className="p-2 hover:bg-gray-100 rounded touch-manipulation select-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    type="button"
                   >
                     {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
@@ -154,13 +162,13 @@ export default function DatabaseOptimizedPage() {
               <TableCell>
                 <Badge variant="outline">Task</Badge>
               </TableCell>
-              <TableCell>{task.status || "Active"}</TableCell>
-              <TableCell>{task.priority || "Medium"}</TableCell>
+              <TableCell className="hidden sm:table-cell">{task.status || "Active"}</TableCell>
+              <TableCell className="hidden md:table-cell">{task.priority || "Medium"}</TableCell>
               <TableCell>
                 <Progress value={parseFloat(task.percentComplete || "0")} className="w-20" />
               </TableCell>
-              <TableCell>{task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}</TableCell>
-              <TableCell>{task.assignedTo || "Unassigned"}</TableCell>
+              <TableCell className="hidden lg:table-cell">{task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}</TableCell>
+              <TableCell className="hidden lg:table-cell">{task.assignedTo || "Unassigned"}</TableCell>
               <TableCell>
                 <Checkbox
                   checked={task.status === "completed"}
@@ -204,13 +212,13 @@ export default function DatabaseOptimizedPage() {
             <TableCell>
               <Badge variant="outline" className="text-xs">Subtask</Badge>
             </TableCell>
-            <TableCell>{subtask.status || "Active"}</TableCell>
-            <TableCell>{subtask.priority || "Medium"}</TableCell>
+            <TableCell className="hidden sm:table-cell">{subtask.status || "Active"}</TableCell>
+            <TableCell className="hidden md:table-cell">{subtask.priority || "Medium"}</TableCell>
             <TableCell>
               <Progress value={parseFloat(subtask.percentComplete || "0")} className="w-20" />
             </TableCell>
-            <TableCell>{subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}</TableCell>
-            <TableCell>{subtask.assignedTo || "Unassigned"}</TableCell>
+            <TableCell className="hidden lg:table-cell">{subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}</TableCell>
+            <TableCell className="hidden lg:table-cell">{subtask.assignedTo || "Unassigned"}</TableCell>
             <TableCell>
               <Checkbox
                 checked={subtask.status === "completed"}
@@ -238,7 +246,7 @@ export default function DatabaseOptimizedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Task Database - Optimized</h1>
@@ -250,18 +258,18 @@ export default function DatabaseOptimizedPage() {
             <p className="text-gray-500">No goals found. Create your first goal to get started!</p>
           </div>
         ) : (
-          <div className="rounded-md border overflow-hidden bg-white">
-            <Table>
+          <div className="rounded-md border overflow-hidden bg-white overflow-x-auto">
+            <Table className="min-w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Assigned</TableHead>
-                  <TableHead>Done</TableHead>
+                  <TableHead className="min-w-[200px]">Name</TableHead>
+                  <TableHead className="min-w-[80px]">Type</TableHead>
+                  <TableHead className="min-w-[90px] hidden sm:table-cell">Status</TableHead>
+                  <TableHead className="min-w-[90px] hidden md:table-cell">Priority</TableHead>
+                  <TableHead className="min-w-[100px]">Progress</TableHead>
+                  <TableHead className="min-w-[100px] hidden lg:table-cell">Deadline</TableHead>
+                  <TableHead className="min-w-[100px] hidden lg:table-cell">Assigned</TableHead>
+                  <TableHead className="min-w-[60px]">Done</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -271,8 +279,9 @@ export default function DatabaseOptimizedPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => toggleGoalExpansion(goal.id)}
-                            className="p-1 hover:bg-gray-100 rounded"
+                            onClick={(e) => toggleGoalExpansion(goal.id, e)}
+                            className="p-2 hover:bg-gray-100 rounded touch-manipulation select-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+                            type="button"
                           >
                             {expandedGoals.has(goal.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </button>
@@ -283,13 +292,13 @@ export default function DatabaseOptimizedPage() {
                       <TableCell>
                         <Badge>Goal</Badge>
                       </TableCell>
-                      <TableCell>{goal.status || "Active"}</TableCell>
-                      <TableCell>{goal.priority || "Medium"}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{goal.status || "Active"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{goal.priority || "Medium"}</TableCell>
                       <TableCell>
                         <Progress value={parseFloat(goal.percentComplete || "0")} className="w-20" />
                       </TableCell>
-                      <TableCell>{goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}</TableCell>
-                      <TableCell>{goal.assignedTo || "Unassigned"}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{goal.assignedTo || "Unassigned"}</TableCell>
                       <TableCell>
                         <Checkbox
                           checked={goal.status === "completed"}
