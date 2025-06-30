@@ -17,6 +17,12 @@ export default function DatabasePage() {
 
   const { data: goals = [], isLoading } = useQuery<GoalWithProjects[]>({
     queryKey: ["/api/goals"],
+    onSuccess: (data) => {
+      console.log("Goals data received:", data);
+      if (data?.[0]) {
+        console.log("First goal projects:", data[0].projects);
+      }
+    }
   });
 
   const breakdownMutation = useMutation({
@@ -121,6 +127,13 @@ export default function DatabasePage() {
     const hasChildren = (type === "goal" && item.projects?.length > 0) ||
                        (type === "project" && item.tasks?.length > 0) ||
                        (type === "task" && item.subtasks?.length > 0);
+    
+    // Debug logging
+    if (type === "goal") {
+      console.log(`Goal ${item.id} (${item.name || item.title}) has ${item.projects?.length || 0} projects`);
+    } else if (type === "project") {
+      console.log(`Project ${item.id} (${item.name || item.title}) has ${item.tasks?.length || 0} tasks`);
+    }
 
     const getTypeIcon = () => {
       switch (type) {
