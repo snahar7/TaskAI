@@ -80,7 +80,7 @@ export default function DatabaseOptimizedPage() {
     return (
       <>
         {projects.map((project) => (
-          <React.Fragment key={`project-${project.id}`}>
+          <React.Fragment key={project.id}>
             <TableRow className="bg-blue-50">
               <TableCell className="pl-8">
                 <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function DatabaseOptimizedPage() {
     return (
       <>
         {tasks.map((task) => (
-          <React.Fragment key={`task-${task.id}`}>
+          <React.Fragment key={task.id}>
             <TableRow className="bg-green-50">
               <TableCell className="pl-16">
                 <div className="flex items-center gap-2">
@@ -194,7 +194,7 @@ export default function DatabaseOptimizedPage() {
     return (
       <>
         {subtasks.map((subtask) => (
-          <TableRow key={`subtask-${subtask.id}`} className="bg-yellow-50">
+          <TableRow key={subtask.id} className="bg-yellow-50">
             <TableCell className="pl-24">
               <div className="flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-yellow-600" />
@@ -266,7 +266,7 @@ export default function DatabaseOptimizedPage() {
               </TableHeader>
               <TableBody>
                 {goals.map((goal) => (
-                  <React.Fragment key={`goal-${goal.id}`}>
+                  <React.Fragment key={goal.id}>
                     <TableRow className="bg-purple-50">
                       <TableCell>
                         <div className="flex items-center gap-2">
