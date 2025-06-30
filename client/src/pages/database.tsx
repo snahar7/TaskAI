@@ -717,8 +717,8 @@ export default function DatabasePage() {
             <p className="text-muted-foreground">No goals found. Create your first goal to get started!</p>
           </div>
         ) : (
-          <div className="rounded-md border overflow-hidden">
-            <div className="overflow-auto max-h-[calc(100vh-400px)] relative">
+          <div className="rounded-md border overflow-hidden h-[calc(100vh-250px)]">
+            <div className="overflow-auto h-full relative">
               <Table>
                 <TableHeader className="sticky top-0 z-20 bg-white shadow-sm">
                   <TableRow>
@@ -736,7 +736,11 @@ export default function DatabasePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item, index) => renderTableRow(item, item.type, item.level, index))}
+                  {filteredItems.map((item, index) => (
+                    <React.Fragment key={`${item.type}-${item.id}-main-${index}`}>
+                      {renderTableRow(item, item.type, item.level, index)}
+                    </React.Fragment>
+                  ))}
                 </TableBody>
               </Table>
             </div>
