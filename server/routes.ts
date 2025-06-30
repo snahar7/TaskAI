@@ -162,21 +162,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all goals with full hierarchy (optimized single query)
+  // Get all goals with full hierarchy including tasks and subtasks
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Fallback to original method for now to fix performance quickly
       const goals = await storage.getAllGoals();
-      const goalsWithHierarchy = [];
+      const goalsWithFullHierarchy = [];
 
       for (const goal of goals) {
-        const goalWithProjects = await storage.getGoalWithProjects(goal.id);
-        if (goalWithProjects) {
-          goalsWithHierarchy.push(goalWithProjects);
+        const projects = await storage.getProjectsByGoalId(goal.id);
+        const projectsWithTasks = [];
+
+        for (const project of projects) {
+          const tasks = await storage.getTasksByProjectId(project.id);
+          const tasksWithSubtasks = [];
+
+          for (const task of tasks) {
+            const subtasks = await storage.getSubtasksByTaskId(task.id);
+            tasksWithSubtasks.push({
+              ...task,
+              subtasks
+            });
+          }
+
+          projectsWithTasks.push({
+            ...project,
+            tasks: tasksWithSubtasks
+          });
         }
+
+        goalsWithFullHierarchy.push({
+          ...goal,
+          projects: projectsWithTasks
+        });
       }
 
-      res.json(goalsWithHierarchy);
+      res.json(goalsWithFullHierarchy);
     } catch (error) {
       next(error);
     }
@@ -254,13 +274,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update task completion
+  // Update task completion with cascading progress calculation
   app.patch("/api/tasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
       await storage.updateTaskCompletion(id, completed);
+      
+      // Get task to find its project
+      const task = await storage.getTask(id);
+      if (task && task.projectId) {
+        // Recalculate project progress
+        const projectProgress = await storage.getProjectProgress(task.projectId);
+        await storage.updateProjectProgress(task.projectId, projectProgress.percentComplete);
+        
+        // Get project to find its goal
+        const project = await storage.getProject(task.projectId);
+        if (project && project.goalId) {
+          // Recalculate goal progress
+          const goalProgress = await storage.getGoalProgress(project.goalId);
+          await storage.updateGoalProgress(project.goalId, goalProgress.percentComplete);
+        }
+      }
+      
       res.json({ message: "Task completion updated" });
     } catch (error) {
       next(error);
@@ -280,13 +317,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update subtask completion
+  // Update subtask completion with cascading progress calculation
   app.patch("/api/subtasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
       await storage.updateSubtaskCompletion(id, completed);
+      
+      // Get subtask to find its task
+      const subtask = await storage.getSubtask(id);
+      if (subtask && subtask.taskId) {
+        // Calculate task progress based on subtasks completion
+        const taskSubtasks = await storage.getSubtasksByTaskId(subtask.taskId);
+        const completedSubtasks = taskSubtasks.filter(st => st.completed).length;
+        const taskProgress = taskSubtasks.length > 0 ? Math.round((completedSubtasks / taskSubtasks.length) * 100) : 0;
+        
+        await storage.updateTaskProgress(subtask.taskId, taskProgress);
+        
+        // Get task to find its project
+        const task = await storage.getTask(subtask.taskId);
+        if (task && task.projectId) {
+          // Recalculate project progress
+          const projectProgress = await storage.getProjectProgress(task.projectId);
+          await storage.updateProjectProgress(task.projectId, projectProgress.percentComplete);
+          
+          // Get project to find its goal
+          const project = await storage.getProject(task.projectId);
+          if (project && project.goalId) {
+            // Recalculate goal progress
+            const goalProgress = await storage.getGoalProgress(project.goalId);
+            await storage.updateGoalProgress(project.goalId, goalProgress.percentComplete);
+          }
+        }
+      }
+      
       res.json({ message: "Subtask completion updated" });
     } catch (error) {
       next(error);

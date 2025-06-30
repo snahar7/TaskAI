@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -268,13 +268,13 @@ export default function DatabasePage() {
         {/* Render children when expanded */}
         {isExpanded && (
           <>
-            {type === "goal" && item.projects?.map((project: any, index: number) => 
+            {type === "goal" && item.projects?.map((project: any) => 
               renderTableRow(project, "project", level + 1)
             )}
-            {type === "project" && item.tasks?.map((task: any, index: number) => 
+            {type === "project" && item.tasks?.map((task: any) => 
               renderTableRow(task, "task", level + 1)
             )}
-            {type === "task" && item.subtasks?.map((subtask: any, index: number) => 
+            {type === "task" && item.subtasks?.map((subtask: any) => 
               renderTableRow(subtask, "subtask", level + 1)
             )}
           </>
