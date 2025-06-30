@@ -1,7 +1,6 @@
 import OpenAI from "openai";
-import { AIBreakdown } from "@shared/schema";
+import type { AIBreakdown } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function generateGoalBreakdown(
@@ -23,31 +22,39 @@ ${targetDate ? `Target Completion: ${targetDate}` : ''}
 Create a JSON response with this exact structure:
 {
   "goal": {
-    "title": "refined version of user input",
+    "name": "refined version of user input",
     "description": "brief overview of what this goal involves",
     "estimatedDuration": "realistic timeframe (e.g., '3 months', '6 weeks')",
     "targetDate": "${targetDate || 'TBD'}",
-    "urgency": "low|medium|high"
+    "urgency": "low|medium|high",
+    "priority": "low|medium|high",
+    "timeEstimate": 40
   },
   "projects": [
     {
-      "title": "Major category/area (e.g., 'Venue & Decor')",
+      "name": "Major category/area (e.g., 'Venue & Decor')",
       "description": "what this project covers",
       "estimatedDuration": "timeframe for this project",
       "urgency": "low|medium|high",
+      "priority": "low|medium|high",
+      "timeEstimate": 15,
       "tasks": [
         {
-          "title": "Specific actionable item (e.g., 'Book a venue')",
+          "name": "Specific actionable item (e.g., 'Book a venue')",
           "description": "what needs to be done",
           "estimatedHours": 4,
           "dueDate": "YYYY-MM-DD",
           "urgency": "low|medium|high",
+          "priority": "low|medium|high",
+          "timeEstimate": 4,
           "subtasks": [
             {
-              "title": "Small actionable step (e.g., 'Call venues')",
+              "name": "Small actionable step (e.g., 'Call venues')",
               "description": "specific action to take",
               "estimatedHours": 1,
-              "urgency": "low|medium|high"
+              "urgency": "low|medium|high",
+              "priority": "low|medium|high",
+              "timeEstimate": 1
             }
           ]
         }
@@ -61,10 +68,13 @@ Guidelines:
 - Each project should have 3-6 tasks
 - Each task should have 2-5 subtasks
 - Subtasks should be very specific, actionable items
-- Use realistic time estimates
+- Use realistic time estimates (timeEstimate in hours)
 - Distribute due dates logically from now to target date
-- Make titles concise but descriptive
-- Consider dependencies and logical order`;
+- Make names concise but descriptive
+- Consider dependencies and logical order
+- All items should start incomplete (status: 'pending')
+- Set priority based on urgency and dependencies
+- Ensure logical breakdown with clear actionable steps`;
 
     const response = await Promise.race([
       openai.chat.completions.create({
@@ -110,122 +120,146 @@ function getDemoBreakdown(goalInput: string, targetDate?: string | null): AIBrea
   
   return {
     goal: {
-      title: goalInput,
+      name: goalInput,
       description: `Complete breakdown for: ${goalInput}`,
       estimatedDuration: "3 months",
       targetDate: targetDate || futureDate.toISOString().split('T')[0],
-      urgency: "medium"
+      urgency: "medium",
+      priority: "medium",
+      timeEstimate: 40
     },
     projects: [
       {
-        title: "Planning & Preparation",
+        name: "Planning & Preparation",
         description: "Initial research and planning phase",
         estimatedDuration: "2 weeks",
         urgency: "high",
+        priority: "high",
+        timeEstimate: 15,
         tasks: [
           {
-            title: "Research requirements",
+            name: "Research requirements",
             description: "Gather information and understand scope",
             estimatedHours: 8,
             dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             urgency: "high",
+            priority: "high",
+            timeEstimate: 8,
             subtasks: [
               {
-                title: "Create research checklist",
+                name: "Create research checklist",
                 description: "List all areas that need investigation",
                 estimatedHours: 1,
-                urgency: "high"
+                urgency: "high",
+                priority: "high",
+                timeEstimate: 1
               },
               {
-                title: "Conduct online research",
+                name: "Conduct online research",
                 description: "Search for best practices and examples",
                 estimatedHours: 3,
-                urgency: "medium"
+                urgency: "medium",
+                priority: "medium",
+                timeEstimate: 3
               },
               {
-                title: "Document findings",
+                name: "Document findings",
                 description: "Compile research into organized notes",
                 estimatedHours: 2,
-                urgency: "medium"
+                urgency: "medium",
+                priority: "medium",
+                timeEstimate: 2
               }
             ]
           },
           {
-            title: "Create timeline",
+            name: "Create timeline",
             description: "Develop detailed project schedule",
             estimatedHours: 4,
             dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             urgency: "high",
+            priority: "high",
+            timeEstimate: 4,
             subtasks: [
               {
-                title: "List all major milestones",
+                name: "List all major milestones",
                 description: "Identify key deadlines and checkpoints",
                 estimatedHours: 1,
-                urgency: "high"
+                urgency: "high",
+                priority: "high",
+                timeEstimate: 1
               },
               {
-                title: "Estimate task durations",
-                description: "Assign realistic time estimates to each task",
+                name: "Estimate task durations",
+                description: "Calculate realistic time requirements",
                 estimatedHours: 2,
-                urgency: "medium"
+                urgency: "medium",
+                priority: "medium",
+                timeEstimate: 2
               }
             ]
           }
         ]
       },
       {
-        title: "Implementation",
-        description: "Execute the main work and activities",
+        name: "Implementation Phase",
+        description: "Core execution and development work",
         estimatedDuration: "6 weeks",
         urgency: "medium",
+        priority: "medium",
+        timeEstimate: 25,
         tasks: [
           {
-            title: "Execute core activities",
-            description: "Complete the primary work items",
-            estimatedHours: 20,
-            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            urgency: "medium",
+            name: "Setup infrastructure",
+            description: "Prepare necessary tools and environments",
+            estimatedHours: 12,
+            dueDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            urgency: "high",
+            priority: "high",
+            timeEstimate: 12,
             subtasks: [
               {
-                title: "Start with high-priority items",
-                description: "Focus on most critical components first",
-                estimatedHours: 8,
-                urgency: "high"
+                name: "Configure development environment",
+                description: "Install and setup required software",
+                estimatedHours: 4,
+                urgency: "high",
+                priority: "high",
+                timeEstimate: 4
               },
               {
-                title: "Complete supporting tasks",
-                description: "Finish remaining work items",
-                estimatedHours: 12,
-                urgency: "medium"
+                name: "Setup version control",
+                description: "Initialize repository and collaboration tools",
+                estimatedHours: 2,
+                urgency: "medium",
+                priority: "medium",
+                timeEstimate: 2
               }
             ]
-          }
-        ]
-      },
-      {
-        title: "Review & Finalization",
-        description: "Quality check and final preparations",
-        estimatedDuration: "1 week",
-        urgency: "medium",
-        tasks: [
+          },
           {
-            title: "Final review",
-            description: "Check all components are complete",
-            estimatedHours: 4,
-            dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            name: "Develop core features",
+            description: "Build primary functionality",
+            estimatedHours: 16,
+            dueDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             urgency: "medium",
+            priority: "medium",
+            timeEstimate: 16,
             subtasks: [
               {
-                title: "Quality checklist review",
-                description: "Verify all requirements are met",
-                estimatedHours: 2,
-                urgency: "medium"
+                name: "Create user interface",
+                description: "Design and implement user-facing components",
+                estimatedHours: 8,
+                urgency: "medium",
+                priority: "medium",
+                timeEstimate: 8
               },
               {
-                title: "Make final adjustments",
-                description: "Address any remaining issues",
-                estimatedHours: 2,
-                urgency: "low"
+                name: "Implement business logic",
+                description: "Code core functionality and features",
+                estimatedHours: 6,
+                urgency: "medium",
+                priority: "medium",
+                timeEstimate: 6
               }
             ]
           }

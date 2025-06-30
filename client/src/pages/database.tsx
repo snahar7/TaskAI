@@ -413,9 +413,9 @@ export default function DatabasePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <Checkbox
-              checked={item.status === 'completed' || item.completed || parseFloat(item.percentComplete) === 100}
+              checked={item.status === 'completed' || item.completed === true || parseFloat(item.percentComplete || "0") >= 100}
               onCheckedChange={() => {
-                const currentStatus = item.status === 'completed' || item.completed || parseFloat(item.percentComplete) === 100;
+                const currentStatus = item.status === 'completed' || item.completed === true || parseFloat(item.percentComplete || "0") >= 100;
                 handleCompletionToggle(type, item.id, currentStatus);
               }}
             />

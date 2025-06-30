@@ -93,11 +93,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create the goal
       const goal = await storage.createGoal({
-        title: breakdown.goal.title,
+        title: breakdown.goal.name,
+        name: breakdown.goal.name,
         description: breakdown.goal.description || null,
         estimatedDuration: breakdown.goal.estimatedDuration || null,
         targetDate: breakdown.goal.targetDate || null,
-        urgency: breakdown.goal.urgency || "medium",
+        deadline: breakdown.goal.targetDate || null,
+        priority: breakdown.goal.priority || breakdown.goal.urgency || "medium",
+        status: "pending",
+        timeEstimate: breakdown.goal.timeEstimate?.toString() || null,
         approved: true
       });
       
@@ -106,8 +110,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const aiProject of breakdown.projects) {
         const project = await storage.createProject({
           goalId: goal.id,
-          title: aiProject.title,
+          title: aiProject.name,
+          name: aiProject.name,
           description: aiProject.description || null,
+          priority: aiProject.priority || aiProject.urgency || "medium",
+          status: "pending",
+          timeEstimate: aiProject.timeEstimate?.toString() || null,
           estimatedDuration: aiProject.estimatedDuration || null,
           targetDate: aiProject.targetDate || null,
           urgency: aiProject.urgency || "medium",
@@ -119,11 +127,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const aiTask of aiProject.tasks) {
           const task = await storage.createTask({
             projectId: project.id,
-            title: aiTask.title,
+            title: aiTask.name,
+            name: aiTask.name,
             description: aiTask.description || null,
-            estimatedHours: aiTask.estimatedHours || null,
-            dueDate: aiTask.dueDate || null,
-            urgency: aiTask.urgency || "medium",
+            timeEstimate: aiTask.timeEstimate?.toString() || aiTask.estimatedHours?.toString() || null,
+            deadline: aiTask.dueDate || null,
+            priority: aiTask.priority || aiTask.urgency || "medium",
+            status: "pending",
             completed: false,
             approved: true
           });
@@ -133,14 +143,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const aiSubtask of aiTask.subtasks) {
             const subtask = await storage.createSubtask({
               taskId: task.id,
-              title: aiSubtask.title,
+              title: aiSubtask.name,
+              name: aiSubtask.name,
               description: aiSubtask.description || null,
-              estimatedHours: aiSubtask.estimatedHours || null,
-              dueDate: aiSubtask.dueDate || null,
-              urgency: aiSubtask.urgency || "medium",
+              timeEstimate: aiSubtask.timeEstimate?.toString() || aiSubtask.estimatedHours?.toString() || null,
+              deadline: aiSubtask.dueDate || null,
+              priority: aiSubtask.priority || aiSubtask.urgency || "medium",
+              status: "pending",
               completed: false,
-              approved: true,
-              attachments: null
+              approved: true
             });
             createdSubtasks.push(subtask);
           }
