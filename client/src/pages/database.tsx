@@ -17,13 +17,15 @@ export default function DatabasePage() {
 
   const { data: goals = [], isLoading } = useQuery<GoalWithProjects[]>({
     queryKey: ["/api/goals"],
-    onSuccess: (data) => {
-      console.log("Goals data received:", data);
-      if (data?.[0]) {
-        console.log("First goal projects:", data[0].projects);
-      }
-    }
   });
+
+  // Debug logging when data changes
+  if (goals.length > 0) {
+    console.log("Goals data received:", goals);
+    if (goals[0]) {
+      console.log("First goal projects:", goals[0].projects);
+    }
+  }
 
   const breakdownMutation = useMutation({
     mutationFn: async (data: { input: string; level: string; parentId?: number }) => {
@@ -41,6 +43,8 @@ export default function DatabasePage() {
 
   const completionMutation = useMutation({
     mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
+      console.log(`Updating ${type} ${id} completion to:`, completed);
+      
       const endpoint = type === "goal" ? `/api/goals/${id}/approve` :
                       type === "project" ? `/api/projects/${id}/approve` :
                       type === "task" ? `/api/tasks/${id}/complete` :
@@ -48,15 +52,26 @@ export default function DatabasePage() {
       
       const body = type === "goal" || type === "project" ? { approved: completed } : { completed };
       
+      console.log(`Sending request to ${endpoint} with body:`, body);
+      
       const response = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update ${type}: ${response.statusText}`);
+      }
+      
       return response.json();
     },
     onSuccess: () => {
+      console.log("Completion update successful, invalidating queries");
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+    },
+    onError: (error) => {
+      console.error("Completion update failed:", error);
     },
   });
 
@@ -72,10 +87,13 @@ export default function DatabasePage() {
   };
 
   const handleCompletionToggle = (type: string, id: number, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    console.log(`Toggle ${type} ${id}: ${currentStatus} -> ${newStatus}`);
+    
     completionMutation.mutate({
       type,
       id,
-      completed: !currentStatus,
+      completed: newStatus,
     });
   };
 
@@ -128,11 +146,13 @@ export default function DatabasePage() {
                        (type === "project" && item.tasks?.length > 0) ||
                        (type === "task" && item.subtasks?.length > 0);
     
-    // Debug logging
+    // Debug logging for hierarchy structure
     if (type === "goal") {
       console.log(`Goal ${item.id} (${item.name || item.title}) has ${item.projects?.length || 0} projects`);
     } else if (type === "project") {
       console.log(`Project ${item.id} (${item.name || item.title}) has ${item.tasks?.length || 0} tasks`);
+    } else if (type === "task") {
+      console.log(`Task ${item.id} (${item.name || item.title}) has ${item.subtasks?.length || 0} subtasks`);
     }
 
     const getTypeIcon = () => {
@@ -164,8 +184,11 @@ export default function DatabasePage() {
           
           <TableCell onClick={(e) => e.stopPropagation()}>
             <Checkbox
-              checked={item.status === 'completed' || item.completed}
-              onCheckedChange={() => handleCompletionToggle(type, item.id, item.status === 'completed' || item.completed)}
+              checked={item.status === 'completed' || item.completed || false}
+              onCheckedChange={(checked) => {
+                console.log(`Checkbox clicked: ${type} ${item.id}, checked: ${checked}`);
+                handleCompletionToggle(type, item.id, item.status === 'completed' || item.completed || false);
+              }}
             />
           </TableCell>
           
@@ -196,9 +219,9 @@ export default function DatabasePage() {
 
           <TableCell>
             <div className="flex items-center gap-2">
-              <Progress value={item.percentComplete || 0} className="w-16" />
+              <Progress value={parseFloat(item.percentComplete) || 0} className="w-16" />
               <span className="text-sm text-muted-foreground">
-                {item.percentComplete || 0}%
+                {parseFloat(item.percentComplete) || 0}%
               </span>
             </div>
           </TableCell>
