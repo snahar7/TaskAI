@@ -248,39 +248,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update goal approval
+  // Update goal approval with cascading completion
   app.patch("/api/goals/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { approved } = z.object({ approved: z.boolean() }).parse(req.body);
       
       await storage.updateGoalApproval(id, approved);
+      
+      // If marking as approved/complete, mark all children as complete
+      if (approved) {
+        const goal = await storage.getGoalWithDetails(id);
+        if (goal && goal.projects) {
+          for (const project of goal.projects) {
+            await storage.updateProjectApproval(project.id, true);
+            await storage.updateProjectProgress(project.id, 100);
+            
+            if (project.tasks) {
+              for (const task of project.tasks) {
+                await storage.updateTaskCompletion(task.id, true);
+                await storage.updateTaskProgress(task.id, 100);
+                
+                if (task.subtasks) {
+                  for (const subtask of task.subtasks) {
+                    await storage.updateSubtaskCompletion(subtask.id, true);
+                  }
+                }
+              }
+            }
+          }
+        }
+        // Update goal progress to 100%
+        await storage.updateGoalProgress(id, 100);
+      }
+      
       res.json({ message: "Goal approval updated" });
     } catch (error) {
       next(error);
     }
   });
 
-  // Update project approval
+  // Update project approval with cascading completion
   app.patch("/api/projects/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { approved } = z.object({ approved: z.boolean() }).parse(req.body);
       
       await storage.updateProjectApproval(id, approved);
+      
+      // If marking as approved/complete, mark all children as complete
+      if (approved) {
+        const project = await storage.getProjectWithDetails(id);
+        if (project && project.tasks) {
+          for (const task of project.tasks) {
+            await storage.updateTaskCompletion(task.id, true);
+            await storage.updateTaskProgress(task.id, 100);
+            
+            if (task.subtasks) {
+              for (const subtask of task.subtasks) {
+                await storage.updateSubtaskCompletion(subtask.id, true);
+              }
+            }
+          }
+        }
+        // Update project progress to 100%
+        await storage.updateProjectProgress(id, 100);
+        
+        // Update parent goal progress
+        if (project && project.goalId) {
+          const goalProgress = await storage.getGoalProgress(project.goalId);
+          await storage.updateGoalProgress(project.goalId, goalProgress.percentComplete);
+        }
+      }
+      
       res.json({ message: "Project approval updated" });
     } catch (error) {
       next(error);
     }
   });
 
-  // Update task completion with cascading progress calculation
+  // Update task completion with cascading completion and progress calculation
   app.patch("/api/tasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
       await storage.updateTaskCompletion(id, completed);
+      
+      // If marking as complete, mark all children as complete
+      if (completed) {
+        const task = await storage.getTaskWithDetails(id);
+        if (task && task.subtasks) {
+          for (const subtask of task.subtasks) {
+            await storage.updateSubtaskCompletion(subtask.id, true);
+          }
+        }
+        // Update task progress to 100%
+        await storage.updateTaskProgress(id, 100);
+      }
       
       // Get task to find its project
       const task = await storage.getTask(id);

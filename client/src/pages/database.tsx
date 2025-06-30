@@ -63,47 +63,74 @@ export default function DatabasePage() {
       // Get previous data for rollback
       const previousGoals = queryClient.getQueryData(["/api/goals"]);
       
-      // Optimistically update the UI
+      // Optimistically update the UI with cascading completion logic
       queryClient.setQueryData(["/api/goals"], (old: any) => {
         if (!old) return old;
         
+        const markAllChildrenComplete = (item: any, itemType: string, shouldComplete: boolean) => {
+          const updated = { ...item };
+          
+          if (shouldComplete) {
+            // Mark current item as complete
+            if (itemType === "goal" || itemType === "project") {
+              updated.status = 'completed';
+              updated.percentComplete = "100.00";
+            } else {
+              updated.completed = true;
+              updated.percentComplete = "100.00";
+            }
+            
+            // Recursively mark all children as complete
+            if (updated.projects) {
+              updated.projects = updated.projects.map((project: any) => 
+                markAllChildrenComplete(project, "project", true)
+              );
+            }
+            if (updated.tasks) {
+              updated.tasks = updated.tasks.map((task: any) => 
+                markAllChildrenComplete(task, "task", true)
+              );
+            }
+            if (updated.subtasks) {
+              updated.subtasks = updated.subtasks.map((subtask: any) => 
+                markAllChildrenComplete(subtask, "subtask", true)
+              );
+            }
+          } else {
+            // Mark current item as incomplete
+            if (itemType === "goal" || itemType === "project") {
+              updated.status = 'not_started';
+              updated.percentComplete = "0.00";
+            } else {
+              updated.completed = false;
+              updated.percentComplete = "0.00";
+            }
+          }
+          
+          return updated;
+        };
+        
         return old.map((goal: any) => {
           if (type === "goal" && goal.id === id) {
-            return { 
-              ...goal, 
-              status: completed ? 'completed' : 'not_started',
-              percentComplete: completed ? "100.00" : goal.percentComplete 
-            };
+            return markAllChildrenComplete(goal, "goal", completed);
           }
           
           if (goal.projects) {
             const updatedProjects = goal.projects.map((project: any) => {
               if (type === "project" && project.id === id) {
-                return { 
-                  ...project, 
-                  status: completed ? 'completed' : 'not_started',
-                  percentComplete: completed ? "100.00" : project.percentComplete 
-                };
+                return markAllChildrenComplete(project, "project", completed);
               }
               
               if (project.tasks) {
                 const updatedTasks = project.tasks.map((task: any) => {
                   if (type === "task" && task.id === id) {
-                    return { 
-                      ...task, 
-                      completed,
-                      percentComplete: completed ? "100.00" : task.percentComplete 
-                    };
+                    return markAllChildrenComplete(task, "task", completed);
                   }
                   
                   if (task.subtasks) {
                     const updatedSubtasks = task.subtasks.map((subtask: any) => {
                       if (type === "subtask" && subtask.id === id) {
-                        return { 
-                          ...subtask, 
-                          completed,
-                          percentComplete: completed ? "100.00" : subtask.percentComplete 
-                        };
+                        return markAllChildrenComplete(subtask, "subtask", completed);
                       }
                       return subtask;
                     });
@@ -357,13 +384,13 @@ export default function DatabasePage() {
         {/* Render children when expanded */}
         {isExpanded && (
           <>
-            {type === "goal" && item.projects?.map((project: any, index: number) => 
+            {type === "goal" && item.projects?.map((project: any) => 
               renderTableRow(project, "project", level + 1)
             )}
-            {type === "project" && item.tasks?.map((task: any, index: number) => 
+            {type === "project" && item.tasks?.map((task: any) => 
               renderTableRow(task, "task", level + 1)
             )}
-            {type === "task" && item.subtasks?.map((subtask: any, index: number) => 
+            {type === "task" && item.subtasks?.map((subtask: any) => 
               renderTableRow(subtask, "subtask", level + 1)
             )}
           </>
