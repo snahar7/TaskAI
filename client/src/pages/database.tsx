@@ -28,6 +28,8 @@ export default function DatabasePage() {
 
   const { data: goals = [], isLoading } = useQuery<GoalWithProjects[]>({
     queryKey: ["/api/goals"],
+    staleTime: 1000 * 60 * 2, // Cache for 2 minutes to reduce frequent API calls
+    refetchOnWindowFocus: false, // Prevent automatic refetch on window focus
   });
 
   // Remove debug logging for better performance
@@ -171,8 +173,10 @@ export default function DatabasePage() {
       }
     },
     onSettled: () => {
-      // Refresh data after mutation
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      // Refresh data after mutation with debounce to prevent excessive API calls
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      }, 1000);
     },
   });
 

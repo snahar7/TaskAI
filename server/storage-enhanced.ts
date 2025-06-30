@@ -28,6 +28,7 @@ export interface IEnhancedStorage {
   // Goals - enhanced with relational fields
   createGoal(goal: InsertGoal): Promise<Goal>;
   getAllGoals(): Promise<Goal[]>;
+  getAllGoalsWithHierarchy(): Promise<any[]>;
   getGoal(id: number): Promise<Goal | undefined>;
   getGoalWithProjects(id: number): Promise<GoalWithProjects | undefined>;
   getGoalWithDetails(id: number): Promise<GoalWithDetails | undefined>;
@@ -194,6 +195,165 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
 
   async getAllGoals(): Promise<Goal[]> {
     return await this.db.select().from(goals);
+  }
+
+  // OPTIMIZED: Get all goals with full hierarchy in minimal queries
+  async getAllGoalsWithHierarchy(): Promise<any[]> {
+    // Single query to get all data with joins
+    const allData = await this.db
+      .select({
+        // Goal fields
+        goalId: goals.id,
+        goalTitle: goals.title,
+        goalName: goals.name,
+        goalDescription: goals.description,
+        goalStatus: goals.status,
+        goalPriority: goals.priority,
+        goalPercentComplete: goals.percentComplete,
+        goalDeadline: goals.deadline,
+        goalCreatedAt: goals.createdAt,
+        goalUpdatedAt: goals.updatedAt,
+        
+        // Project fields
+        projectId: projects.id,
+        projectTitle: projects.title,
+        projectName: projects.name,
+        projectDescription: projects.description,
+        projectStatus: projects.status,
+        projectPriority: projects.priority,
+        projectPercentComplete: projects.percentComplete,
+        projectDeadline: projects.deadline,
+        projectCreatedAt: projects.createdAt,
+        projectUpdatedAt: projects.updatedAt,
+        
+        // Task fields
+        taskId: tasks.id,
+        taskTitle: tasks.title,
+        taskName: tasks.name,
+        taskDescription: tasks.description,
+        taskStatus: tasks.status,
+        taskPriority: tasks.priority,
+        taskCompleted: tasks.completed,
+        taskPercentComplete: tasks.percentComplete,
+        taskDeadline: tasks.deadline,
+        taskCreatedAt: tasks.createdAt,
+        taskUpdatedAt: tasks.updatedAt,
+        
+        // Subtask fields
+        subtaskId: subtasks.id,
+        subtaskTitle: subtasks.title,
+        subtaskName: subtasks.name,
+        subtaskDescription: subtasks.description,
+        subtaskStatus: subtasks.status,
+        subtaskPriority: subtasks.priority,
+        subtaskCompleted: subtasks.completed,
+        subtaskDeadline: subtasks.deadline,
+        subtaskCreatedAt: subtasks.createdAt,
+        subtaskUpdatedAt: subtasks.updatedAt,
+      })
+      .from(goals)
+      .leftJoin(projects, eq(goals.id, projects.goalId))
+      .leftJoin(tasks, eq(projects.id, tasks.projectId))
+      .leftJoin(subtasks, eq(tasks.id, subtasks.taskId))
+      .orderBy(goals.id, projects.id, tasks.id, subtasks.id);
+
+    // Transform flat data into hierarchical structure efficiently
+    const goalsMap = new Map();
+    
+    for (const row of allData) {
+      // Create or get goal
+      if (!goalsMap.has(row.goalId)) {
+        goalsMap.set(row.goalId, {
+          id: row.goalId,
+          title: row.goalTitle || row.goalName,
+          name: row.goalName || row.goalTitle,
+          description: row.goalDescription,
+          status: row.goalStatus,
+          priority: row.goalPriority,
+          percentComplete: row.goalPercentComplete,
+          deadline: row.goalDeadline,
+          createdAt: row.goalCreatedAt,
+          updatedAt: row.goalUpdatedAt,
+          projects: new Map()
+        });
+      }
+      
+      const goal = goalsMap.get(row.goalId);
+      
+      // Add project if exists and hasn't been added
+      if (row.projectId && !goal.projects.has(row.projectId)) {
+        goal.projects.set(row.projectId, {
+          id: row.projectId,
+          title: row.projectTitle || row.projectName,
+          name: row.projectName || row.projectTitle,
+          description: row.projectDescription,
+          status: row.projectStatus,
+          priority: row.projectPriority,
+          percentComplete: row.projectPercentComplete,
+          deadline: row.projectDeadline,
+          createdAt: row.projectCreatedAt,
+          updatedAt: row.projectUpdatedAt,
+          goalId: row.goalId,
+          tasks: new Map()
+        });
+      }
+      
+      // Add task if exists and project exists
+      if (row.projectId && row.taskId) {
+        const project = goal.projects.get(row.projectId);
+        if (project && !project.tasks.has(row.taskId)) {
+          project.tasks.set(row.taskId, {
+            id: row.taskId,
+            title: row.taskTitle || row.taskName,
+            name: row.taskName || row.taskTitle,
+            description: row.taskDescription,
+            status: row.taskStatus,
+            priority: row.taskPriority,
+            completed: row.taskCompleted,
+            percentComplete: row.taskPercentComplete,
+            deadline: row.taskDeadline,
+            createdAt: row.taskCreatedAt,
+            updatedAt: row.taskUpdatedAt,
+            projectId: row.projectId,
+            subtasks: []
+          });
+        }
+      }
+      
+      // Add subtask if exists
+      if (row.projectId && row.taskId && row.subtaskId) {
+        const project = goal.projects.get(row.projectId);
+        const task = project?.tasks.get(row.taskId);
+        if (task) {
+          task.subtasks.push({
+            id: row.subtaskId,
+            title: row.subtaskTitle || row.subtaskName,
+            name: row.subtaskName || row.subtaskTitle,
+            description: row.subtaskDescription,
+            status: row.subtaskStatus,
+            priority: row.subtaskPriority,
+            completed: row.subtaskCompleted,
+            deadline: row.subtaskDeadline,
+            createdAt: row.subtaskCreatedAt,
+            updatedAt: row.subtaskUpdatedAt,
+            taskId: row.taskId
+          });
+        }
+      }
+    }
+    
+    // Convert Maps to Arrays for final output
+    const result = [];
+    for (const goal of goalsMap.values()) {
+      const projectsArray = [];
+      for (const project of goal.projects.values()) {
+        const tasksArray = Array.from(project.tasks.values());
+        projectsArray.push({ ...project, tasks: tasksArray });
+      }
+      result.push({ ...goal, projects: projectsArray });
+    }
+    
+    return result;
   }
 
   async getGoal(id: number): Promise<Goal | undefined> {
@@ -523,15 +683,16 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       updateData.status = 'in_progress';
     }
 
-    await this.db
+    // Update subtask and get taskId in single query
+    const [updatedSubtask] = await this.db
       .update(subtasks)
       .set(updateData)
-      .where(eq(subtasks.id, id));
+      .where(eq(subtasks.id, id))
+      .returning({ taskId: subtasks.taskId });
 
-    // Automatically update parent task progress
-    const subtask = await this.getSubtask(id);
-    if (subtask?.taskId) {
-      await this.recalculateTaskProgress(subtask.taskId);
+    // Automatically update parent task progress with optimized calculation
+    if (updatedSubtask?.taskId) {
+      await this.recalculateTaskProgressOptimized(updatedSubtask.taskId);
     }
   }
 
@@ -896,7 +1057,133 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
     return { totalProjects, completedProjects, percentComplete };
   }
 
-  // Automatic progress calculation methods
+  // Optimized automatic progress calculation methods
+  async recalculateTaskProgressOptimized(taskId: number): Promise<void> {
+    // Single query to get task progress calculation
+    const result = await this.db
+      .select({
+        totalSubtasks: sql<number>`count(*)`,
+        completedSubtasks: sql<number>`count(case when ${subtasks.status} = 'completed' or ${subtasks.completed} = true then 1 end)`,
+        projectId: sql<number>`min(${tasks.projectId})`
+      })
+      .from(subtasks)
+      .leftJoin(tasks, eq(subtasks.taskId, tasks.id))
+      .where(eq(subtasks.taskId, taskId));
+
+    const { totalSubtasks, completedSubtasks, projectId } = result[0];
+    
+    if (totalSubtasks === 0) return;
+    
+    const percentComplete = Math.round((completedSubtasks / totalSubtasks) * 100);
+    
+    const updateData: any = {
+      percentComplete: percentComplete.toString(),
+      updatedAt: new Date()
+    };
+    
+    if (percentComplete === 100) {
+      updateData.status = 'completed';
+      updateData.completed = true;
+      updateData.completedAt = new Date();
+    } else if (percentComplete > 0) {
+      updateData.status = 'in_progress';
+      updateData.completed = false;
+    } else {
+      updateData.status = 'pending';
+      updateData.completed = false;
+    }
+    
+    await this.db
+      .update(tasks)
+      .set(updateData)
+      .where(eq(tasks.id, taskId));
+
+    // Cascade to parent project
+    if (projectId) {
+      await this.recalculateProjectProgressOptimized(projectId);
+    }
+  }
+
+  async recalculateProjectProgressOptimized(projectId: number): Promise<void> {
+    // Single query to get project progress calculation
+    const result = await this.db
+      .select({
+        totalTasks: sql<number>`count(*)`,
+        completedTasks: sql<number>`count(case when ${tasks.status} = 'completed' or ${tasks.completed} = true then 1 end)`,
+        goalId: sql<number>`min(${projects.goalId})`
+      })
+      .from(tasks)
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
+      .where(eq(tasks.projectId, projectId));
+
+    const { totalTasks, completedTasks, goalId } = result[0];
+    
+    if (totalTasks === 0) return;
+    
+    const percentComplete = Math.round((completedTasks / totalTasks) * 100);
+    
+    const updateData: any = {
+      percentComplete: percentComplete.toString(),
+      updatedAt: new Date()
+    };
+    
+    if (percentComplete === 100) {
+      updateData.status = 'completed';
+      updateData.completedAt = new Date();
+    } else if (percentComplete > 0) {
+      updateData.status = 'in_progress';
+    } else {
+      updateData.status = 'pending';
+    }
+    
+    await this.db
+      .update(projects)
+      .set(updateData)
+      .where(eq(projects.id, projectId));
+
+    // Cascade to parent goal
+    if (goalId) {
+      await this.recalculateGoalProgressOptimized(goalId);
+    }
+  }
+
+  async recalculateGoalProgressOptimized(goalId: number): Promise<void> {
+    // Single query to get goal progress calculation
+    const result = await this.db
+      .select({
+        totalProjects: sql<number>`count(*)`,
+        completedProjects: sql<number>`count(case when ${projects.status} = 'completed' then 1 end)`
+      })
+      .from(projects)
+      .where(eq(projects.goalId, goalId));
+
+    const { totalProjects, completedProjects } = result[0];
+    
+    if (totalProjects === 0) return;
+    
+    const percentComplete = Math.round((completedProjects / totalProjects) * 100);
+    
+    const updateData: any = {
+      percentComplete: percentComplete.toString(),
+      updatedAt: new Date()
+    };
+    
+    if (percentComplete === 100) {
+      updateData.status = 'completed';
+      updateData.completedAt = new Date();
+    } else if (percentComplete > 0) {
+      updateData.status = 'in_progress';
+    } else {
+      updateData.status = 'pending';
+    }
+    
+    await this.db
+      .update(goals)
+      .set(updateData)
+      .where(eq(goals.id, goalId));
+  }
+
+  // Legacy methods for backward compatibility
   async recalculateTaskProgress(taskId: number): Promise<void> {
     const subtasks = await this.getSubtasksByTaskId(taskId);
     if (subtasks.length === 0) return;

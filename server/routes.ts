@@ -173,40 +173,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all goals with full hierarchy including tasks and subtasks
+  // Get all goals with full hierarchy including tasks and subtasks (OPTIMIZED)
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const goals = await storage.getAllGoals();
-      const goalsWithFullHierarchy = [];
-
-      for (const goal of goals) {
-        const projects = await storage.getProjectsByGoalId(goal.id);
-        const projectsWithTasks = [];
-
-        for (const project of projects) {
-          const tasks = await storage.getTasksByProjectId(project.id);
-          const tasksWithSubtasks = [];
-
-          for (const task of tasks) {
-            const subtasks = await storage.getSubtasksByTaskId(task.id);
-            tasksWithSubtasks.push({
-              ...task,
-              subtasks
-            });
-          }
-
-          projectsWithTasks.push({
-            ...project,
-            tasks: tasksWithSubtasks
-          });
-        }
-
-        goalsWithFullHierarchy.push({
-          ...goal,
-          projects: projectsWithTasks
-        });
-      }
-
+      // Use optimized batch query method instead of nested loops
+      const goalsWithFullHierarchy = await storage.getAllGoalsWithHierarchy();
       res.json(goalsWithFullHierarchy);
     } catch (error) {
       next(error);
