@@ -173,12 +173,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all goals with full hierarchy including tasks and subtasks (OPTIMIZED)
+  // HIERARCHICAL ENDPOINTS - Load data progressively for better performance
+  
+  // Get all goals (lightweight - no nested data)
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Use optimized batch query method instead of nested loops
-      const goalsWithFullHierarchy = await storage.getAllGoalsWithHierarchy();
-      res.json(goalsWithFullHierarchy);
+      const goals = await storage.getAllGoals();
+      res.json(goals);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get projects for a specific goal
+  app.get("/api/goals/:goalId/projects", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const goalId = parseInt(req.params.goalId);
+      const projects = await storage.getProjectsByGoalId(goalId);
+      res.json(projects);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get tasks for a specific project
+  app.get("/api/projects/:projectId/tasks", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const tasks = await storage.getTasksByProjectId(projectId);
+      res.json(tasks);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get subtasks for a specific task
+  app.get("/api/tasks/:taskId/subtasks", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      const subtasks = await storage.getSubtasksByTaskId(taskId);
+      res.json(subtasks);
     } catch (error) {
       next(error);
     }

@@ -9,7 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { GoalWithProjects } from "@shared/schema";
+import { format } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
+import type { Goal, Project, Task, Subtask } from "@shared/schema";
 
 export default function DatabasePage() {
   const queryClient = useQueryClient();
@@ -26,13 +28,221 @@ export default function DatabasePage() {
   const [sortOrder, setSortOrder] = useState("asc");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-  const { data: goals = [], isLoading } = useQuery<GoalWithProjects[]>({
+  // Load goals only (lightweight query)
+  const { data: goals = [], isLoading } = useQuery<Goal[]>({
     queryKey: ["/api/goals"],
-    staleTime: 1000 * 60 * 2, // Cache for 2 minutes to reduce frequent API calls
-    refetchOnWindowFocus: false, // Prevent automatic refetch on window focus
+    staleTime: 1000 * 60 * 2, // Cache for 2 minutes
+    refetchOnWindowFocus: false,
   });
 
-  // Remove debug logging for better performance
+  // Toggle functions for expanding/collapsing hierarchy levels
+  const toggleGoalExpansion = (goalId: number) => {
+    const newExpanded = new Set(expandedGoals);
+    if (newExpanded.has(goalId)) {
+      newExpanded.delete(goalId);
+    } else {
+      newExpanded.add(goalId);
+    }
+    setExpandedGoals(newExpanded);
+  };
+
+  const toggleProjectExpansion = (projectId: number) => {
+    const newExpanded = new Set(expandedProjects);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedProjects(newExpanded);
+  };
+
+  const toggleTaskExpansion = (taskId: number) => {
+    const newExpanded = new Set(expandedTasks);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+    }
+    setExpandedTasks(newExpanded);
+  };
+
+  // Completion mutation for all entity types
+  const completionMutation = useMutation({
+    mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
+      return apiRequest(`/api/${type}s/${id}/complete`, "PATCH", { completed });
+    },
+    onSuccess: () => {
+      // Invalidate all cached data to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+  });
+
+  // Progressive loading components
+  const ProjectRow = ({ goalId, isExpanded }: { goalId: number; isExpanded: boolean }) => {
+    const { data: projects = [], isLoading } = useQuery<Project[]>({
+      queryKey: ["/api/goals", goalId, "projects"],
+      enabled: isExpanded,
+      staleTime: 1000 * 60 * 2,
+    });
+
+    if (!isExpanded) return null;
+    if (isLoading) return <TableRow><TableCell colSpan={8} className="text-center">Loading projects...</TableCell></TableRow>;
+
+    return (
+      <>
+        {projects.map((project) => (
+          <React.Fragment key={`project-${project.id}`}>
+            <TableRow className="bg-blue-50 dark:bg-blue-950/20">
+              <TableCell className="pl-8">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleProjectExpansion(project.id)}
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  >
+                    {expandedProjects.has(project.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                  <FolderOpen className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium">{project.title}</span>
+                </div>
+              </TableCell>
+              <TableCell>{project.description || "No description"}</TableCell>
+              <TableCell>
+                <Badge variant="secondary">Project</Badge>
+              </TableCell>
+              <TableCell>
+                <Progress value={parseInt(project.percentComplete || "0")} className="w-20" />
+              </TableCell>
+              <TableCell>{project.assignedTo || "Unassigned"}</TableCell>
+              <TableCell>{project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}</TableCell>
+              <TableCell>{project.priority || "Medium"}</TableCell>
+              <TableCell>
+                <Checkbox
+                  checked={project.status === "completed"}
+                  onCheckedChange={(checked) =>
+                    completionMutation.mutate({
+                      type: "project",
+                      id: project.id,
+                      completed: checked as boolean
+                    })
+                  }
+                />
+              </TableCell>
+            </TableRow>
+            <TaskRow projectId={project.id} isExpanded={expandedProjects.has(project.id)} />
+          </React.Fragment>
+        ))}
+      </>
+    );
+  };
+
+  const TaskRow = ({ projectId, isExpanded }: { projectId: number; isExpanded: boolean }) => {
+    const { data: tasks = [], isLoading } = useQuery<Task[]>({
+      queryKey: ["/api/projects", projectId, "tasks"],
+      enabled: isExpanded,
+      staleTime: 1000 * 60 * 2,
+    });
+
+    if (!isExpanded) return null;
+    if (isLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
+
+    return (
+      <>
+        {tasks.map((task) => (
+          <React.Fragment key={`task-${task.id}`}>
+            <TableRow className="bg-green-50 dark:bg-green-950/20">
+              <TableCell className="pl-16">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleTaskExpansion(task.id)}
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  >
+                    {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                  <CheckSquare className="h-4 w-4 text-green-600" />
+                  <span className="font-medium">{task.title}</span>
+                </div>
+              </TableCell>
+              <TableCell>{task.description || "No description"}</TableCell>
+              <TableCell>
+                <Badge variant="outline">Task</Badge>
+              </TableCell>
+              <TableCell>
+                <Progress value={parseInt(task.percentComplete || "0")} className="w-20" />
+              </TableCell>
+              <TableCell>{task.assignedTo || "Unassigned"}</TableCell>
+              <TableCell>{task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}</TableCell>
+              <TableCell>{task.priority || "Medium"}</TableCell>
+              <TableCell>
+                <Checkbox
+                  checked={task.status === "completed"}
+                  onCheckedChange={(checked) =>
+                    completionMutation.mutate({
+                      type: "task",
+                      id: task.id,
+                      completed: checked as boolean
+                    })
+                  }
+                />
+              </TableCell>
+            </TableRow>
+            <SubtaskRow taskId={task.id} isExpanded={expandedTasks.has(task.id)} />
+          </React.Fragment>
+        ))}
+      </>
+    );
+  };
+
+  const SubtaskRow = ({ taskId, isExpanded }: { taskId: number; isExpanded: boolean }) => {
+    const { data: subtasks = [], isLoading } = useQuery<Subtask[]>({
+      queryKey: ["/api/tasks", taskId, "subtasks"],
+      enabled: isExpanded,
+      staleTime: 1000 * 60 * 2,
+    });
+
+    if (!isExpanded) return null;
+    if (isLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-24">Loading subtasks...</TableCell></TableRow>;
+
+    return (
+      <>
+        {subtasks.map((subtask) => (
+          <TableRow key={`subtask-${subtask.id}`} className="bg-yellow-50 dark:bg-yellow-950/20">
+            <TableCell className="pl-24">
+              <div className="flex items-center gap-2">
+                <ListTodo className="h-4 w-4 text-yellow-600" />
+                <span>{subtask.title}</span>
+              </div>
+            </TableCell>
+            <TableCell>{subtask.description || "No description"}</TableCell>
+            <TableCell>
+              <Badge variant="outline" className="text-xs">Subtask</Badge>
+            </TableCell>
+            <TableCell>
+              <Progress value={parseInt(subtask.percentComplete || "0")} className="w-20" />
+            </TableCell>
+            <TableCell>{subtask.assignedTo || "Unassigned"}</TableCell>
+            <TableCell>{subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}</TableCell>
+            <TableCell>{subtask.priority || "Medium"}</TableCell>
+            <TableCell>
+              <Checkbox
+                checked={subtask.status === "completed"}
+                onCheckedChange={(checked) =>
+                  completionMutation.mutate({
+                    type: "subtask",
+                    id: subtask.id,
+                    completed: checked as boolean
+                  })
+                }
+              />
+            </TableCell>
+          </TableRow>
+        ))}
+      </>
+    );
+  };
+
+  // Remove duplicate function definitions
 
   const breakdownMutation = useMutation({
     mutationFn: async (data: { input: string; level: string; parentId?: number }) => {
@@ -740,9 +950,51 @@ export default function DatabasePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item, index) => (
-                    <React.Fragment key={`${item.type}-${item.id}-main-${index}`}>
-                      {renderTableRow(item, item.type, item.level, index)}
+                  {goals.map((goal) => (
+                    <React.Fragment key={`goal-${goal.id}`}>
+                      <TableRow className="bg-purple-50 dark:bg-purple-950/20">
+                        <TableCell>
+                          <button
+                            onClick={() => toggleGoalExpansion(goal.id)}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                          >
+                            {expandedGoals.has(goal.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        </TableCell>
+                        <TableCell>
+                          <Checkbox
+                            checked={goal.status === "completed"}
+                            onCheckedChange={(checked) =>
+                              completionMutation.mutate({
+                                type: "goal",
+                                id: goal.id,
+                                completed: checked as boolean
+                              })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Target className="h-4 w-4 text-purple-600" />
+                            <span className="font-medium">{goal.title}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge>Goal</Badge>
+                        </TableCell>
+                        <TableCell>{goal.status || "Active"}</TableCell>
+                        <TableCell>{goal.priority || "Medium"}</TableCell>
+                        <TableCell>
+                          <Progress value={parseInt(goal.percentComplete || "0")} className="w-20" />
+                        </TableCell>
+                        <TableCell>{goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}</TableCell>
+                        <TableCell>{goal.assignedTo || "Unassigned"}</TableCell>
+                        <TableCell>{goal.description?.slice(0, 30) || "No description"}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm">Edit</Button>
+                        </TableCell>
+                      </TableRow>
+                      <ProjectRow goalId={goal.id} isExpanded={expandedGoals.has(goal.id)} />
                     </React.Fragment>
                   ))}
                 </TableBody>

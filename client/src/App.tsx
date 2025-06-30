@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navigation } from "@/components/navigation";
 import Home from "@/pages/home-simple";
-import Database from "@/pages/database";
+import Database from "@/pages/database-optimized";
 import NotFound from "@/pages/not-found";
 
 function Router() {
