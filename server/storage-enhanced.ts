@@ -458,6 +458,12 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       .update(tasks)
       .set(updateData)
       .where(eq(tasks.id, id));
+
+    // Automatically update parent project progress
+    const task = await this.getTask(id);
+    if (task?.projectId) {
+      await this.recalculateProjectProgress(task.projectId);
+    }
   }
 
   async updateTaskApproval(id: number, approved: boolean): Promise<void> {
@@ -521,6 +527,12 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       .update(subtasks)
       .set(updateData)
       .where(eq(subtasks.id, id));
+
+    // Automatically update parent task progress
+    const subtask = await this.getSubtask(id);
+    if (subtask?.taskId) {
+      await this.recalculateTaskProgress(subtask.taskId);
+    }
   }
 
   async updateSubtaskApproval(id: number, approved: boolean): Promise<void> {
@@ -882,6 +894,109 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
     const percentComplete = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
 
     return { totalProjects, completedProjects, percentComplete };
+  }
+
+  // Automatic progress calculation methods
+  async recalculateTaskProgress(taskId: number): Promise<void> {
+    const subtasks = await this.getSubtasksByTaskId(taskId);
+    if (subtasks.length === 0) return;
+    
+    const completedSubtasks = subtasks.filter(s => s.status === 'completed' || s.completed === true);
+    const percentComplete = Math.round((completedSubtasks.length / subtasks.length) * 100);
+    
+    const updateData: any = {
+      percentComplete: percentComplete.toString(),
+      updatedAt: new Date()
+    };
+    
+    if (percentComplete === 100) {
+      updateData.status = 'completed';
+      updateData.completed = true;
+      updateData.completedAt = new Date();
+    } else if (percentComplete > 0) {
+      updateData.status = 'in_progress';
+      updateData.completed = false;
+    } else {
+      updateData.status = 'pending';
+      updateData.completed = false;
+    }
+    
+    await this.db
+      .update(tasks)
+      .set(updateData)
+      .where(eq(tasks.id, taskId));
+
+    // Cascade to parent project
+    const task = await this.getTask(taskId);
+    if (task?.projectId) {
+      await this.recalculateProjectProgress(task.projectId);
+    }
+  }
+
+  async recalculateProjectProgress(projectId: number): Promise<void> {
+    const tasks = await this.getTasksByProjectId(projectId);
+    if (tasks.length === 0) return;
+    
+    const completedTasks = tasks.filter(t => t.status === 'completed' || t.completed === true);
+    const percentComplete = Math.round((completedTasks.length / tasks.length) * 100);
+    
+    const updateData: any = {
+      percentComplete: percentComplete.toString(),
+      updatedAt: new Date()
+    };
+    
+    if (percentComplete === 100) {
+      updateData.status = 'completed';
+      updateData.completed = true;
+      updateData.completedAt = new Date();
+    } else if (percentComplete > 0) {
+      updateData.status = 'in_progress';
+      updateData.completed = false;
+    } else {
+      updateData.status = 'pending';
+      updateData.completed = false;
+    }
+    
+    await this.db
+      .update(projects)
+      .set(updateData)
+      .where(eq(projects.id, projectId));
+
+    // Cascade to parent goal
+    const project = await this.getProject(projectId);
+    if (project?.goalId) {
+      await this.recalculateGoalProgress(project.goalId);
+    }
+  }
+
+  async recalculateGoalProgress(goalId: number): Promise<void> {
+    const projects = await this.getProjectsByGoalId(goalId);
+    if (projects.length === 0) return;
+    
+    const completedProjects = projects.filter(p => p.status === 'completed' || p.completed === true);
+    const percentComplete = Math.round((completedProjects.length / projects.length) * 100);
+    
+    const updateData: any = {
+      percentComplete: percentComplete.toString(),
+      updatedAt: new Date()
+    };
+    
+    if (percentComplete === 100) {
+      updateData.status = 'completed';
+      updateData.completed = true;
+      updateData.completedAt = new Date();
+    } else if (percentComplete > 0) {
+      updateData.status = 'in_progress';
+      updateData.completed = false;
+    } else {
+      updateData.status = 'pending';
+      updateData.completed = false;
+    }
+    
+    await this.db
+      .update(goals)
+      .set(updateData)
+      .where(eq(goals.id, goalId));
   }
 
   async getUserWorkload(userId: number): Promise<{ goals: number; projects: number; tasks: number; subtasks: number }> {

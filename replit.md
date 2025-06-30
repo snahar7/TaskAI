@@ -92,6 +92,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 30, 2025: Fixed automatic progress update system with bidirectional cascading
+  - Implemented missing cascading progress calculation methods (recalculateTaskProgress, recalculateProjectProgress, recalculateGoalProgress)
+  - Fixed subtask completion triggers that automatically update parent task progress
+  - Fixed task completion triggers that automatically update parent project progress  
+  - Fixed project completion triggers that automatically update parent goal progress
+  - Added bidirectional cascading: checking/unchecking items properly updates all parent levels
+  - Verified complete 4-level hierarchy progress tracking: subtask → task → project → goal
+  - All progress calculations now work automatically without manual intervention
+  - System maintains data integrity with percentage calculations and status updates
+  - Fixed schema consistency issues with field naming (title vs name) throughout the system
+  - Resolved API validation issues preventing completion toggle functionality
+
 - June 28, 2025: Implemented comprehensive relational database restructure
   - Created enterprise-grade 4-level hierarchy with full relational design
   - Added comprehensive fields to all entities: name, description, assigned_to, status, priority, percent_complete, deadline, tags, category, comments, dependencies, custom_fields, followers, time_actual, time_estimate, team, links/nesting
