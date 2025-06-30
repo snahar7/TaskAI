@@ -529,15 +529,21 @@ export default function DatabasePage() {
         {/* Render children when expanded */}
         {isExpanded && (
           <>
-            {type === "goal" && item.projects?.map((project: any, childIndex: number) => 
-              renderTableRow(project, "project", level + 1, childIndex)
-            )}
-            {type === "project" && item.tasks?.map((task: any, childIndex: number) => 
-              renderTableRow(task, "task", level + 1, childIndex)
-            )}
-            {type === "task" && item.subtasks?.map((subtask: any, childIndex: number) => 
-              renderTableRow(subtask, "subtask", level + 1, childIndex)
-            )}
+            {type === "goal" && item.projects?.map((project: any, childIndex: number) => (
+              <React.Fragment key={`project-${project.id}-${childIndex}`}>
+                {renderTableRow(project, "project", level + 1, childIndex)}
+              </React.Fragment>
+            ))}
+            {type === "project" && item.tasks?.map((task: any, childIndex: number) => (
+              <React.Fragment key={`task-${task.id}-${childIndex}`}>
+                {renderTableRow(task, "task", level + 1, childIndex)}
+              </React.Fragment>
+            ))}
+            {type === "task" && item.subtasks?.map((subtask: any, childIndex: number) => (
+              <React.Fragment key={`subtask-${subtask.id}-${childIndex}`}>
+                {renderTableRow(subtask, "subtask", level + 1, childIndex)}
+              </React.Fragment>
+            ))}
           </>
         )}
       </>
@@ -555,7 +561,7 @@ export default function DatabasePage() {
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto p-4">
+      <div className="min-h-screen w-full p-4">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Database View</h1>
           <Button onClick={() => handleAddBreakdown("goal")}>
