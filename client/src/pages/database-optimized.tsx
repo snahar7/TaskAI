@@ -23,10 +23,8 @@ export default function DatabaseOptimizedPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Toggle functions with better event handling
-  const toggleGoalExpansion = (goalId: number, e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
+  // Toggle functions with simplified event handling
+  const toggleGoalExpansion = (goalId: number) => {
     const newExpanded = new Set(expandedGoals);
     if (newExpanded.has(goalId)) {
       newExpanded.delete(goalId);
@@ -36,9 +34,7 @@ export default function DatabaseOptimizedPage() {
     setExpandedGoals(newExpanded);
   };
 
-  const toggleProjectExpansion = (projectId: number, e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
+  const toggleProjectExpansion = (projectId: number) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
       newExpanded.delete(projectId);
@@ -48,9 +44,7 @@ export default function DatabaseOptimizedPage() {
     setExpandedProjects(newExpanded);
   };
 
-  const toggleTaskExpansion = (taskId: number, e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
+  const toggleTaskExpansion = (taskId: number) => {
     const newExpanded = new Set(expandedTasks);
     if (newExpanded.has(taskId)) {
       newExpanded.delete(taskId);
