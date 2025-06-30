@@ -24,6 +24,7 @@ export default function DatabasePage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("deadline");
   const [sortOrder, setSortOrder] = useState("asc");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const { data: goals = [], isLoading } = useQuery<GoalWithProjects[]>({
     queryKey: ["/api/goals"],
@@ -563,109 +564,146 @@ export default function DatabasePage() {
           </Button>
         </div>
 
-        {/* Comprehensive Filtering Interface */}
-        <div className="bg-white border rounded-lg p-4 mb-6 space-y-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4" />
-            <span className="font-medium">Filters & Sorting</span>
+        {/* Collapsible Filtering Interface */}
+        <div className="bg-white border rounded-lg mb-6 overflow-hidden">
+          {/* Header - Always Visible */}
+          <div 
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+            onClick={() => setFiltersExpanded(!filtersExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              <span className="font-medium">Filters & Sorting</span>
+              <Badge variant="secondary" className="ml-2">
+                {filteredItems.length} items
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {filtersExpanded ? "Hide" : "Show"} options
+              </span>
+              {filtersExpanded ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Search</label>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
-                <Input
-                  placeholder="Search tasks, goals..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
+
+          {/* Collapsible Content */}
+          {filtersExpanded && (
+            <div className="p-4 pt-0 space-y-4 border-t bg-gray-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Search */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Search</label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                    <Input
+                      placeholder="Search tasks, goals..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                {/* Status Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Status</label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Priority Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Priority</label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All priorities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Type Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Type</label>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="goal">Goals</SelectItem>
+                      <SelectItem value="project">Projects</SelectItem>
+                      <SelectItem value="task">Tasks</SelectItem>
+                      <SelectItem value="subtask">Subtasks</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Sorting Controls */}
+              <div className="flex items-center gap-4 pt-2 border-t bg-white rounded p-3">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span className="text-sm font-medium">Sort by:</span>
+                </div>
+                
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deadline">Deadline</SelectItem>
+                    <SelectItem value="name">Name</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                    <SelectItem value="progress">Progress</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                >
+                  {sortOrder === "asc" ? "↑ Ascending" : "↓ Descending"}
+                </Button>
+
+                <div className="ml-auto flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStatusFilter("all");
+                      setPriorityFilter("all");
+                      setTypeFilter("all");
+                      setSortBy("deadline");
+                      setSortOrder("asc");
+                    }}
+                  >
+                    Clear All
+                  </Button>
+                </div>
               </div>
             </div>
-
-            {/* Status Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Priority Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Priority</label>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All priorities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Type Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Type</label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="goal">Goals</SelectItem>
-                  <SelectItem value="project">Projects</SelectItem>
-                  <SelectItem value="task">Tasks</SelectItem>
-                  <SelectItem value="subtask">Subtasks</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Sorting Controls */}
-          <div className="flex items-center gap-4 pt-2 border-t">
-            <div className="flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4" />
-              <span className="text-sm font-medium">Sort by:</span>
-            </div>
-            
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="deadline">Deadline</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="priority">Priority</SelectItem>
-                <SelectItem value="progress">Progress</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            >
-              {sortOrder === "asc" ? "↑ Ascending" : "↓ Descending"}
-            </Button>
-
-            <div className="ml-auto text-sm text-muted-foreground">
-              {filteredItems.length} items shown
-            </div>
-          </div>
+          )}
         </div>
 
         {goals.length === 0 ? (
