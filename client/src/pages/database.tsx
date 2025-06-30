@@ -221,9 +221,10 @@ export default function DatabasePage() {
           
           <TableCell onClick={(e) => e.stopPropagation()}>
             <Checkbox
-              checked={item.status === 'completed' || item.completed || false}
+              checked={item.status === 'completed' || item.completed || parseFloat(item.percentComplete) === 100}
               onCheckedChange={() => {
-                handleCompletionToggle(type, item.id, item.status === 'completed' || item.completed || false);
+                const currentStatus = item.status === 'completed' || item.completed || parseFloat(item.percentComplete) === 100;
+                handleCompletionToggle(type, item.id, currentStatus);
               }}
             />
           </TableCell>
@@ -341,13 +342,19 @@ export default function DatabasePage() {
         {isExpanded && (
           <>
             {type === "goal" && item.projects?.map((project: any) => 
-              renderTableRow(project, "project", level + 1)
+              <React.Fragment key={`project-fragment-${project.id}`}>
+                {renderTableRow(project, "project", level + 1)}
+              </React.Fragment>
             )}
             {type === "project" && item.tasks?.map((task: any) => 
-              renderTableRow(task, "task", level + 1)
+              <React.Fragment key={`task-fragment-${task.id}`}>
+                {renderTableRow(task, "task", level + 1)}
+              </React.Fragment>
             )}
             {type === "task" && item.subtasks?.map((subtask: any) => 
-              renderTableRow(subtask, "subtask", level + 1)
+              <React.Fragment key={`subtask-fragment-${subtask.id}`}>
+                {renderTableRow(subtask, "subtask", level + 1)}
+              </React.Fragment>
             )}
           </>
         )}
