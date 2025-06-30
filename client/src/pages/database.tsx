@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronDown, ChevronRight, Plus, Target, FolderOpen, CheckSquare, ListTodo, Calendar, User, Tag, Clock, FileText, AlertCircle, Percent, Check } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Target, FolderOpen, CheckSquare, ListTodo, Calendar, User, Tag, Clock, FileText, AlertCircle, Percent, Check, Search, Filter, ArrowUpDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { GoalWithProjects } from "@shared/schema";
 
 export default function DatabasePage() {
@@ -14,6 +16,14 @@ export default function DatabasePage() {
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
+  
+  // Filtering and sorting states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("deadline");
+  const [sortOrder, setSortOrder] = useState("asc");
 
   const { data: goals = [], isLoading } = useQuery<GoalWithProjects[]>({
     queryKey: ["/api/goals"],
@@ -200,7 +210,47 @@ export default function DatabasePage() {
     });
   };
 
-  const formatDate = (dateString: string | Date | null) => {
+  // Calculate intelligent deadlines based on AI estimates and dependencies
+  const calculateIntelligentDeadline = (item: any, type: string, allItems: any[] = []) => {
+    const createdAt = item.createdAt ? new Date(item.createdAt) : new Date();
+    const timeEstimate = parseFloat(item.timeEstimate) || 8; // Default 8 hours if no estimate
+    const priority = item.priority?.toLowerCase() || 'medium';
+    
+    // Priority multipliers for urgency
+    const priorityMultipliers = {
+      'high': 0.7,    // 30% faster deadline
+      'medium': 1.0,  // Normal timeline
+      'low': 1.5      // 50% longer timeline
+    };
+    
+    const multiplier = priorityMultipliers[priority as keyof typeof priorityMultipliers] || 1.0;
+    const adjustedHours = timeEstimate * multiplier;
+    
+    // Convert hours to days (assuming 8 working hours per day)
+    const estimatedDays = Math.ceil(adjustedHours / 8);
+    
+    // Add buffer based on hierarchy level
+    const bufferDays = {
+      'goal': estimatedDays * 0.3,      // 30% buffer for goals
+      'project': estimatedDays * 0.2,   // 20% buffer for projects  
+      'task': estimatedDays * 0.1,      // 10% buffer for tasks
+      'subtask': estimatedDays * 0.05   // 5% buffer for subtasks
+    };
+    
+    const totalDays = estimatedDays + (bufferDays[type as keyof typeof bufferDays] || 0);
+    
+    const deadline = new Date(createdAt);
+    deadline.setDate(deadline.getDate() + Math.ceil(totalDays));
+    
+    return deadline;
+  };
+
+  const formatDate = (dateString: string | Date | null, item?: any, type?: string) => {
+    if (!dateString && item && type) {
+      // Calculate intelligent deadline if none exists
+      const calculatedDeadline = calculateIntelligentDeadline(item, type);
+      return `${calculatedDeadline.toLocaleDateString()} (AI estimated)`;
+    }
     if (!dateString) return "No deadline";
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     return date.toLocaleDateString();
@@ -223,6 +273,101 @@ export default function DatabasePage() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // Filtering and sorting logic
+  const filterAndSortItems = (items: any[], level: number = 0) => {
+    const flattenItems = (itemsList: any[], itemType: string, parentLevel: number = 0): any[] => {
+      let result: any[] = [];
+      
+      for (const item of itemsList) {
+        const flatItem = { ...item, type: itemType, level: parentLevel };
+        result.push(flatItem);
+        
+        // Add children if expanded
+        const isExpanded = itemType === "goal" ? expandedGoals.has(item.id) :
+                          itemType === "project" ? expandedProjects.has(item.id) :
+                          expandedTasks.has(item.id);
+        
+        if (isExpanded) {
+          if (item.projects) {
+            result = result.concat(flattenItems(item.projects, "project", parentLevel + 1));
+          }
+          if (item.tasks) {
+            result = result.concat(flattenItems(item.tasks, "task", parentLevel + 1));
+          }
+          if (item.subtasks) {
+            result = result.concat(flattenItems(item.subtasks, "subtask", parentLevel + 1));
+          }
+        }
+      }
+      
+      return result;
+    };
+
+    let flatItems = flattenItems(items, "goal");
+    
+    // Apply filters
+    if (searchTerm) {
+      flatItems = flatItems.filter(item => 
+        (item.name || item.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (statusFilter !== "all") {
+      flatItems = flatItems.filter(item => {
+        const status = parseFloat(item.percentComplete) === 100 ? 'completed' : (item.status || 'pending');
+        return status === statusFilter;
+      });
+    }
+    
+    if (priorityFilter !== "all") {
+      flatItems = flatItems.filter(item => (item.priority || 'medium') === priorityFilter);
+    }
+    
+    if (typeFilter !== "all") {
+      flatItems = flatItems.filter(item => item.type === typeFilter);
+    }
+    
+    // Apply sorting
+    flatItems.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case "name":
+          aValue = (a.name || a.title || "").toLowerCase();
+          bValue = (b.name || b.title || "").toLowerCase();
+          break;
+        case "priority":
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          const aPriority = (a.priority?.toLowerCase() || 'medium') as keyof typeof priorityOrder;
+          const bPriority = (b.priority?.toLowerCase() || 'medium') as keyof typeof priorityOrder;
+          aValue = priorityOrder[aPriority] || 2;
+          bValue = priorityOrder[bPriority] || 2;
+          break;
+        case "progress":
+          aValue = parseFloat(a.percentComplete) || 0;
+          bValue = parseFloat(b.percentComplete) || 0;
+          break;
+        case "deadline":
+          aValue = a.deadline ? new Date(a.deadline) : calculateIntelligentDeadline(a, a.type);
+          bValue = b.deadline ? new Date(b.deadline) : calculateIntelligentDeadline(b, b.type);
+          break;
+        default:
+          aValue = a.id;
+          bValue = b.id;
+      }
+      
+      if (sortOrder === "desc") {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+    });
+    
+    return flatItems;
+  };
+
+  const filteredItems = filterAndSortItems(goals);
 
   const renderTableRow = (item: any, type: string, level: number = 0) => {
     const isExpanded = type === "goal" ? expandedGoals.has(item.id) :
@@ -272,10 +417,10 @@ export default function DatabasePage() {
             />
           </TableCell>
           
-          <TableCell>
+          <TableCell className="min-w-[350px] max-w-[500px]">
             <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 20}px` }}>
               {getTypeIcon()}
-              <span className="font-medium">{item.name || item.title}</span>
+              <span className="font-medium break-words">{item.name || item.title}</span>
             </div>
           </TableCell>
 
@@ -307,14 +452,10 @@ export default function DatabasePage() {
           </TableCell>
 
           <TableCell>
-            {item.deadline ? (
-              <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">{formatDate(item.deadline)}</span>
-              </div>
-            ) : (
-              <span className="text-muted-foreground text-sm">No deadline</span>
-            )}
+            <div className="flex items-center gap-1">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm">{formatDate(item.deadline, item, type)}</span>
+            </div>
           </TableCell>
 
           <TableCell>
@@ -419,6 +560,111 @@ export default function DatabasePage() {
           </Button>
         </div>
 
+        {/* Comprehensive Filtering Interface */}
+        <div className="bg-white border rounded-lg p-4 mb-6 space-y-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4" />
+            <span className="font-medium">Filters & Sorting</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Search</label>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                <Input
+                  placeholder="Search tasks, goals..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Priority Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Priority</label>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All priorities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Type Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Type</label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="goal">Goals</SelectItem>
+                  <SelectItem value="project">Projects</SelectItem>
+                  <SelectItem value="task">Tasks</SelectItem>
+                  <SelectItem value="subtask">Subtasks</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Sorting Controls */}
+          <div className="flex items-center gap-4 pt-2 border-t">
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4" />
+              <span className="text-sm font-medium">Sort by:</span>
+            </div>
+            
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="deadline">Deadline</SelectItem>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="priority">Priority</SelectItem>
+                <SelectItem value="progress">Progress</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            >
+              {sortOrder === "asc" ? "↑ Ascending" : "↓ Descending"}
+            </Button>
+
+            <div className="ml-auto text-sm text-muted-foreground">
+              {filteredItems.length} items shown
+            </div>
+          </div>
+        </div>
+
         {goals.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-muted-foreground">No goals found. Create your first goal to get started!</p>
@@ -442,7 +688,7 @@ export default function DatabasePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {goals.map((goal) => renderTableRow(goal, "goal"))}
+                {filteredItems.map((item) => renderTableRow(item, item.type, item.level))}
               </TableBody>
             </Table>
           </div>
