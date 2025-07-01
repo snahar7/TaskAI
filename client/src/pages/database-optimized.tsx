@@ -69,7 +69,7 @@ export default function DatabaseOptimizedPage() {
   // Progressive loading components
   const ProjectRow = ({ goalId, isExpanded }: { goalId: number; isExpanded: boolean }) => {
     const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
-      queryKey: ["/api/goals", goalId, "projects"],
+      queryKey: [`/api/goals/${goalId}/projects`],
       enabled: isExpanded,
       staleTime: 1000 * 60 * 2,
     });
@@ -135,7 +135,7 @@ export default function DatabaseOptimizedPage() {
 
   const TaskRow = ({ projectId, isExpanded }: { projectId: number; isExpanded: boolean }) => {
     const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
-      queryKey: ["/api/projects", projectId, "tasks"],
+      queryKey: [`/api/projects/${projectId}/tasks`],
       enabled: isExpanded,
       staleTime: 1000 * 60 * 2,
     });
@@ -201,7 +201,7 @@ export default function DatabaseOptimizedPage() {
 
   const SubtaskRow = ({ taskId, isExpanded }: { taskId: number; isExpanded: boolean }) => {
     const { data: subtasks = [], isLoading: subtasksLoading } = useQuery<Subtask[]>({
-      queryKey: ["/api/tasks", taskId, "subtasks"],
+      queryKey: [`/api/tasks/${taskId}/subtasks`],
       enabled: isExpanded,
       staleTime: 1000 * 60 * 2,
     });
