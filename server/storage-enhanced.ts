@@ -1154,23 +1154,26 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
   }
 
   async recalculateGoalProgressOptimized(goalId: number): Promise<void> {
-    // Single query to get goal progress calculation
-    const result = await this.db
+    // Get all projects with their progress
+    const goalProjects = await this.db
       .select({
-        totalProjects: sql<number>`count(*)`,
-        completedProjects: sql<number>`count(case when ${projects.status} = 'completed' then 1 end)`
+        percentComplete: projects.percentComplete
       })
       .from(projects)
       .where(eq(projects.goalId, goalId));
 
-    const { totalProjects, completedProjects } = result[0];
+    if (goalProjects.length === 0) return;
     
-    if (totalProjects === 0) return;
+    // Calculate average progress across all projects
+    const totalProgress = goalProjects.reduce((sum, project) => {
+      const progress = parseFloat(project.percentComplete || '0');
+      return sum + progress;
+    }, 0);
     
-    const percentComplete = Math.round((completedProjects / totalProjects) * 100);
+    const percentComplete = Math.round(totalProgress / goalProjects.length);
     
     const updateData: any = {
-      percentComplete: percentComplete.toString(),
+      percentComplete: percentComplete.toFixed(2),
       updatedAt: new Date()
     };
     
@@ -1279,17 +1282,23 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
     if (hierarchy.goalId) {
       const goalProgressPromise = this.db
         .select({
-          totalProjects: sql<number>`count(*)`,
-          completedProjects: sql<number>`count(case when ${projects.status} = 'completed' then 1 end)`
+          percentComplete: projects.percentComplete
         })
         .from(projects)
         .where(eq(projects.goalId, hierarchy.goalId))
-        .then(async ([result]) => {
-          if (result.totalProjects === 0) return;
-          const percentComplete = Math.round((result.completedProjects / result.totalProjects) * 100);
+        .then(async (goalProjects) => {
+          if (goalProjects.length === 0) return;
+          
+          // Calculate average progress across all projects
+          const totalProgress = goalProjects.reduce((sum, project) => {
+            const progress = parseFloat(project.percentComplete || '0');
+            return sum + progress;
+          }, 0);
+          
+          const percentComplete = Math.round(totalProgress / goalProjects.length);
           
           const updateData: any = {
-            percentComplete: percentComplete.toString(),
+            percentComplete: percentComplete.toFixed(2),
             updatedAt: new Date()
           };
           

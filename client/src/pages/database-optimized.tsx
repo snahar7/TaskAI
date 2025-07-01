@@ -54,43 +54,92 @@ export default function DatabaseOptimizedPage() {
     setExpandedTasks(newExpanded);
   };
 
-  // Completion mutation with instant optimistic updates
+  // Completion mutation with instant optimistic updates for all levels
   const completionMutation = useMutation({
     mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
       return apiRequest("PATCH", `/api/${type}s/${id}/complete`, { completed });
     },
     onMutate: async ({ type, id, completed }) => {
       // Cancel outgoing refetches for instant UI feedback
-      await queryClient.cancelQueries({ queryKey: ["/api/goals"] });
+      await queryClient.cancelQueries();
       
-      // Snapshot previous value  
-      const previousGoals = queryClient.getQueryData(["/api/goals"]);
+      // Store snapshots for rollback
+      const snapshots: any = {};
       
-      // Optimistically update goals list for instant checkbox response
-      queryClient.setQueryData(["/api/goals"], (oldGoals: any[] = []) => {
-        return oldGoals.map(goal => {
-          if (type === "goal" && goal.id === id) {
-            return { 
-              ...goal, 
-              status: completed ? "completed" : "in_progress",
-              percentComplete: completed ? "100" : goal.percentComplete 
-            };
+      // Update all query caches to show instant feedback
+      if (type === "subtask") {
+        // Find and update the subtask in its parent's cache
+        const allTaskKeys = queryClient.getQueryCache().findAll({ queryKey: ['/api/tasks/'] });
+        allTaskKeys.forEach(query => {
+          const key = query.queryKey as string[];
+          if (key[0].startsWith('/api/tasks/') && key[0].includes('/subtasks')) {
+            const oldData = queryClient.getQueryData(key) as any[];
+            if (oldData) {
+              snapshots[key.join()] = oldData;
+              queryClient.setQueryData(key, oldData.map(subtask => 
+                subtask.id === id ? { ...subtask, completed, status: completed ? "completed" : "in_progress" } : subtask
+              ));
+            }
           }
-          return goal;
         });
-      });
+      } else if (type === "task") {
+        // Update task in project cache
+        const allProjectKeys = queryClient.getQueryCache().findAll({ queryKey: ['/api/projects/'] });
+        allProjectKeys.forEach(query => {
+          const key = query.queryKey as string[];
+          if (key[0].startsWith('/api/projects/') && key[0].includes('/tasks')) {
+            const oldData = queryClient.getQueryData(key) as any[];
+            if (oldData) {
+              snapshots[key.join()] = oldData;
+              queryClient.setQueryData(key, oldData.map(task => 
+                task.id === id ? { ...task, completed, status: completed ? "completed" : "in_progress" } : task
+              ));
+            }
+          }
+        });
+      } else if (type === "project") {
+        // Update project in goal cache
+        const allGoalKeys = queryClient.getQueryCache().findAll({ queryKey: ['/api/goals/'] });
+        allGoalKeys.forEach(query => {
+          const key = query.queryKey as string[];
+          if (key[0].startsWith('/api/goals/') && key[0].includes('/projects')) {
+            const oldData = queryClient.getQueryData(key) as any[];
+            if (oldData) {
+              snapshots[key.join()] = oldData;
+              queryClient.setQueryData(key, oldData.map(project => 
+                project.id === id ? { ...project, status: completed ? "completed" : "in_progress" } : project
+              ));
+            }
+          }
+        });
+      } else if (type === "goal") {
+        // Update goal in main list
+        const oldGoals = queryClient.getQueryData(["/api/goals"]) as any[];
+        if (oldGoals) {
+          snapshots["/api/goals"] = oldGoals;
+          queryClient.setQueryData(["/api/goals"], oldGoals.map(goal => 
+            goal.id === id ? { ...goal, status: completed ? "completed" : "in_progress", percentComplete: completed ? "100.00" : goal.percentComplete } : goal
+          ));
+        }
+      }
       
-      return { previousGoals };
+      return { snapshots };
     },
     onError: (err, variables, context) => {
-      // Rollback optimistic update on error
-      if (context?.previousGoals) {
-        queryClient.setQueryData(["/api/goals"], context.previousGoals);
+      // Rollback all snapshots on error
+      if (context?.snapshots) {
+        Object.entries(context.snapshots).forEach(([key, data]) => {
+          const queryKey = key.includes(',') ? key.split(',') : [key];
+          queryClient.setQueryData(queryKey, data);
+        });
       }
     },
     onSuccess: () => {
-      // Refresh accurate data after successful update
+      // Invalidate queries to get fresh data with cascaded progress updates
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/"] });
     },
   });
 
@@ -234,7 +283,7 @@ export default function DatabaseOptimizedPage() {
               <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <Checkbox
-                    checked={task.status === "completed"}
+                    checked={task.completed || task.status === "completed"}
                     onCheckedChange={(checked) =>
                       completionMutation.mutate({
                         type: "task",
@@ -304,7 +353,7 @@ export default function DatabaseOptimizedPage() {
             <TableCell>
               <div onClick={(e) => e.stopPropagation()}>
                 <Checkbox
-                  checked={subtask.status === "completed"}
+                  checked={subtask.completed || subtask.status === "completed"}
                   onCheckedChange={(checked) =>
                     completionMutation.mutate({
                       type: "subtask",
