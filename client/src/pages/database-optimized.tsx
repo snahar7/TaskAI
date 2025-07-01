@@ -57,7 +57,7 @@ export default function DatabaseOptimizedPage() {
   // Completion mutation
   const completionMutation = useMutation({
     mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
-      return apiRequest(`/api/${type}s/${id}/complete`, "PATCH", { completed });
+      return apiRequest("PATCH", `/api/${type}s/${id}/complete`, { completed });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });

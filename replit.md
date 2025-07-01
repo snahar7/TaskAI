@@ -92,6 +92,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 1, 2025: Enhanced mobile and desktop usability with comprehensive click-to-expand functionality
+  - Fixed hierarchical data loading bug: goals now show only their specific projects (not all projects)
+  - Implemented clickable table rows for expansion across all hierarchy levels
+  - Added proper event handling to prevent double-triggers from buttons and checkboxes
+  - Fixed completion mutation API call parameter order for proper checkbox functionality
+  - Enhanced mobile responsiveness with 44px touch targets and progressive column hiding
+  - Added hover effects and visual feedback for better user experience
+  - Performance: Hierarchical API endpoints now work correctly (/api/goals/{id}/projects, etc.)
+
 - June 30, 2025: Implemented hierarchical endpoint restructure for dramatic performance improvement
   - Restructured API endpoints to progressive loading: Goal → Project → Task → Subtask hierarchy
   - Replaced single complex query with lightweight progressive data loading
