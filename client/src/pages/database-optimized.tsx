@@ -165,7 +165,7 @@ export default function DatabaseOptimizedPage() {
     if (projectsLoading) return <TableRow><TableCell colSpan={8} className="text-center">Loading projects...</TableCell></TableRow>;
 
     return (
-      <>
+      <React.Fragment>
         {projects.map((project) => (
           <React.Fragment key={project.id}>
             <TableRow 
@@ -232,7 +232,7 @@ export default function DatabaseOptimizedPage() {
             <TaskRow projectId={project.id} isExpanded={expandedProjects.has(project.id)} />
           </React.Fragment>
         ))}
-      </>
+      </React.Fragment>
     );
   };
 
@@ -247,7 +247,7 @@ export default function DatabaseOptimizedPage() {
     if (tasksLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
 
     return (
-      <>
+      <React.Fragment>
         {tasks.map((task) => (
           <React.Fragment key={task.id}>
             <TableRow 
@@ -314,7 +314,7 @@ export default function DatabaseOptimizedPage() {
             <SubtaskRow taskId={task.id} isExpanded={expandedTasks.has(task.id)} />
           </React.Fragment>
         ))}
-      </>
+      </React.Fragment>
     );
   };
 
@@ -329,7 +329,7 @@ export default function DatabaseOptimizedPage() {
     if (subtasksLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-24">Loading subtasks...</TableCell></TableRow>;
 
     return (
-      <>
+      <React.Fragment>
         {subtasks.map((subtask) => (
           <TableRow key={subtask.id} className="bg-yellow-50">
             <TableCell className="pl-24">
@@ -380,7 +380,7 @@ export default function DatabaseOptimizedPage() {
             </TableCell>
           </TableRow>
         ))}
-      </>
+      </React.Fragment>
     );
   };
 
