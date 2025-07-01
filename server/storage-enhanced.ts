@@ -683,16 +683,16 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       updateData.status = 'in_progress';
     }
 
-    // Update subtask and get taskId in single query
+    // Update subtask and get hierarchy IDs in single query
     const [updatedSubtask] = await this.db
       .update(subtasks)
       .set(updateData)
       .where(eq(subtasks.id, id))
       .returning({ taskId: subtasks.taskId });
 
-    // Automatically update parent task progress with optimized calculation
+    // Use ultra-fast batch update for entire hierarchy
     if (updatedSubtask?.taskId) {
-      await this.recalculateTaskProgressOptimized(updatedSubtask.taskId);
+      await this.recalculateHierarchyProgressBatch(updatedSubtask.taskId);
     }
   }
 
@@ -1057,20 +1057,18 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
     return { totalProjects, completedProjects, percentComplete };
   }
 
-  // Optimized automatic progress calculation methods
+  // Ultra-optimized automatic progress calculation methods
   async recalculateTaskProgressOptimized(taskId: number): Promise<void> {
-    // Single query to get task progress calculation
+    // Get subtask completion data without JOIN
     const result = await this.db
       .select({
         totalSubtasks: sql<number>`count(*)`,
         completedSubtasks: sql<number>`count(case when ${subtasks.status} = 'completed' or ${subtasks.completed} = true then 1 end)`,
-        projectId: sql<number>`min(${tasks.projectId})`
       })
       .from(subtasks)
-      .leftJoin(tasks, eq(subtasks.taskId, tasks.id))
       .where(eq(subtasks.taskId, taskId));
 
-    const { totalSubtasks, completedSubtasks, projectId } = result[0];
+    const { totalSubtasks, completedSubtasks } = result[0];
     
     if (totalSubtasks === 0) return;
     
@@ -1093,30 +1091,30 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       updateData.completed = false;
     }
     
-    await this.db
+    // Update task and get projectId in single returning query
+    const [updatedTask] = await this.db
       .update(tasks)
       .set(updateData)
-      .where(eq(tasks.id, taskId));
+      .where(eq(tasks.id, taskId))
+      .returning({ projectId: tasks.projectId });
 
     // Cascade to parent project
-    if (projectId) {
-      await this.recalculateProjectProgressOptimized(projectId);
+    if (updatedTask?.projectId) {
+      await this.recalculateProjectProgressOptimized(updatedTask.projectId);
     }
   }
 
   async recalculateProjectProgressOptimized(projectId: number): Promise<void> {
-    // Single query to get project progress calculation
+    // Get task completion data without JOIN
     const result = await this.db
       .select({
         totalTasks: sql<number>`count(*)`,
         completedTasks: sql<number>`count(case when ${tasks.status} = 'completed' or ${tasks.completed} = true then 1 end)`,
-        goalId: sql<number>`min(${projects.goalId})`
       })
       .from(tasks)
-      .leftJoin(projects, eq(tasks.projectId, projects.id))
       .where(eq(tasks.projectId, projectId));
 
-    const { totalTasks, completedTasks, goalId } = result[0];
+    const { totalTasks, completedTasks } = result[0];
     
     if (totalTasks === 0) return;
     
@@ -1136,14 +1134,16 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       updateData.status = 'pending';
     }
     
-    await this.db
+    // Update project and get goalId in single returning query
+    const [updatedProject] = await this.db
       .update(projects)
       .set(updateData)
-      .where(eq(projects.id, projectId));
+      .where(eq(projects.id, projectId))
+      .returning({ goalId: projects.goalId });
 
     // Cascade to parent goal
-    if (goalId) {
-      await this.recalculateGoalProgressOptimized(goalId);
+    if (updatedProject?.goalId) {
+      await this.recalculateGoalProgressOptimized(updatedProject.goalId);
     }
   }
 
@@ -1181,6 +1181,129 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       .update(goals)
       .set(updateData)
       .where(eq(goals.id, goalId));
+  }
+
+  // Ultra-fast batch hierarchy update - updates all levels at once
+  async recalculateHierarchyProgressBatch(taskId: number): Promise<void> {
+    // Get hierarchy IDs in a single query
+    const hierarchyResult = await this.db
+      .select({
+        taskId: tasks.id,
+        projectId: tasks.projectId,
+        goalId: projects.goalId
+      })
+      .from(tasks)
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
+      .where(eq(tasks.id, taskId));
+
+    const hierarchy = hierarchyResult[0];
+    if (!hierarchy) return;
+
+    // Batch all progress calculations in parallel instead of sequential
+    const progressPromises = [];
+
+    // Task progress
+    const taskProgressPromise = this.db
+      .select({
+        totalSubtasks: sql<number>`count(*)`,
+        completedSubtasks: sql<number>`count(case when ${subtasks.status} = 'completed' or ${subtasks.completed} = true then 1 end)`,
+      })
+      .from(subtasks)
+      .where(eq(subtasks.taskId, taskId))
+      .then(async ([result]) => {
+        if (result.totalSubtasks === 0) return;
+        const percentComplete = Math.round((result.completedSubtasks / result.totalSubtasks) * 100);
+        
+        const updateData: any = {
+          percentComplete: percentComplete.toString(),
+          updatedAt: new Date()
+        };
+        
+        if (percentComplete === 100) {
+          updateData.status = 'completed';
+          updateData.completed = true;
+          updateData.completedAt = new Date();
+        } else if (percentComplete > 0) {
+          updateData.status = 'in_progress';
+          updateData.completed = false;
+        } else {
+          updateData.status = 'pending';
+          updateData.completed = false;
+        }
+        
+        return this.db.update(tasks).set(updateData).where(eq(tasks.id, taskId));
+      });
+
+    progressPromises.push(taskProgressPromise);
+
+    // Project progress (if exists)
+    if (hierarchy.projectId) {
+      const projectProgressPromise = this.db
+        .select({
+          totalTasks: sql<number>`count(*)`,
+          completedTasks: sql<number>`count(case when ${tasks.status} = 'completed' or ${tasks.completed} = true then 1 end)`,
+        })
+        .from(tasks)
+        .where(eq(tasks.projectId, hierarchy.projectId))
+        .then(async ([result]) => {
+          if (result.totalTasks === 0) return;
+          const percentComplete = Math.round((result.completedTasks / result.totalTasks) * 100);
+          
+          const updateData: any = {
+            percentComplete: percentComplete.toString(),
+            updatedAt: new Date()
+          };
+          
+          if (percentComplete === 100) {
+            updateData.status = 'completed';
+            updateData.completedAt = new Date();
+          } else if (percentComplete > 0) {
+            updateData.status = 'in_progress';
+          } else {
+            updateData.status = 'pending';
+          }
+          
+          return this.db.update(projects).set(updateData).where(eq(projects.id, hierarchy.projectId));
+        });
+
+      progressPromises.push(projectProgressPromise);
+    }
+
+    // Goal progress (if exists)
+    if (hierarchy.goalId) {
+      const goalProgressPromise = this.db
+        .select({
+          totalProjects: sql<number>`count(*)`,
+          completedProjects: sql<number>`count(case when ${projects.status} = 'completed' then 1 end)`
+        })
+        .from(projects)
+        .where(eq(projects.goalId, hierarchy.goalId))
+        .then(async ([result]) => {
+          if (result.totalProjects === 0) return;
+          const percentComplete = Math.round((result.completedProjects / result.totalProjects) * 100);
+          
+          const updateData: any = {
+            percentComplete: percentComplete.toString(),
+            updatedAt: new Date()
+          };
+          
+          if (percentComplete === 100) {
+            updateData.status = 'completed';
+            updateData.completedAt = new Date();
+          } else if (percentComplete > 0) {
+            updateData.status = 'in_progress';
+          } else {
+            updateData.status = 'pending';
+          }
+          
+          return this.db.update(goals).set(updateData).where(eq(goals.id, hierarchy.goalId));
+        });
+
+      progressPromises.push(goalProgressPromise);
+    }
+
+    // Execute all updates in parallel
+    await Promise.all(progressPromises);
   }
 
   // Legacy methods for backward compatibility

@@ -54,15 +54,14 @@ export default function DatabaseOptimizedPage() {
     setExpandedTasks(newExpanded);
   };
 
-  // Completion mutation
+  // Completion mutation with optimized cache invalidation
   const completionMutation = useMutation({
     mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
       return apiRequest("PATCH", `/api/${type}s/${id}/complete`, { completed });
     },
     onSuccess: () => {
+      // Only invalidate goals since completion cascades update parent progress automatically
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
@@ -225,7 +224,9 @@ export default function DatabaseOptimizedPage() {
             <TableCell className="hidden sm:table-cell">{subtask.status || "Active"}</TableCell>
             <TableCell className="hidden md:table-cell">{subtask.priority || "Medium"}</TableCell>
             <TableCell>
-              <Progress value={parseFloat(subtask.percentComplete || "0")} className="w-20" />
+              <div className="w-20 text-sm">
+                {subtask.status === "completed" ? "✓ Complete" : "In Progress"}
+              </div>
             </TableCell>
             <TableCell className="hidden lg:table-cell">{subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}</TableCell>
             <TableCell className="hidden lg:table-cell">{subtask.assignedTo || "Unassigned"}</TableCell>

@@ -343,15 +343,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update task completion with cascading completion and progress calculation
+  // Update task completion with optimized cascading
   app.patch("/api/tasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
-      await storage.updateTaskCompletion(id, completed);
-      
-      // If marking as complete, mark all children as complete
+      // If marking as complete, mark all children as complete first
       if (completed) {
         const task = await storage.getTaskWithDetails(id);
         if (task && task.subtasks) {
@@ -359,25 +357,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateSubtaskCompletion(subtask.id, true);
           }
         }
-        // Update task progress to 100%
-        await storage.updateTaskProgress(id, 100);
       }
       
-      // Get task to find its project
-      const task = await storage.getTask(id);
-      if (task && task.projectId) {
-        // Recalculate project progress
-        const projectProgress = await storage.getProjectProgress(task.projectId);
-        await storage.updateProjectProgress(task.projectId, projectProgress.percentComplete);
-        
-        // Get project to find its goal
-        const project = await storage.getProject(task.projectId);
-        if (project && project.goalId) {
-          // Recalculate goal progress
-          const goalProgress = await storage.getGoalProgress(project.goalId);
-          await storage.updateGoalProgress(project.goalId, goalProgress.percentComplete);
-        }
-      }
+      // updateTaskCompletion already handles optimized cascading to projects/goals
+      await storage.updateTaskCompletion(id, completed);
       
       res.json({ message: "Task completion updated" });
     } catch (error) {
@@ -398,40 +381,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update subtask completion with cascading progress calculation
+  // Update subtask completion with optimized cascading
   app.patch("/api/subtasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
+      // updateSubtaskCompletion already handles all cascading optimally
       await storage.updateSubtaskCompletion(id, completed);
-      
-      // Get subtask to find its task
-      const subtask = await storage.getSubtask(id);
-      if (subtask && subtask.taskId) {
-        // Calculate task progress based on subtasks completion
-        const taskSubtasks = await storage.getSubtasksByTaskId(subtask.taskId);
-        const completedSubtasks = taskSubtasks.filter(st => st.completed).length;
-        const taskProgress = taskSubtasks.length > 0 ? Math.round((completedSubtasks / taskSubtasks.length) * 100) : 0;
-        
-        await storage.updateTaskProgress(subtask.taskId, taskProgress);
-        
-        // Get task to find its project
-        const task = await storage.getTask(subtask.taskId);
-        if (task && task.projectId) {
-          // Recalculate project progress
-          const projectProgress = await storage.getProjectProgress(task.projectId);
-          await storage.updateProjectProgress(task.projectId, projectProgress.percentComplete);
-          
-          // Get project to find its goal
-          const project = await storage.getProject(task.projectId);
-          if (project && project.goalId) {
-            // Recalculate goal progress
-            const goalProgress = await storage.getGoalProgress(project.goalId);
-            await storage.updateGoalProgress(project.goalId, goalProgress.percentComplete);
-          }
-        }
-      }
       
       res.json({ message: "Subtask completion updated" });
     } catch (error) {
@@ -542,7 +499,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
+  // Performance diagnostic endpoint
+  app.get("/api/diagnostic/performance", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const start = Date.now();
+      
+      // Test 1: Simple database query
+      const simpleStart = Date.now();
+      const goals = await storage.getAllGoals();
+      const simpleEnd = Date.now();
+      
+      // Test 2: Single subtask query
+      const subtaskStart = Date.now();
+      const subtask = await storage.getSubtask(75);
+      const subtaskEnd = Date.now();
+      
+      // Test 3: Progress calculation only
+      const progressStart = Date.now();
+      if (subtask?.taskId) {
+        await storage.recalculateTaskProgressOptimized(subtask.taskId);
+      }
+      const progressEnd = Date.now();
+      
+      const total = Date.now() - start;
+      
+      res.json({
+        diagnostics: {
+          simpleQuery: `${simpleEnd - simpleStart}ms`,
+          subtaskQuery: `${subtaskEnd - subtaskStart}ms`, 
+          progressCalculation: `${progressEnd - progressStart}ms`,
+          totalTime: `${total}ms`
+        },
+        goalsCount: goals.length,
+        subtaskExists: !!subtask
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Push schema changes to database
   app.post("/api/db/push", async (req: Request, res: Response, next: NextFunction) => {
