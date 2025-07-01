@@ -81,11 +81,17 @@ export default function DatabaseOptimizedPage() {
       <>
         {projects.map((project) => (
           <React.Fragment key={project.id}>
-            <TableRow className="bg-blue-50">
+            <TableRow 
+              className="bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
+              onClick={() => toggleProjectExpansion(project.id)}
+            >
               <TableCell className="pl-8">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={(e) => toggleProjectExpansion(project.id, e)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleProjectExpansion(project.id);
+                    }}
                     className="p-2 hover:bg-gray-100 rounded touch-manipulation select-none min-h-[44px] min-w-[44px] flex items-center justify-center"
                     type="button"
                   >
@@ -106,16 +112,18 @@ export default function DatabaseOptimizedPage() {
               <TableCell className="hidden lg:table-cell">{project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}</TableCell>
               <TableCell className="hidden lg:table-cell">{project.assignedTo || "Unassigned"}</TableCell>
               <TableCell>
-                <Checkbox
-                  checked={project.status === "completed"}
-                  onCheckedChange={(checked) =>
-                    completionMutation.mutate({
-                      type: "project",
-                      id: project.id,
-                      completed: checked as boolean
-                    })
-                  }
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={project.status === "completed"}
+                    onCheckedChange={(checked) =>
+                      completionMutation.mutate({
+                        type: "project",
+                        id: project.id,
+                        completed: checked as boolean
+                      })
+                    }
+                  />
+                </div>
               </TableCell>
             </TableRow>
             <TaskRow projectId={project.id} isExpanded={expandedProjects.has(project.id)} />
@@ -139,11 +147,17 @@ export default function DatabaseOptimizedPage() {
       <>
         {tasks.map((task) => (
           <React.Fragment key={task.id}>
-            <TableRow className="bg-green-50">
+            <TableRow 
+              className="bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
+              onClick={() => toggleTaskExpansion(task.id)}
+            >
               <TableCell className="pl-16">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={(e) => toggleTaskExpansion(task.id, e)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleTaskExpansion(task.id);
+                    }}
                     className="p-2 hover:bg-gray-100 rounded touch-manipulation select-none min-h-[44px] min-w-[44px] flex items-center justify-center"
                     type="button"
                   >
@@ -164,16 +178,18 @@ export default function DatabaseOptimizedPage() {
               <TableCell className="hidden lg:table-cell">{task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}</TableCell>
               <TableCell className="hidden lg:table-cell">{task.assignedTo || "Unassigned"}</TableCell>
               <TableCell>
-                <Checkbox
-                  checked={task.status === "completed"}
-                  onCheckedChange={(checked) =>
-                    completionMutation.mutate({
-                      type: "task",
-                      id: task.id,
-                      completed: checked as boolean
-                    })
-                  }
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={task.status === "completed"}
+                    onCheckedChange={(checked) =>
+                      completionMutation.mutate({
+                        type: "task",
+                        id: task.id,
+                        completed: checked as boolean
+                      })
+                    }
+                  />
+                </div>
               </TableCell>
             </TableRow>
             <SubtaskRow taskId={task.id} isExpanded={expandedTasks.has(task.id)} />
@@ -214,16 +230,18 @@ export default function DatabaseOptimizedPage() {
             <TableCell className="hidden lg:table-cell">{subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}</TableCell>
             <TableCell className="hidden lg:table-cell">{subtask.assignedTo || "Unassigned"}</TableCell>
             <TableCell>
-              <Checkbox
-                checked={subtask.status === "completed"}
-                onCheckedChange={(checked) =>
-                  completionMutation.mutate({
-                    type: "subtask",
-                    id: subtask.id,
-                    completed: checked as boolean
-                  })
-                }
-              />
+              <div onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={subtask.status === "completed"}
+                  onCheckedChange={(checked) =>
+                    completionMutation.mutate({
+                      type: "subtask",
+                      id: subtask.id,
+                      completed: checked as boolean
+                    })
+                  }
+                />
+              </div>
             </TableCell>
           </TableRow>
         ))}
@@ -269,11 +287,17 @@ export default function DatabaseOptimizedPage() {
               <TableBody>
                 {goals.map((goal) => (
                   <React.Fragment key={goal.id}>
-                    <TableRow className="bg-purple-50">
+                    <TableRow 
+                      className="bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors"
+                      onClick={() => toggleGoalExpansion(goal.id)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={(e) => toggleGoalExpansion(goal.id, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleGoalExpansion(goal.id);
+                            }}
                             className="p-2 hover:bg-gray-100 rounded touch-manipulation select-none min-h-[44px] min-w-[44px] flex items-center justify-center"
                             type="button"
                           >
@@ -294,16 +318,18 @@ export default function DatabaseOptimizedPage() {
                       <TableCell className="hidden lg:table-cell">{goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}</TableCell>
                       <TableCell className="hidden lg:table-cell">{goal.assignedTo || "Unassigned"}</TableCell>
                       <TableCell>
-                        <Checkbox
-                          checked={goal.status === "completed"}
-                          onCheckedChange={(checked) =>
-                            completionMutation.mutate({
-                              type: "goal",
-                              id: goal.id,
-                              completed: checked as boolean
-                            })
-                          }
-                        />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={goal.status === "completed"}
+                            onCheckedChange={(checked) =>
+                              completionMutation.mutate({
+                                type: "goal",
+                                id: goal.id,
+                                completed: checked as boolean
+                              })
+                            }
+                          />
+                        </div>
                       </TableCell>
                     </TableRow>
                     <ProjectRow goalId={goal.id} isExpanded={expandedGoals.has(goal.id)} />
