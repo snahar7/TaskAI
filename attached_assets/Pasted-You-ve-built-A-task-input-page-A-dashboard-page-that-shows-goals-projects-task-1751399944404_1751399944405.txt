@@ -1,0 +1,103 @@
+You’ve built:
+
+- ✅ A **task input page**
+- ✅ A **dashboard/page** that shows goals → projects → tasks → subtasks in a **relational hierarchy**
+- ✅ A **checkbox** that users can click to mark a subtask/task as complete
+- ❌ But: It **does not correctly update the parent statuses or progress** up the chain.
+
+---
+
+## Let’s Clarify the Logic
+
+Here's the behavior we want:
+
+### ✅ Desired Behavior:
+
+When a user marks a **subtask/task/project** as completed:
+
+1. Its **status** should update to `"completed"` or `true`.
+2. It should automatically **recalculate the progress** of its **parent task**, **project**, and **goal**:
+    - If 3 of 5 subtasks are done, the task is 60% complete,
+    - If all tasks in a project are done, project = 100%.
+    - Goal progress is the average of all its projects.
+
+Here is how you can do this: 
+
+> I have a hierarchy of:
+> 
+> - `goals`
+> - `projects` (each goal can have many projects)
+> - `tasks` (each project can have many tasks)
+> - `subtasks` (each task can have many subtasks)
+> 
+> Each of these has a `status` field and a `progress` field (0–100).
+> 
+> ✅ When a **subtask is marked complete**, I want the following logic to automatically run:
+> 
+> ---
+> 
+> ### 1. **Update the subtask**
+> 
+> - Set `status = completed` for the subtask in DB
+> 
+> ---
+> 
+> ### 2. **Update the parent task’s progress**
+> 
+> - Fetch all subtasks of the parent task
+> - Calculate:
+>     
+>     `progress = (completed subtasks / total subtasks) * 100`
+>     
+> - Update the task's `progress` field
+> - If progress = 100, also set `status = completed`
+> 
+> ---
+> 
+> ### 3. **Update the parent project’s progress**
+> 
+> - Fetch all tasks of the project
+> - Use their `progress` values to compute average:
+>     
+>     `project.progress = average of all tasks' progress`
+>     
+> - If all tasks are 100%, set `status = completed`
+> 
+> ---
+> 
+> ### 4. **Update the goal’s progress**
+> 
+> - Fetch all projects under the goal
+> - Use their `progress` to compute average:
+>     
+>     `goal.progress = average of all projects' progress`
+>     
+> - If all projects are 100%, set `status = completed`
+> 
+> ---
+> 
+> ### 📁 Suggested file: `/services/progressUpdater.ts`
+> 
+> Create a function like:
+> 
+> ```
+> export async function updateProgressChain(subtaskId: string) {
+>   // Step 1: Mark subtask as completed
+>   // Step 2: Recalculate task progress
+>   // Step 3: Recalculate project progress
+>   // Step 4: Recalculate goal progress
+> }
+> 
+> ```
+> 
+> 🔁 Call this function any time a subtask or task is updated.
+> 
+> ✅ Add debug logs so I can inspect which entities are updated and what the progress values are.
+> 
+> Bonus:
+> 
+> - Use a transaction to make this consistent
+> - Reuse this logic when tasks or projects are marked complete directly
+> 
+> Optional: Add tests to verify correctness with sample data
+>

@@ -304,6 +304,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update project completion with comprehensive progress cascading
+  app.patch("/api/projects/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
+      
+      // Use the new progress updater service for proper cascading
+      const { progressUpdater } = await import("./services/progressUpdater");
+      await progressUpdater.updateProjectProgress(id, completed);
+      
+      res.json({ message: "Project completion updated" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Update project approval with cascading completion
   app.patch("/api/projects/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -343,24 +359,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update task completion with optimized cascading
+  // Update task completion with comprehensive progress cascading
   app.patch("/api/tasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
-      // If marking as complete, mark all children as complete first
-      if (completed) {
-        const task = await storage.getTaskWithDetails(id);
-        if (task && task.subtasks) {
-          for (const subtask of task.subtasks) {
-            await storage.updateSubtaskCompletion(subtask.id, true);
-          }
-        }
-      }
-      
-      // updateTaskCompletion already handles optimized cascading to projects/goals
-      await storage.updateTaskCompletion(id, completed);
+      // Use the new progress updater service for proper cascading
+      const { progressUpdater } = await import("./services/progressUpdater");
+      await progressUpdater.updateTaskProgress(id, completed);
       
       res.json({ message: "Task completion updated" });
     } catch (error) {
@@ -381,14 +388,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update subtask completion with optimized cascading
+  // Update subtask completion with comprehensive progress cascading
   app.patch("/api/subtasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
-      // updateSubtaskCompletion already handles all cascading optimally
-      await storage.updateSubtaskCompletion(id, completed);
+      // Use the new progress updater service for proper cascading
+      const { progressUpdater } = await import("./services/progressUpdater");
+      await progressUpdater.updateSubtaskProgress(id, completed);
       
       res.json({ message: "Subtask completion updated" });
     } catch (error) {
