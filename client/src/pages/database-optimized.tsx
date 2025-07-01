@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo } from "lucide-react";
+import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
@@ -54,13 +54,52 @@ export default function DatabaseOptimizedPage() {
     setExpandedTasks(newExpanded);
   };
 
-  // Completion mutation with optimized cache invalidation
+  // Completion mutation with instant optimistic updates
   const completionMutation = useMutation({
     mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
       return apiRequest("PATCH", `/api/${type}s/${id}/complete`, { completed });
     },
+    onMutate: async ({ type, id, completed }) => {
+      // Cancel outgoing refetches for instant UI feedback
+      await queryClient.cancelQueries({ queryKey: ["/api/goals"] });
+      
+      // Snapshot previous value  
+      const previousGoals = queryClient.getQueryData(["/api/goals"]);
+      
+      // Optimistically update goals list for instant checkbox response
+      queryClient.setQueryData(["/api/goals"], (oldGoals: any[] = []) => {
+        return oldGoals.map(goal => {
+          if (type === "goal" && goal.id === id) {
+            return { 
+              ...goal, 
+              status: completed ? "completed" : "in_progress",
+              percentComplete: completed ? "100" : goal.percentComplete 
+            };
+          }
+          return goal;
+        });
+      });
+      
+      return { previousGoals };
+    },
+    onError: (err, variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousGoals) {
+        queryClient.setQueryData(["/api/goals"], context.previousGoals);
+      }
+    },
     onSuccess: () => {
-      // Only invalidate goals since completion cascades update parent progress automatically
+      // Refresh accurate data after successful update
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+    },
+  });
+
+  // Delete mutation with confirmation
+  const deleteMutation = useMutation({
+    mutationFn: async ({ type, id }: { type: string; id: number }) => {
+      return apiRequest("DELETE", `/api/${type}s/${id}`, {});
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
     },
   });
@@ -122,6 +161,22 @@ export default function DatabaseOptimizedPage() {
                       })
                     }
                   />
+                </div>
+              </TableCell>
+              <TableCell>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm('Delete this project and all its tasks?')) {
+                        deleteMutation.mutate({ type: "project", id: project.id });
+                      }
+                    }}
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -190,6 +245,22 @@ export default function DatabaseOptimizedPage() {
                   />
                 </div>
               </TableCell>
+              <TableCell>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm('Delete this task and all its subtasks?')) {
+                        deleteMutation.mutate({ type: "task", id: task.id });
+                      }
+                    }}
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </TableCell>
             </TableRow>
             <SubtaskRow taskId={task.id} isExpanded={expandedTasks.has(task.id)} />
           </React.Fragment>
@@ -244,6 +315,20 @@ export default function DatabaseOptimizedPage() {
                 />
               </div>
             </TableCell>
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (confirm('Delete this subtask?')) {
+                    deleteMutation.mutate({ type: "subtask", id: subtask.id });
+                  }
+                }}
+                className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TableCell>
           </TableRow>
         ))}
       </>
@@ -283,6 +368,7 @@ export default function DatabaseOptimizedPage() {
                   <TableHead className="min-w-[100px] hidden lg:table-cell">Deadline</TableHead>
                   <TableHead className="min-w-[100px] hidden lg:table-cell">Assigned</TableHead>
                   <TableHead className="min-w-[60px]">Done</TableHead>
+                  <TableHead className="min-w-[70px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -330,6 +416,22 @@ export default function DatabaseOptimizedPage() {
                               })
                             }
                           />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm('Delete this goal and all its projects/tasks?')) {
+                                deleteMutation.mutate({ type: "goal", id: goal.id });
+                              }
+                            }}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

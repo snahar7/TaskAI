@@ -548,5 +548,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete endpoints
+  app.delete("/api/goals/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteGoal(id);
+      res.json({ message: "Goal deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/projects/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteProject(id);
+      res.json({ message: "Project deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/tasks/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTask(id);
+      res.json({ message: "Task deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/subtasks/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteSubtask(id);
+      res.json({ message: "Subtask deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return httpServer;
 }

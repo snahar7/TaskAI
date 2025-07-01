@@ -127,6 +127,12 @@ export interface IEnhancedStorage {
   getAllPendingBreakdowns(): Promise<PendingBreakdown[]>;
   getPendingBreakdown(id: number): Promise<PendingBreakdown | undefined>;
   deletePendingBreakdown(id: number): Promise<void>;
+  
+  // Delete methods with cascading
+  deleteGoal(id: number): Promise<void>;
+  deleteProject(id: number): Promise<void>;
+  deleteTask(id: number): Promise<void>;
+  deleteSubtask(id: number): Promise<void>;
 }
 
 export class EnhancedDatabaseStorage implements IEnhancedStorage {
@@ -1443,6 +1449,47 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
 
   async deletePendingBreakdown(id: number): Promise<void> {
     await this.db.delete(pendingBreakdowns).where(eq(pendingBreakdowns.id, id));
+  }
+
+  // Delete methods with cascading
+  async deleteGoal(id: number): Promise<void> {
+    // Delete cascades: goal -> projects -> tasks -> subtasks
+    const goalProjects = await this.db.select({ id: projects.id }).from(projects).where(eq(projects.goalId, id));
+    
+    for (const project of goalProjects) {
+      await this.deleteProject(project.id);
+    }
+    
+    await this.db.delete(goals).where(eq(goals.id, id));
+  }
+
+  async deleteProject(id: number): Promise<void> {
+    // Delete cascades: project -> tasks -> subtasks
+    const projectTasks = await this.db.select({ id: tasks.id }).from(tasks).where(eq(tasks.projectId, id));
+    
+    for (const task of projectTasks) {
+      await this.deleteTask(task.id);
+    }
+    
+    await this.db.delete(projects).where(eq(projects.id, id));
+  }
+
+  async deleteTask(id: number): Promise<void> {
+    // Delete cascades: task -> subtasks
+    await this.db.delete(subtasks).where(eq(subtasks.taskId, id));
+    await this.db.delete(tasks).where(eq(tasks.id, id));
+  }
+
+  async deleteSubtask(id: number): Promise<void> {
+    // Get parent task for progress recalculation
+    const [subtask] = await this.db.select({ taskId: subtasks.taskId }).from(subtasks).where(eq(subtasks.id, id));
+    
+    await this.db.delete(subtasks).where(eq(subtasks.id, id));
+    
+    // Recalculate parent task progress after deletion
+    if (subtask?.taskId) {
+      await this.recalculateHierarchyProgressBatch(subtask.taskId);
+    }
   }
 }
 
