@@ -205,21 +205,27 @@ export default function Home() {
       if (level === 'project' && parentId) {
         // If you just created a project under a goal, refresh that goal's projects
         queryClient.invalidateQueries({
-          queryKey: [`/api/goals/${parentId}/projects`],
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === `/api/goals/${parentId}/projects`
         });
       }
 
       if (level === 'task' && parentId) {
         // If you just created a task under a project, refresh that project's tasks
         queryClient.invalidateQueries({
-          queryKey: [`/api/projects/${parentId}/tasks`],
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === `/api/projects/${parentId}/tasks`
         });
       }
 
       if (level === 'subtask' && parentId) {
         // If you just created a subtask under a task, refresh that task's subtasks
         queryClient.invalidateQueries({
-          queryKey: [`/api/tasks/${parentId}/subtasks`],
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === `/api/tasks/${parentId}/subtasks`
         });
       }
       
