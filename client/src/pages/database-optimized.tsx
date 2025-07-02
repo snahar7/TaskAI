@@ -134,12 +134,43 @@ export default function DatabaseOptimizedPage() {
         });
       }
     },
-    onSuccess: () => {
-      // Invalidate queries to get fresh data with cascaded progress updates
+    onSuccess: (_data, { type, id }) => {
+      // Always refresh top-level goals
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/goals/"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects/"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/"] });
+
+      // Invalidate specific caches based on what was completed
+      if (type === "subtask") {
+        // Refresh subtask lists when a subtask is toggled
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/tasks/") &&
+            query.queryKey[0].includes("/subtasks")
+        });
+      }
+
+      if (type === "task") {
+        // Refresh project task lists when a task is toggled
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/projects/") &&
+            query.queryKey[0].includes("/tasks")
+        });
+      }
+
+      if (type === "project") {
+        // Refresh goal project lists when a project is toggled
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/goals/") &&
+            query.queryKey[0].includes("/projects")
+        });
+      }
     },
   });
 

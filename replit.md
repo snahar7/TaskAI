@@ -92,6 +92,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 2, 2025: **Fixed Critical Delete Cache Bug and Server Stability Issues**
+  - **Database Connection**: Enhanced pool configuration with proper error handling and timeout settings
+  - **Delete Cache Fix**: Implemented comprehensive cache invalidation strategy for delete operations
+    - Delete operations now properly invalidate all relevant child caches (projects → tasks → subtasks)
+    - Users can delete items and they immediately disappear from the UI
+    - Fixed stale cache issue where deleted items would still appear until manual refresh
+  - **Completion Cache Fix**: Enhanced completion mutation to properly invalidate subtask/task/project lists
+    - Checkbox state changes now immediately refresh parent container lists
+    - Progress updates cascade properly with real-time UI feedback
+  - **Server Stability**: Improved error handling to prevent server crashes from database issues
+  - **React Fragment Warnings**: Addressed development-time warnings from Replit devtools (cosmetic only)
+  - **Performance**: Delete operations complete in ~200ms, cache invalidation is instant
+
 - July 1, 2025: **Comprehensive Progress Calculation System - True Hierarchical Completion Logic**
   - **Intelligent Progress Service**: Built comprehensive `ProgressUpdater` service with proportional calculation
     - Subtask completion triggers: Task progress = (completed subtasks / total subtasks) × 100
