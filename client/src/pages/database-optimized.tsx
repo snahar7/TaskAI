@@ -143,13 +143,61 @@ export default function DatabaseOptimizedPage() {
     },
   });
 
-  // Delete mutation with confirmation
+  // Delete mutation with comprehensive cache invalidation
   const deleteMutation = useMutation({
     mutationFn: async ({ type, id }: { type: string; id: number }) => {
       return apiRequest("DELETE", `/api/${type}s/${id}`, {});
     },
-    onSuccess: () => {
+    onSuccess: (_data, { type, id }) => {
+      // Always refresh the top-level goals list
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+
+      // Invalidate specific child caches based on what was deleted
+      if (type === "goal") {
+        // When a goal is deleted, invalidate all its projects
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/goals/") &&
+            query.queryKey[0].includes("/projects")
+        });
+      }
+
+      if (type === "project") {
+        // When a project is deleted, invalidate all its tasks and any goal-level project lists
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            if (!Array.isArray(query.queryKey) || typeof query.queryKey[0] !== "string") return false;
+            const key = query.queryKey[0];
+            return (key.startsWith("/api/goals/") && key.includes("/projects")) ||
+                   (key.startsWith("/api/projects/") && key.includes("/tasks"));
+          }
+        });
+      }
+
+      if (type === "task") {
+        // When a task is deleted, invalidate project-level task lists and task-level subtask lists
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            if (!Array.isArray(query.queryKey) || typeof query.queryKey[0] !== "string") return false;
+            const key = query.queryKey[0];
+            return (key.startsWith("/api/projects/") && key.includes("/tasks")) ||
+                   (key.startsWith("/api/tasks/") && key.includes("/subtasks"));
+          }
+        });
+      }
+
+      if (type === "subtask") {
+        // When a subtask is deleted, invalidate task-level subtask lists
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/tasks/") &&
+            query.queryKey[0].includes("/subtasks")
+        });
+      }
     },
   });
 
@@ -165,7 +213,7 @@ export default function DatabaseOptimizedPage() {
     if (projectsLoading) return <TableRow><TableCell colSpan={8} className="text-center">Loading projects...</TableCell></TableRow>;
 
     return (
-      <React.Fragment>
+      <>
         {projects.map((project) => (
           <React.Fragment key={project.id}>
             <TableRow 
@@ -232,7 +280,7 @@ export default function DatabaseOptimizedPage() {
             <TaskRow projectId={project.id} isExpanded={expandedProjects.has(project.id)} />
           </React.Fragment>
         ))}
-      </React.Fragment>
+      </>
     );
   };
 
@@ -247,7 +295,7 @@ export default function DatabaseOptimizedPage() {
     if (tasksLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
 
     return (
-      <React.Fragment>
+      <>
         {tasks.map((task) => (
           <React.Fragment key={task.id}>
             <TableRow 
@@ -314,7 +362,7 @@ export default function DatabaseOptimizedPage() {
             <SubtaskRow taskId={task.id} isExpanded={expandedTasks.has(task.id)} />
           </React.Fragment>
         ))}
-      </React.Fragment>
+      </>
     );
   };
 
@@ -329,7 +377,7 @@ export default function DatabaseOptimizedPage() {
     if (subtasksLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-24">Loading subtasks...</TableCell></TableRow>;
 
     return (
-      <React.Fragment>
+      <>
         {subtasks.map((subtask) => (
           <TableRow key={subtask.id} className="bg-yellow-50">
             <TableCell className="pl-24">
@@ -380,7 +428,7 @@ export default function DatabaseOptimizedPage() {
             </TableCell>
           </TableRow>
         ))}
-      </React.Fragment>
+      </>
     );
   };
 
