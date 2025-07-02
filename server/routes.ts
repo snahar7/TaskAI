@@ -91,14 +91,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use edited breakdown if provided, otherwise use original
       const breakdown = editedBreakdown || pendingBreakdown.breakdown as AIBreakdown;
       
-      // Create the goal
+      console.log("Breakdown structure:", JSON.stringify(breakdown, null, 2));
+      
+      // Create the goal (targetDate is text field in goals table)
       const goal = await storage.createGoal({
-        title: breakdown.goal.name,
-        name: breakdown.goal.name,
+        title: breakdown.goal.title || breakdown.goal.name,
+        name: breakdown.goal.title || breakdown.goal.name,
         description: breakdown.goal.description || null,
         estimatedDuration: breakdown.goal.estimatedDuration || null,
         targetDate: breakdown.goal.targetDate || null,
-        deadline: breakdown.goal.targetDate || null,
         priority: breakdown.goal.priority || breakdown.goal.urgency || "medium",
         status: "pending",
         timeEstimate: breakdown.goal.timeEstimate?.toString() || null,
@@ -110,8 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const aiProject of breakdown.projects) {
         const project = await storage.createProject({
           goalId: goal.id,
-          title: aiProject.name,
-          name: aiProject.name,
+          title: aiProject.title || aiProject.name,
+          name: aiProject.title || aiProject.name,
           description: aiProject.description || null,
           priority: aiProject.priority || aiProject.urgency || "medium",
           status: "pending",
@@ -127,11 +128,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const aiTask of aiProject.tasks) {
           const task = await storage.createTask({
             projectId: project.id,
-            title: aiTask.name,
-            name: aiTask.name,
+            title: aiTask.title || aiTask.name,
+            name: aiTask.title || aiTask.name,
             description: aiTask.description || null,
             timeEstimate: aiTask.timeEstimate?.toString() || aiTask.estimatedHours?.toString() || null,
-            deadline: aiTask.dueDate || null,
+            deadline: aiTask.dueDate ? new Date(aiTask.dueDate) : null,
             priority: aiTask.priority || aiTask.urgency || "medium",
             status: "pending",
             completed: false,
@@ -141,13 +142,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create subtasks under each task
           const createdSubtasks = [];
           for (const aiSubtask of aiTask.subtasks) {
+            console.log("Creating subtask:", aiSubtask.title, aiSubtask);
             const subtask = await storage.createSubtask({
               taskId: task.id,
-              title: aiSubtask.name,
-              name: aiSubtask.name,
+              title: aiSubtask.title,
+              name: aiSubtask.title,
               description: aiSubtask.description || null,
               timeEstimate: aiSubtask.timeEstimate?.toString() || aiSubtask.estimatedHours?.toString() || null,
-              deadline: aiSubtask.dueDate || null,
+              deadline: aiSubtask.dueDate ? new Date(aiSubtask.dueDate) : null,
               priority: aiSubtask.priority || aiSubtask.urgency || "medium",
               status: "pending",
               completed: false,
