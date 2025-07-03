@@ -92,6 +92,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 2, 2025: **Scalable Folder Structure Implementation - Clean Architecture Setup**
+  - **New Folder Structure**: Implementing clean, scalable `/src` architecture with feature-based organization
+    - `/src/app` → Application initialization, providers, and global configuration
+    - `/src/components` → Reusable UI components (TaskCard, shared UI elements)
+    - `/src/features/{goals,projects,tasks}` → Feature-specific components, pages, and hooks
+    - `/src/services` → External integrations (GPT agent, calendar APIs, DB utilities)
+    - `/src/schema` → Drizzle ORM schemas with proper relations and validation
+    - `/src/types` → Centralized TypeScript interfaces and type definitions
+    - `/src/lib` → Utility functions (date formatters, validators, API clients)
+    - `/src/constants` → Application-wide constants, enums, and configuration values
+  - **Sample Data Flow**: Created complete demonstration of user journey (goal input → AI breakdown → DB storage)
+  - **Enhanced AI Service**: Built comprehensive GPTAgent class with task breakdown, completion prediction, and insights
+  - **Type Safety**: Implemented Zod validation schemas with Drizzle integration for all entities
+  - **Modular Architecture**: Clear separation between UI, business logic, data layer, and external services
+  - **Environment Setup**: Added comprehensive .env configuration template with all required keys
+
 - July 2, 2025: **Fixed Critical Delete Cache Bug and Server Stability Issues**
   - **Database Connection**: Enhanced pool configuration with proper error handling and timeout settings
   - **Delete Cache Fix**: Implemented comprehensive cache invalidation strategy for delete operations
