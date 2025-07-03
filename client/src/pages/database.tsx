@@ -245,7 +245,7 @@ export default function DatabasePage() {
   // Remove duplicate function definitions
 
   const breakdownMutation = useMutation({
-    mutationFn: async (data: { input: string; level: string; parentId?: number }) => {
+    mutationFn: async (data: { goalInput: string; level: string; parentId?: number }) => {
       const response = await fetch("/api/goals/breakdown", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -394,7 +394,7 @@ export default function DatabasePage() {
     const input = prompt(`Enter a ${level} to break down:`);
     if (input) {
       breakdownMutation.mutate({
-        input,
+        goalInput: input,
         level,
         parentId,
       });

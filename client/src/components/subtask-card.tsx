@@ -29,7 +29,11 @@ export function SubtaskCard({ subtask, onToggleComplete, isLast = false, isChild
       return response.json();
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      // Invalidate the specific task's subtasks and the overall goals hierarchy
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+      if (subtask.taskId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/tasks', subtask.taskId, 'subtasks'] });
+      }
       toast({
         title: "Subtask subdivided",
         description: `Created ${data?.newSubtasks?.length || 0} smaller tasks for "${subtask.title}"`
