@@ -319,45 +319,15 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
         throw new Error('No response content from OpenAI');
       }
 
-      // Extract JSON from potential markdown formatting
-      let jsonContent = content.trim();
-      
-      // Remove markdown code blocks if present
-      if (jsonContent.startsWith('```json')) {
-        jsonContent = jsonContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (jsonContent.startsWith('```')) {
-        jsonContent = jsonContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
-      
-      console.log(`📝 Extracted JSON content (first 200 chars): ${jsonContent.substring(0, 200)}...`);
-      
       // Parse JSON response and adapt to our AIBreakdown schema
-      let rawData;
-      try {
-        rawData = JSON.parse(jsonContent);
-      } catch (parseError) {
-        console.error('JSON parsing failed. Raw content:', content);
-        console.error('Cleaned content:', jsonContent);
-        throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
-      }
-      
+      const rawData = JSON.parse(content);
       const adaptedBreakdown = this.adaptResponseToSchema(rawData, maxDepth, complexity);
       
       console.log(`✅ Successfully generated ${complexity} goal breakdown`);
-      console.log(`📊 Breakdown contains ${adaptedBreakdown.projects.length} projects`);
-      
       return adaptedBreakdown;
     } catch (error) {
       console.error('Error in generateTaskBreakdown:', error);
-      
-      // If Smart Depth Control fails, provide a fallback with detailed error info
-      if (error.message?.includes('API key') || error.message?.includes('quota')) {
-        throw new Error('OpenAI API issue. Please check your API key and quota.');
-      } else if (error.message?.includes('JSON')) {
-        throw new Error('AI response formatting issue. Please try again.');
-      } else {
-        throw new Error(`Smart Depth Control error: ${error.message}`);
-      }
+      throw error;
     }
   }
 }
