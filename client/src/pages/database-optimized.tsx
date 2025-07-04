@@ -36,9 +36,12 @@ export default function DatabaseOptimizedPage() {
   const breakdownMutation = useMutation({
     mutationFn: async ({ type, id }: { type: 'task' | 'project'; id: number }) => {
       setBreakdownDialog(prev => ({ ...prev, isLoading: true }));
-      return apiRequest("POST", `/api/${type}s/${id}/breakdown`, {});
+      const response = await apiRequest("POST", `/api/${type}s/${id}/breakdown`, {});
+      return await response.json(); // Parse the JSON from the Response
     },
-    onSuccess: (data, { type, id }) => {
+    onSuccess: (data: any, { type, id }) => {
+      console.log('Raw API response:', data);
+      console.log('Extracted breakdown:', data.breakdown);
       setBreakdownDialog({
         isOpen: true,
         itemType: type,
@@ -55,7 +58,8 @@ export default function DatabaseOptimizedPage() {
   // Apply breakdown mutation for creating sub-items
   const applyBreakdownMutation = useMutation({
     mutationFn: async ({ type, id, subItems }: { type: 'task' | 'project'; id: number; subItems: any[] }) => {
-      return apiRequest("POST", `/api/${type}s/${id}/apply-breakdown`, { subItems });
+      const response = await apiRequest("POST", `/api/${type}s/${id}/apply-breakdown`, { subItems });
+      return await response.json();
     },
     onSuccess: (_data, { type, id }) => {
       // Refresh appropriate caches
