@@ -1,15 +1,43 @@
 import { OpenAI } from 'openai';
-import { appConfig } from '@/app/config';
-import type { AIBreakdown } from '@/schema/ai';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Define the AIBreakdown interface (simplified version)
+export interface AIBreakdown {
+  goal: {
+    title: string;
+    description: string;
+    timeframe: string;
+  };
+  projects: Array<{
+    title: string;
+    description: string;
+    urgency: string;
+    estimatedHours: number;
+    dueDate: string;
+    tasks: Array<{
+      title: string;
+      description: string;
+      urgency: string;
+      estimatedHours: number;
+      dueDate: string;
+      subtasks: Array<{
+        title: string;
+        description: string;
+        urgency: string;
+        estimatedHours: number;
+        dueDate: string;
+      }>;
+    }>;
+  }>;
+}
+
 /**
- * GPT Agent Service - Handles all AI-powered task management features
- * This service provides intelligent task breakdown, completion predictions, and insights
+ * GPT Agent Service with Smart Depth Control
+ * Analyzes goal complexity and dynamically adjusts breakdown depth
  */
 export class GPTAgent {
   private model: string;
@@ -17,55 +45,130 @@ export class GPTAgent {
   private temperature: number;
 
   constructor() {
-    this.model = appConfig.openai.model;
-    this.maxTokens = appConfig.openai.maxTokens;
-    this.temperature = appConfig.openai.temperature;
+    this.model = 'gpt-4o';
+    this.maxTokens = 4000;
+    this.temperature = 0.7;
   }
 
   /**
-   * Generate intelligent task breakdown from a high-level goal
-   * This is the core feature: user enters goal → AI breaks it → structured output
+   * Analyze goal complexity using heuristics to determine optimal breakdown depth
+   * Simple goals → maxDepth = 1 (flat tasks)
+   * Medium goals → maxDepth = 2 (subgoals → tasks)  
+   * Complex goals → maxDepth = 3 (goals → projects → tasks → subtasks)
    */
-  async generateTaskBreakdown(
-    goalInput: string,
-    targetDate?: string,
-    userContext?: {
-      previousGoals?: string[];
-      skillLevel?: string;
-      timeAvailable?: string;
+  private analyzeGoalComplexity(goalInput: string): { complexity: 'simple' | 'medium' | 'complex'; maxDepth: number } {
+    const text = goalInput.toLowerCase();
+    
+    // Count action verbs (strong indicators of work units)
+    const actionVerbs = ['create', 'build', 'develop', 'implement', 'design', 'plan', 'setup', 'configure', 'deploy', 'test', 'write', 'research', 'analyze', 'organize', 'clean', 'prepare', 'launch', 'complete', 'finish', 'start', 'begin', 'study', 'learn', 'practice', 'review', 'update', 'install', 'fix', 'repair', 'optimize', 'improve'];
+    const verbCount = actionVerbs.filter(verb => text.includes(verb)).length;
+    
+    // Count clauses (indicated by conjunctions and complex sentence structures)
+    const conjunctions = ['and', 'or', 'but', 'then', 'after', 'before', 'while', 'when', 'if', 'because', 'since', 'although', 'however', 'therefore', 'meanwhile', 'furthermore', 'moreover', 'additionally'];
+    const clauseCount = conjunctions.filter(conj => text.includes(conj)).length;
+    
+    // Count estimated work units (nouns that suggest deliverables)
+    const workUnits = ['app', 'website', 'system', 'platform', 'dashboard', 'api', 'database', 'report', 'document', 'presentation', 'strategy', 'plan', 'design', 'prototype', 'feature', 'module', 'component', 'service', 'integration', 'workflow', 'process', 'house', 'room', 'kitchen', 'bathroom', 'project', 'business', 'company', 'team', 'event', 'campaign', 'course', 'book', 'article', 'video', 'tutorial'];
+    const workUnitCount = workUnits.filter(unit => text.includes(unit)).length;
+    
+    // Calculate complexity score
+    const complexityScore = verbCount + clauseCount + workUnitCount;
+    const wordCount = text.split(/\s+/).length;
+    
+    console.log(`🔍 Goal Analysis: "${goalInput}"`);
+    console.log(`📊 Complexity Score: ${complexityScore} (verbs: ${verbCount}, clauses: ${clauseCount}, work units: ${workUnitCount})`);
+    console.log(`📝 Word Count: ${wordCount}`);
+    
+    // Determine complexity level
+    if (complexityScore <= 2 && wordCount <= 8) {
+      console.log(`✅ Classification: Simple (maxDepth = 1)`);
+      return { complexity: 'simple', maxDepth: 1 };
+    } else if (complexityScore <= 5 && wordCount <= 15) {
+      console.log(`✅ Classification: Medium (maxDepth = 2)`);
+      return { complexity: 'medium', maxDepth: 2 };
+    } else {
+      console.log(`✅ Classification: Complex (maxDepth = 3)`);
+      return { complexity: 'complex', maxDepth: 3 };
     }
-  ): Promise<AIBreakdown> {
-    const targetDateText = targetDate 
-      ? `The user wants to complete this by ${targetDate}.` 
-      : 'No specific deadline was provided.';
+  }
 
-    const contextText = userContext 
-      ? `User context: Previous goals include ${userContext.previousGoals?.join(', ') || 'none'}. 
-         Skill level: ${userContext.skillLevel || 'unknown'}. 
-         Time available: ${userContext.timeAvailable || 'unknown'}.`
-      : '';
+  /**
+   * Generate appropriate prompt template based on complexity and maxDepth
+   */
+  private generateSmartDepthPrompt(
+    goalInput: string, 
+    maxDepth: number, 
+    complexity: string,
+    targetDateText: string, 
+    contextText: string
+  ): string {
+    const basePrompt = `
+You are an expert project manager. Break down the goal "${goalInput}" into at most ${maxDepth} levels.
+Only create additional levels if necessary for clarity.
 
-    const prompt = `
-You are an expert project manager and productivity coach. Break down this goal into a structured hierarchy of projects, tasks, and subtasks.
-
-GOAL: "${goalInput}"
 ${targetDateText}
 ${contextText}
 
-Create a detailed breakdown with:
-1. Main goal with clear description and realistic timeframe
-2. 2-4 projects that achieve the goal
-3. 3-5 tasks per project with specific actions
-4. 2-4 subtasks per task with actionable steps
+Complexity detected: ${complexity}
+`;
 
-For each item, provide:
-- Clear, specific title
-- Detailed description
-- Urgency level (Low/Medium/High)
-- Estimated hours (be realistic)
-- Due date (distribute logically from today to target)
+    if (maxDepth === 1) {
+      // Simple goals: flat list of actionable tasks
+      return basePrompt + `
+Return JSON with a flat list of actionable tasks:
+{
+  "goal": {
+    "title": "string",
+    "description": "string", 
+    "timeframe": "string"
+  },
+  "tasks": [
+    {
+      "title": "string",
+      "description": "string",
+      "urgency": "Low|Medium|High",
+      "estimatedHours": number,
+      "dueDate": "YYYY-MM-DD"
+    }
+  ]
+}
 
-Return valid JSON matching this structure:
+Create 3-6 specific, actionable tasks that directly achieve the goal.`;
+    } else if (maxDepth === 2) {
+      // Medium goals: subgoals → tasks
+      return basePrompt + `
+Return JSON with subgoals and their tasks:
+{
+  "goal": {
+    "title": "string",
+    "description": "string", 
+    "timeframe": "string"
+  },
+  "subgoals": [
+    {
+      "title": "string",
+      "description": "string",
+      "urgency": "Low|Medium|High",
+      "estimatedHours": number,
+      "dueDate": "YYYY-MM-DD",
+      "tasks": [
+        {
+          "title": "string",
+          "description": "string",
+          "urgency": "Low|Medium|High",
+          "estimatedHours": number,
+          "dueDate": "YYYY-MM-DD"
+        }
+      ]
+    }
+  ]
+}
+
+Create 2-4 logical subgoals, each with 2-4 specific tasks.`;
+    } else {
+      // Complex goals: projects → tasks → subtasks (original structure)
+      return basePrompt + `
+Return JSON with full project hierarchy:
 {
   "goal": {
     "title": "string",
@@ -82,7 +185,7 @@ Return valid JSON matching this structure:
       "tasks": [
         {
           "title": "string",
-          "description": "string", 
+          "description": "string",
           "urgency": "Low|Medium|High",
           "estimatedHours": number,
           "dueDate": "YYYY-MM-DD",
@@ -90,7 +193,7 @@ Return valid JSON matching this structure:
             {
               "title": "string",
               "description": "string",
-              "urgency": "Low|Medium|High", 
+              "urgency": "Low|Medium|High",
               "estimatedHours": number,
               "dueDate": "YYYY-MM-DD"
             }
@@ -99,207 +202,133 @@ Return valid JSON matching this structure:
       ]
     }
   ]
-}`;
+}
 
-    try {
-      const completion = await this.callOpenAI(prompt);
-      const breakdown = JSON.parse(completion) as AIBreakdown;
-      
-      // Validate the structure
-      this.validateBreakdown(breakdown);
-      
-      return breakdown;
-    } catch (error) {
-      console.error('GPT Agent - Task breakdown error:', error);
-      throw new Error(`Failed to generate task breakdown: ${error.message}`);
+Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subtasks.`;
     }
   }
 
   /**
-   * Generate completion time predictions for tasks
+   * Adapt different response structures to our standard AIBreakdown schema
    */
-  async predictCompletionTime(
-    taskTitle: string,
-    taskDescription: string,
-    similarTasks?: Array<{ title: string; actualTime: number }>
-  ): Promise<{
-    estimatedHours: number;
-    confidence: number;
-    reasoning: string;
-  }> {
-    const similarTasksText = similarTasks?.length 
-      ? `Similar completed tasks: ${similarTasks.map(t => `${t.title} (${t.actualTime}h)`).join(', ')}`
-      : 'No similar task history available.';
-
-    const prompt = `
-Analyze this task and predict completion time:
-
-TASK: "${taskTitle}"
-DESCRIPTION: "${taskDescription}"
-${similarTasksText}
-
-Provide realistic time estimate considering:
-- Task complexity and scope
-- Required research/setup time  
-- Potential blockers or iterations
-- Similar task patterns if available
-
-Return JSON:
-{
-  "estimatedHours": number,
-  "confidence": number (0-100),
-  "reasoning": "string explaining your estimate"
-}`;
-
-    try {
-      const completion = await this.callOpenAI(prompt);
-      return JSON.parse(completion);
-    } catch (error) {
-      console.error('GPT Agent - Completion prediction error:', error);
-      throw new Error(`Failed to predict completion time: ${error.message}`);
-    }
-  }
-
-  /**
-   * Generate daily standup insights and recommendations
-   */
-  async generateStandupInsights(
-    completedTasks: string[],
-    blockers: string[],
-    upcomingTasks: string[]
-  ): Promise<{
-    insights: string[];
-    recommendations: string[];
-    prioritySuggestions: string[];
-  }> {
-    const prompt = `
-Analyze this daily progress and provide actionable insights:
-
-COMPLETED TASKS:
-${completedTasks.map(task => `- ${task}`).join('\n')}
-
-CURRENT BLOCKERS:
-${blockers.map(blocker => `- ${blocker}`).join('\n')}
-
-UPCOMING TASKS:
-${upcomingTasks.map(task => `- ${task}`).join('\n')}
-
-Provide JSON response:
-{
-  "insights": ["observation about progress patterns"],
-  "recommendations": ["specific actions to improve"],
-  "prioritySuggestions": ["which tasks to focus on next"]
-}`;
-
-    try {
-      const completion = await this.callOpenAI(prompt);
-      return JSON.parse(completion);
-    } catch (error) {
-      console.error('GPT Agent - Standup insights error:', error);
-      throw new Error(`Failed to generate standup insights: ${error.message}`);
-    }
-  }
-
-  /**
-   * Suggest task dependencies and optimal ordering
-   */
-  async analyzeDependencies(
-    tasks: Array<{ id: number; title: string; description: string }>
-  ): Promise<{
-    dependencies: Array<{ taskId: number; dependsOn: number[] }>;
-    optimalOrder: number[];
-    reasoning: string;
-  }> {
-    const tasksText = tasks.map(t => `ID ${t.id}: ${t.title} - ${t.description}`).join('\n');
-
-    const prompt = `
-Analyze these tasks and suggest dependencies and optimal execution order:
-
-TASKS:
-${tasksText}
-
-Consider:
-- Which tasks must be completed before others can start
-- Logical workflow and dependencies
-- Parallel execution opportunities
-- Risk mitigation through proper sequencing
-
-Return JSON:
-{
-  "dependencies": [{"taskId": number, "dependsOn": [number]}],
-  "optimalOrder": [number],
-  "reasoning": "string explaining the recommended order"
-}`;
-
-    try {
-      const completion = await this.callOpenAI(prompt);
-      return JSON.parse(completion);
-    } catch (error) {
-      console.error('GPT Agent - Dependency analysis error:', error);
-      throw new Error(`Failed to analyze dependencies: ${error.message}`);
-    }
-  }
-
-  /**
-   * Core OpenAI API call with error handling and timeout
-   */
-  private async callOpenAI(prompt: string): Promise<string> {
-    const timeout = appConfig.api.timeout;
+  private adaptResponseToSchema(rawData: any, maxDepth: number, complexity: string): AIBreakdown {
+    const goal = rawData.goal;
     
-    return new Promise(async (resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('OpenAI API timeout'));
-      }, timeout);
-
-      try {
-        const completion = await openai.chat.completions.create({
-          model: this.model,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert project manager and productivity coach. Always return valid JSON responses as requested.'
-            },
-            {
-              role: 'user', 
-              content: prompt
-            }
-          ],
-          max_tokens: this.maxTokens,
-          temperature: this.temperature,
-        });
-
-        clearTimeout(timeoutId);
-        
-        const content = completion.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error('No response from OpenAI');
-        }
-
-        resolve(content);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        reject(error);
-      }
-    });
+    console.log(`🔄 Adapting response for ${complexity} goal (maxDepth: ${maxDepth})`);
+    
+    if (maxDepth === 1) {
+      // Simple: Convert flat tasks to minimal project structure
+      const tasks = rawData.tasks || [];
+      console.log(`📋 Converting ${tasks.length} flat tasks to project structure`);
+      
+      return {
+        goal,
+        projects: [
+          {
+            title: goal.title,
+            description: goal.description,
+            urgency: "Medium",
+            estimatedHours: tasks.reduce((sum: number, task: any) => sum + (task.estimatedHours || 0), 0),
+            dueDate: tasks[tasks.length - 1]?.dueDate || new Date().toISOString().split('T')[0],
+            tasks: tasks.map((task: any) => ({
+              ...task,
+              subtasks: []
+            }))
+          }
+        ]
+      };
+    } else if (maxDepth === 2) {
+      // Medium: Convert subgoals to projects
+      const subgoals = rawData.subgoals || [];
+      console.log(`📋 Converting ${subgoals.length} subgoals to project structure`);
+      
+      return {
+        goal,
+        projects: subgoals.map((subgoal: any) => ({
+          title: subgoal.title,
+          description: subgoal.description,
+          urgency: subgoal.urgency,
+          estimatedHours: subgoal.estimatedHours,
+          dueDate: subgoal.dueDate,
+          tasks: (subgoal.tasks || []).map((task: any) => ({
+            ...task,
+            subtasks: []
+          }))
+        }))
+      };
+    } else {
+      // Complex: Use original structure
+      console.log(`📋 Using full project hierarchy structure`);
+      return {
+        goal,
+        projects: rawData.projects || []
+      };
+    }
   }
 
   /**
-   * Validate AI-generated breakdown structure
+   * Generate intelligent task breakdown from a high-level goal with Smart Depth Control
+   * This is the core feature: user enters goal → AI analyzes complexity → breaks it down optimally
    */
-  private validateBreakdown(breakdown: any): void {
-    if (!breakdown.goal || !breakdown.projects) {
-      throw new Error('Invalid breakdown structure: missing goal or projects');
+  async generateTaskBreakdown(
+    goalInput: string,
+    targetDate?: string,
+    userContext?: {
+      previousGoals?: string[];
+      skillLevel?: string;
+      timeAvailable?: string;
     }
+  ): Promise<AIBreakdown> {
+    // Analyze goal complexity to determine optimal breakdown depth
+    const { complexity, maxDepth } = this.analyzeGoalComplexity(goalInput);
+    
+    const targetDateText = targetDate 
+      ? `The user wants to complete this by ${targetDate}.` 
+      : 'No specific deadline was provided.';
 
-    if (!Array.isArray(breakdown.projects) || breakdown.projects.length === 0) {
-      throw new Error('Invalid breakdown: projects must be a non-empty array');
-    }
+    const contextText = userContext 
+      ? `User context: Previous goals include ${userContext.previousGoals?.join(', ') || 'none'}. 
+         Skill level: ${userContext.skillLevel || 'unknown'}. 
+         Time available: ${userContext.timeAvailable || 'unknown'}.`
+      : '';
 
-    breakdown.projects.forEach((project: any, index: number) => {
-      if (!project.tasks || !Array.isArray(project.tasks)) {
-        throw new Error(`Invalid project ${index}: missing tasks array`);
+    // Generate dynamic prompt based on complexity analysis
+    const prompt = this.generateSmartDepthPrompt(goalInput, maxDepth, complexity, targetDateText, contextText);
+
+    try {
+      console.log(`🤖 Generating ${complexity} goal breakdown with maxDepth: ${maxDepth}`);
+      
+      const response = await openai.chat.completions.create({
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert project manager. Always return valid JSON that matches the requested structure exactly.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: this.maxTokens,
+        temperature: this.temperature,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response content from OpenAI');
       }
-    });
+
+      // Parse JSON response and adapt to our AIBreakdown schema
+      const rawData = JSON.parse(content);
+      const adaptedBreakdown = this.adaptResponseToSchema(rawData, maxDepth, complexity);
+      
+      console.log(`✅ Successfully generated ${complexity} goal breakdown`);
+      return adaptedBreakdown;
+    } catch (error) {
+      console.error('Error in generateTaskBreakdown:', error);
+      throw error;
+    }
   }
 }
 

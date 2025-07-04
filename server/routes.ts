@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage } from "./storage-enhanced";
-import { generateGoalBreakdown } from "./services/openai";
-import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema, type AIBreakdown } from "@shared/schema";
+import { gptAgent, type AIBreakdown } from "../src/services/gptAgent";
+import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -37,8 +37,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Generating breakdown for:", goalInput);
       
-      // Generate AI breakdown
-      const aiBreakdown = await generateGoalBreakdown(goalInput, targetDate);
+      // Generate AI breakdown with Smart Depth Control
+      const aiBreakdown = await gptAgent.generateTaskBreakdown(goalInput, targetDate);
       
       // Store as pending breakdown for approval
       const pendingBreakdown = await storage.createPendingBreakdown({

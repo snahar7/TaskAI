@@ -92,6 +92,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 4, 2025: **Smart Depth Control Implementation - Intelligent Complexity Analysis**
+  - **Complexity Analysis Heuristics**: AI analyzes goal input using verb count, clause count, and work unit detection
+    - Simple goals (≤2 complexity score, ≤8 words) → maxDepth = 1 (flat task list)
+    - Medium goals (≤5 complexity score, ≤15 words) → maxDepth = 2 (subgoals → tasks)
+    - Complex goals (>5 complexity score, >15 words) → maxDepth = 3 (full hierarchy)
+  - **Dynamic Prompt Templates**: GPT prompts automatically adjust based on complexity analysis
+    - Simple: "Return JSON with flat list of actionable tasks"
+    - Medium: "Return JSON with subgoals and their tasks"
+    - Complex: "Return JSON with full project hierarchy"
+  - **Schema Adaptation**: Different AI response structures converted to unified AIBreakdown format
+  - **Comprehensive Logging**: Real-time complexity analysis feedback with detailed scoring
+  - **Backend Integration**: Smart Depth Control fully integrated with goal breakdown endpoint
+  - **Performance**: Optimizes AI breakdown to avoid over-engineering simple goals while maintaining flexibility for complex ones
+
 - July 4, 2025: **Complete Automatic Cascade Progress Updates Implementation**
   - **Backend Cascade Logic**: Subtask completion triggers automatic recalculation and persistence of percentComplete at all hierarchy levels
     - Task progress = (completed subtasks / total subtasks) × 100
