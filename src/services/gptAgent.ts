@@ -51,45 +51,126 @@ export class GPTAgent {
   }
 
   /**
-   * Analyze goal complexity using heuristics to determine optimal breakdown depth
-   * Simple goals → maxDepth = 1 (flat tasks)
-   * Medium goals → maxDepth = 2 (subgoals → tasks)  
-   * Complex goals → maxDepth = 3 (goals → projects → tasks → subtasks)
+   * Enhanced complexity analyzer with better heuristics
+   * Analyzes intent patterns, time indicators, scope keywords, and domain complexity
    */
-  private analyzeGoalComplexity(goalInput: string): { complexity: 'simple' | 'medium' | 'complex'; maxDepth: number } {
-    const text = goalInput.toLowerCase();
-    
-    // Count action verbs (strong indicators of work units)
-    const actionVerbs = ['create', 'build', 'develop', 'implement', 'design', 'plan', 'setup', 'configure', 'deploy', 'test', 'write', 'research', 'analyze', 'organize', 'clean', 'prepare', 'launch', 'complete', 'finish', 'start', 'begin', 'study', 'learn', 'practice', 'review', 'update', 'install', 'fix', 'repair', 'optimize', 'improve'];
-    const verbCount = actionVerbs.filter(verb => text.includes(verb)).length;
-    
-    // Count clauses (indicated by conjunctions and complex sentence structures)
-    const conjunctions = ['and', 'or', 'but', 'then', 'after', 'before', 'while', 'when', 'if', 'because', 'since', 'although', 'however', 'therefore', 'meanwhile', 'furthermore', 'moreover', 'additionally'];
-    const clauseCount = conjunctions.filter(conj => text.includes(conj)).length;
-    
-    // Count estimated work units (nouns that suggest deliverables)
-    const workUnits = ['app', 'website', 'system', 'platform', 'dashboard', 'api', 'database', 'report', 'document', 'presentation', 'strategy', 'plan', 'design', 'prototype', 'feature', 'module', 'component', 'service', 'integration', 'workflow', 'process', 'house', 'room', 'kitchen', 'bathroom', 'project', 'business', 'company', 'team', 'event', 'campaign', 'course', 'book', 'article', 'video', 'tutorial'];
-    const workUnitCount = workUnits.filter(unit => text.includes(unit)).length;
-    
-    // Calculate complexity score
-    const complexityScore = verbCount + clauseCount + workUnitCount;
-    const wordCount = text.split(/\s+/).length;
-    
-    console.log(`🔍 Goal Analysis: "${goalInput}"`);
-    console.log(`📊 Complexity Score: ${complexityScore} (verbs: ${verbCount}, clauses: ${clauseCount}, work units: ${workUnitCount})`);
-    console.log(`📝 Word Count: ${wordCount}`);
-    
-    // Determine complexity level
-    if (complexityScore <= 2 && wordCount <= 8) {
-      console.log(`✅ Classification: Simple (maxDepth = 1)`);
-      return { complexity: 'simple', maxDepth: 1 };
-    } else if (complexityScore <= 5 && wordCount <= 15) {
-      console.log(`✅ Classification: Medium (maxDepth = 2)`);
-      return { complexity: 'medium', maxDepth: 2 };
-    } else {
-      console.log(`✅ Classification: Complex (maxDepth = 3)`);
-      return { complexity: 'complex', maxDepth: 3 };
+  private analyzeGoalComplexity(goalInput: string): { 
+    complexity: 'simple' | 'medium' | 'complex'; 
+    maxDepth: number;
+    analysis: {
+      intentPattern: string;
+      timeIndicators: string[];
+      scopeLevel: string;
+      domain: string;
+      reasoning: string;
     }
+  } {
+    const text = goalInput.toLowerCase();
+    const words = text.split(/\s+/);
+    const wordCount = words.length;
+    
+    // 1. Intent Pattern Analysis
+    let intentPattern = 'action';
+    if (text.match(/^(i want to|i need to|i would like to)/)) {
+      intentPattern = 'personal_desire';
+    } else if (text.match(/^(build|create|develop|launch)/)) {
+      intentPattern = 'creation';
+    } else if (text.match(/^(learn|study|master|understand)/)) {
+      intentPattern = 'learning';
+    } else if (text.match(/^(plan|organize|prepare)/)) {
+      intentPattern = 'planning';
+    }
+    
+    // 2. Time Indicators
+    const timeIndicators = [];
+    const urgentWords = ['tonight', 'today', 'asap', 'urgent', 'quick'];
+    const shortTermWords = ['this week', 'weekend', 'soon', 'next week'];
+    const longTermWords = ['month', 'year', 'eventually', 'someday'];
+    
+    if (urgentWords.some(word => text.includes(word))) timeIndicators.push('urgent');
+    if (shortTermWords.some(word => text.includes(word))) timeIndicators.push('short_term');
+    if (longTermWords.some(word => text.includes(word))) timeIndicators.push('long_term');
+    
+    // 3. Scope Keywords Analysis
+    const simpleScope = ['clean', 'organize', 'fix', 'call', 'email', 'buy', 'read'];
+    const mediumScope = ['project', 'plan', 'design', 'setup', 'configure', 'implement'];
+    const complexScope = ['enterprise', 'comprehensive', 'complete', 'full-scale', 'end-to-end', 'ecosystem'];
+    
+    let scopeLevel = 'medium';
+    if (simpleScope.some(word => text.includes(word))) scopeLevel = 'simple';
+    if (complexScope.some(word => text.includes(word))) scopeLevel = 'complex';
+    
+    // 4. Domain Complexity
+    const personalDomains = ['room', 'house', 'personal', 'self', 'fitness', 'health'];
+    const businessDomains = ['business', 'company', 'startup', 'revenue', 'customers'];
+    const technicalDomains = ['app', 'website', 'system', 'api', 'database', 'software', 'code'];
+    
+    let domain = 'general';
+    if (personalDomains.some(word => text.includes(word))) domain = 'personal';
+    if (businessDomains.some(word => text.includes(word))) domain = 'business';
+    if (technicalDomains.some(word => text.includes(word))) domain = 'technical';
+    
+    // 5. Advanced scoring with multiple factors
+    let complexityScore = 0;
+    
+    // Base word count scoring
+    if (wordCount > 20) complexityScore += 3;
+    else if (wordCount > 10) complexityScore += 2;
+    else if (wordCount > 5) complexityScore += 1;
+    
+    // Intent pattern scoring
+    if (intentPattern === 'creation') complexityScore += 2;
+    if (intentPattern === 'planning') complexityScore += 1;
+    
+    // Time scoring (longer term = more complex)
+    if (timeIndicators.includes('long_term')) complexityScore += 2;
+    else if (timeIndicators.includes('urgent')) complexityScore -= 1;
+    
+    // Scope scoring
+    if (scopeLevel === 'complex') complexityScore += 3;
+    else if (scopeLevel === 'simple') complexityScore -= 1;
+    
+    // Domain scoring
+    if (domain === 'technical') complexityScore += 2;
+    else if (domain === 'business') complexityScore += 1;
+    
+    // 6. Determine final complexity with reasoning
+    let complexity: 'simple' | 'medium' | 'complex';
+    let maxDepth: number;
+    let reasoning: string;
+    
+    if (complexityScore <= 2) {
+      complexity = 'simple';
+      maxDepth = 1;
+      reasoning = `Simple task: ${scopeLevel} scope, ${domain} domain, ${timeIndicators.join(',') || 'no time pressure'}`;
+    } else if (complexityScore <= 6) {
+      complexity = 'medium';
+      maxDepth = 2;
+      reasoning = `Medium project: ${intentPattern} intent, ${scopeLevel} scope, needs sub-planning`;
+    } else {
+      complexity = 'complex';
+      maxDepth = 3;
+      reasoning = `Complex initiative: ${domain} domain, ${scopeLevel} scope, requires full hierarchy`;
+    }
+    
+    console.log(`🔍 Enhanced Goal Analysis: "${goalInput}"`);
+    console.log(`📊 Complexity Score: ${complexityScore}`);
+    console.log(`🎯 Intent: ${intentPattern}, Domain: ${domain}, Scope: ${scopeLevel}`);
+    console.log(`⏱️ Time Indicators: ${timeIndicators.join(', ') || 'none'}`);
+    console.log(`✅ Classification: ${complexity} (maxDepth = ${maxDepth})`);
+    console.log(`🧠 Reasoning: ${reasoning}`);
+    
+    return {
+      complexity,
+      maxDepth,
+      analysis: {
+        intentPattern,
+        timeIndicators,
+        scopeLevel,
+        domain,
+        reasoning
+      }
+    };
   }
 
   /**
@@ -280,7 +361,7 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
     }
   ): Promise<AIBreakdown> {
     // Analyze goal complexity to determine optimal breakdown depth
-    const { complexity, maxDepth } = this.analyzeGoalComplexity(goalInput);
+    const { complexity, maxDepth, analysis } = this.analyzeGoalComplexity(goalInput);
     
     const targetDateText = targetDate 
       ? `The user wants to complete this by ${targetDate}.` 
@@ -334,6 +415,131 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
       return adaptedBreakdown;
     } catch (error) {
       console.error('Error in generateTaskBreakdown:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Break down a specific task/project further using AI with rich context
+   * This allows users to get more detailed breakdown of any existing item
+   */
+  async breakDownItemFurther(
+    itemType: 'task' | 'subtask' | 'project',
+    itemData: {
+      title: string;
+      description?: string;
+      estimatedHours?: number;
+      priority?: string;
+      parentContext?: {
+        projectTitle?: string;
+        goalTitle?: string;
+        description?: string;
+      };
+    },
+    options?: {
+      targetSubItems?: number; // How many sub-items to generate
+      focusArea?: string; // Specific area to focus breakdown on
+    }
+  ): Promise<{
+    subItems: Array<{
+      title: string;
+      description: string;
+      urgency: string;
+      estimatedHours: number;
+      dueDate: string;
+    }>;
+    analysis: {
+      complexity: string;
+      reasoning: string;
+      suggestions: string[];
+    };
+  }> {
+    console.log(`🔧 Breaking down ${itemType}: "${itemData.title}"`);
+    
+    // Build context-rich prompt
+    const contextText = itemData.parentContext 
+      ? `This ${itemType} is part of project "${itemData.parentContext.projectTitle}" under goal "${itemData.parentContext.goalTitle}".`
+      : '';
+    
+    const focusText = options?.focusArea 
+      ? `Focus the breakdown specifically on: ${options.focusArea}.`
+      : '';
+    
+    const targetCount = options?.targetSubItems || 4;
+    
+    const prompt = `
+You are an expert project manager. Break down this ${itemType} into ${targetCount} specific, actionable sub-items.
+
+${itemType.toUpperCase()}: "${itemData.title}"
+Description: ${itemData.description || 'Not provided'}
+Priority: ${itemData.priority || 'Medium'}
+Estimated Hours: ${itemData.estimatedHours || 'Not specified'}
+
+${contextText}
+${focusText}
+
+Guidelines:
+- Create ${targetCount} specific, actionable sub-items
+- Each sub-item should be completable in 15 minutes to 2 hours
+- Include realistic time estimates and due dates  
+- Make each sub-item clear and specific
+- Consider dependencies and logical order
+- Add helpful implementation details
+
+Return JSON in this exact format:
+{
+  "subItems": [
+    {
+      "title": "Specific actionable task",
+      "description": "Clear description with implementation details",
+      "urgency": "Low|Medium|High", 
+      "estimatedHours": 0.5,
+      "dueDate": "YYYY-MM-DD"
+    }
+  ],
+  "analysis": {
+    "complexity": "Assessment of breakdown complexity",
+    "reasoning": "Why this breakdown approach was chosen",
+    "suggestions": ["Additional tip 1", "Additional tip 2"]
+  }
+}`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert project manager. Always return valid JSON that matches the requested structure exactly.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: this.maxTokens,
+        temperature: this.temperature,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response content from OpenAI');
+      }
+
+      // Parse JSON response (handle markdown code blocks)
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      const breakdown = JSON.parse(cleanContent);
+      
+      console.log(`✅ Successfully generated breakdown for ${itemType}: ${breakdown.subItems.length} sub-items`);
+      return breakdown;
+    } catch (error) {
+      console.error(`Error breaking down ${itemType}:`, error);
       throw error;
     }
   }

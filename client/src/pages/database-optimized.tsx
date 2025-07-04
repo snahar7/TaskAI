@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo, Trash2, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
@@ -15,6 +16,77 @@ export default function DatabaseOptimizedPage() {
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
+  
+  // Break down functionality state
+  const [breakdownDialog, setBreakdownDialog] = useState<{
+    isOpen: boolean;
+    itemType: 'task' | 'project' | null;
+    itemId: number | null;
+    breakdown: any;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    itemType: null,
+    itemId: null,
+    breakdown: null,
+    isLoading: false
+  });
+
+  // Break down mutation for getting AI breakdown
+  const breakdownMutation = useMutation({
+    mutationFn: async ({ type, id }: { type: 'task' | 'project'; id: number }) => {
+      setBreakdownDialog(prev => ({ ...prev, isLoading: true }));
+      return apiRequest("POST", `/api/${type}s/${id}/breakdown`, {});
+    },
+    onSuccess: (data, { type, id }) => {
+      setBreakdownDialog({
+        isOpen: true,
+        itemType: type,
+        itemId: id,
+        breakdown: data,
+        isLoading: false
+      });
+    },
+    onError: () => {
+      setBreakdownDialog(prev => ({ ...prev, isLoading: false }));
+    },
+  });
+
+  // Apply breakdown mutation for creating sub-items
+  const applyBreakdownMutation = useMutation({
+    mutationFn: async ({ type, id, subItems }: { type: 'task' | 'project'; id: number; subItems: any[] }) => {
+      return apiRequest("POST", `/api/${type}s/${id}/apply-breakdown`, { subItems });
+    },
+    onSuccess: (_data, { type, id }) => {
+      // Refresh appropriate caches
+      if (type === 'task') {
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/tasks/") &&
+            query.queryKey[0].includes("/subtasks")
+        });
+      } else if (type === 'project') {
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/projects/") &&
+            query.queryKey[0].includes("/tasks")
+        });
+      }
+      
+      // Close dialog
+      setBreakdownDialog({
+        isOpen: false,
+        itemType: null,
+        itemId: null,
+        breakdown: null,
+        isLoading: false
+      });
+    },
+  });
 
   // Load goals only (lightweight query)
   const { data: goals = [], isLoading } = useQuery<Goal[]>({
@@ -353,7 +425,17 @@ export default function DatabaseOptimizedPage() {
                 </div>
               </TableCell>
               <TableCell>
-                <div onClick={(e) => e.stopPropagation()}>
+                <div onClick={(e) => e.stopPropagation()} className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => breakdownMutation.mutate({ type: "project", id: project.id })}
+                    disabled={breakdownMutation.isPending}
+                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                    title="Break down this project with AI"
+                  >
+                    <Zap className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -435,7 +517,17 @@ export default function DatabaseOptimizedPage() {
                 </div>
               </TableCell>
               <TableCell>
-                <div onClick={(e) => e.stopPropagation()}>
+                <div onClick={(e) => e.stopPropagation()} className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => breakdownMutation.mutate({ type: "task", id: task.id })}
+                    disabled={breakdownMutation.isPending}
+                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                    title="Break down this task with AI"
+                  >
+                    <Zap className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -632,6 +724,100 @@ export default function DatabaseOptimizedPage() {
           </div>
         )}
       </div>
+
+      {/* Break Down Dialog */}
+      <Dialog open={breakdownDialog.isOpen} onOpenChange={(open) => 
+        !open && setBreakdownDialog({ isOpen: false, itemType: null, itemId: null, breakdown: null, isLoading: false })
+      }>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-blue-600" />
+              AI Breakdown for {breakdownDialog.itemType === 'task' ? 'Task' : 'Project'}
+            </DialogTitle>
+            <DialogDescription>
+              Review the AI-generated breakdown and apply to create new {breakdownDialog.itemType === 'task' ? 'subtasks' : 'tasks'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {breakdownDialog.isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Generating breakdown with AI...</p>
+            </div>
+          ) : breakdownDialog.breakdown ? (
+            <div className="space-y-6">
+              {/* Analysis Summary */}
+              {breakdownDialog.breakdown.breakdown?.analysis && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">AI Analysis</h4>
+                  <p className="text-sm text-blue-800 mb-2">{breakdownDialog.breakdown.breakdown.analysis.reasoning}</p>
+                  {breakdownDialog.breakdown.breakdown.analysis.suggestions && (
+                    <div className="text-sm text-blue-700">
+                      <strong>Suggestions:</strong>
+                      <ul className="list-disc list-inside mt-1">
+                        {breakdownDialog.breakdown.breakdown.analysis.suggestions.map((suggestion: string, idx: number) => (
+                          <li key={idx}>{suggestion}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-items List */}
+              <div>
+                <h4 className="font-medium mb-3">
+                  Generated {breakdownDialog.itemType === 'task' ? 'Subtasks' : 'Tasks'} 
+                  ({breakdownDialog.breakdown.breakdown?.subItems?.length || 0})
+                </h4>
+                <div className="space-y-3">
+                  {breakdownDialog.breakdown.breakdown?.subItems?.map((item: any, idx: number) => (
+                    <div key={idx} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex justify-between items-start mb-2">
+                        <h5 className="font-medium">{item.title}</h5>
+                        <Badge variant={item.urgency === 'High' ? 'destructive' : item.urgency === 'Medium' ? 'default' : 'secondary'}>
+                          {item.urgency}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">{item.description}</p>
+                      <div className="flex gap-4 text-sm text-gray-500">
+                        <span>⏱️ {item.estimatedHours}h</span>
+                        <span>📅 {item.dueDate}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setBreakdownDialog({ isOpen: false, itemType: null, itemId: null, breakdown: null, isLoading: false })}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (breakdownDialog.itemType && breakdownDialog.itemId && breakdownDialog.breakdown.breakdown?.subItems) {
+                      applyBreakdownMutation.mutate({
+                        type: breakdownDialog.itemType,
+                        id: breakdownDialog.itemId,
+                        subItems: breakdownDialog.breakdown.breakdown.subItems
+                      });
+                    }
+                  }}
+                  disabled={applyBreakdownMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {applyBreakdownMutation.isPending ? 'Creating...' : `Create ${breakdownDialog.itemType === 'task' ? 'Subtasks' : 'Tasks'}`}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

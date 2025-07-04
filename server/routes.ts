@@ -140,7 +140,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             title: aiTask.title || aiTask.name,
             name: aiTask.title || aiTask.name,
             description: aiTask.description || null,
-            timeEstimate: aiTask.timeEstimate?.toString() || aiTask.estimatedHours?.toString() || null,
+            timeEstimate: aiTask.estimatedHours ? Math.round(aiTask.estimatedHours * 60) : null, // Convert hours to minutes
+            estimatedHours: aiTask.estimatedHours || null, // Store decimal hours in the decimal field
             deadline: aiTask.dueDate ? new Date(aiTask.dueDate) : null,
             priority: aiTask.priority || aiTask.urgency || "medium",
             status: "pending",
@@ -157,7 +158,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: aiSubtask.title || aiSubtask.name,
               name: aiSubtask.title || aiSubtask.name,
               description: aiSubtask.description || null,
-              timeEstimate: aiSubtask.timeEstimate?.toString() || aiSubtask.estimatedHours?.toString() || null,
+              timeEstimate: aiSubtask.estimatedHours ? Math.round(aiSubtask.estimatedHours * 60) : null, // Convert hours to minutes
+              estimatedHours: aiSubtask.estimatedHours || null, // Store decimal hours in the decimal field
               deadline: aiSubtask.dueDate ? new Date(aiSubtask.dueDate) : null,
               priority: aiSubtask.priority || aiSubtask.urgency || "medium",
               status: "pending",
@@ -603,6 +605,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       await storage.deleteSubtask(id);
       res.json({ message: "Subtask deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Break down task/project/subtask further with AI
+  app.post("/api/:type/:id/breakdown", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const itemType = req.params.type as 'tasks' | 'projects' | 'subtasks';
+      const itemId = parseInt(req.params.id);
+      
+      // Validate item type
+      if (!['tasks', 'projects', 'subtasks'].includes(itemType)) {
+        return res.status(400).json({ error: "Invalid item type. Must be tasks, projects, or subtasks" });
+      }
+
+      // Get the item with context
+      let item: any;
+      let parentContext: any = {};
+      
+      if (itemType === 'tasks') {
+        item = await storage.getTask(itemId);
+        if (item) {
+          const project = await storage.getProject(item.projectId);
+          if (project) {
+            parentContext.projectTitle = project.title;
+            const goal = await storage.getGoal(project.goalId);
+            if (goal) {
+              parentContext.goalTitle = goal.title;
+              parentContext.description = goal.description;
+            }
+          }
+        }
+      } else if (itemType === 'projects') {
+        item = await storage.getProject(itemId);
+        if (item) {
+          const goal = await storage.getGoal(item.goalId);
+          if (goal) {
+            parentContext.goalTitle = goal.title;
+            parentContext.description = goal.description;
+          }
+        }
+      } else if (itemType === 'subtasks') {
+        item = await storage.getSubtask(itemId);
+        if (item) {
+          const task = await storage.getTask(item.taskId);
+          if (task) {
+            parentContext.taskTitle = task.title;
+            const project = await storage.getProject(task.projectId);
+            if (project) {
+              parentContext.projectTitle = project.title;
+              const goal = await storage.getGoal(project.goalId);
+              if (goal) {
+                parentContext.goalTitle = goal.title;
+              }
+            }
+          }
+        }
+      }
+
+      if (!item) {
+        return res.status(404).json({ error: `${itemType.slice(0, -1)} not found` });
+      }
+
+      // Extract breakdown options from request body
+      const { targetSubItems, focusArea } = req.body;
+
+      // Generate AI breakdown using the enhanced GPT agent
+      const breakdown = await gptAgent.breakDownItemFurther(
+        itemType.slice(0, -1) as 'task' | 'project' | 'subtask', // Remove 's' from plural
+        {
+          title: item.title,
+          description: item.description,
+          estimatedHours: item.estimatedHours,
+          priority: item.priority,
+          parentContext
+        },
+        {
+          targetSubItems: targetSubItems || 4,
+          focusArea
+        }
+      );
+
+      res.json({
+        itemId,
+        itemType: itemType.slice(0, -1),
+        breakdown,
+        parentContext
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Apply breakdown results to create actual sub-items in database
+  app.post("/api/:type/:id/apply-breakdown", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const itemType = req.params.type as 'tasks' | 'projects' | 'subtasks';
+      const itemId = parseInt(req.params.id);
+      const { subItems } = req.body;
+
+      if (!subItems || !Array.isArray(subItems)) {
+        return res.status(400).json({ error: "subItems array is required" });
+      }
+
+      const createdItems = [];
+
+      // Create sub-items based on the parent type
+      if (itemType === 'tasks') {
+        // Create subtasks under the task
+        for (const subItem of subItems) {
+          const subtask = await storage.createSubtask({
+            taskId: itemId,
+            title: subItem.title,
+            name: subItem.title,
+            description: subItem.description,
+            timeEstimate: subItem.estimatedHours ? Math.round(subItem.estimatedHours * 60) : null,
+            estimatedHours: subItem.estimatedHours || null,
+            deadline: subItem.dueDate ? new Date(subItem.dueDate) : null,
+            priority: subItem.urgency || "medium",
+            status: "pending",
+            completed: false,
+            approved: true
+          });
+          createdItems.push(subtask);
+        }
+      } else if (itemType === 'projects') {
+        // Create tasks under the project  
+        for (const subItem of subItems) {
+          const task = await storage.createTask({
+            projectId: itemId,
+            title: subItem.title,
+            name: subItem.title,
+            description: subItem.description,
+            timeEstimate: subItem.estimatedHours ? Math.round(subItem.estimatedHours * 60) : null,
+            estimatedHours: subItem.estimatedHours || null,
+            deadline: subItem.dueDate ? new Date(subItem.dueDate) : null,
+            priority: subItem.urgency || "medium",
+            status: "pending",
+            completed: false,
+            approved: true
+          });
+          createdItems.push(task);
+        }
+      } else {
+        return res.status(400).json({ error: "Cannot break down subtasks further. Subtasks are the lowest level." });
+      }
+
+      res.json({
+        message: `Successfully created ${createdItems.length} ${itemType === 'tasks' ? 'subtasks' : 'tasks'}`,
+        createdItems
+      });
     } catch (error) {
       next(error);
     }

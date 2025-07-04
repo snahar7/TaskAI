@@ -92,19 +92,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- July 4, 2025: **Smart Depth Control Implementation - Intelligent Complexity Analysis**
-  - **Complexity Analysis Heuristics**: AI analyzes goal input using verb count, clause count, and work unit detection
-    - Simple goals (≤2 complexity score, ≤8 words) → maxDepth = 1 (flat task list)
-    - Medium goals (≤5 complexity score, ≤15 words) → maxDepth = 2 (subgoals → tasks)
-    - Complex goals (>5 complexity score, >15 words) → maxDepth = 3 (full hierarchy)
-  - **Dynamic Prompt Templates**: GPT prompts automatically adjust based on complexity analysis
-    - Simple: "Return JSON with flat list of actionable tasks"
-    - Medium: "Return JSON with subgoals and their tasks"
-    - Complex: "Return JSON with full project hierarchy"
-  - **Schema Adaptation**: Different AI response structures converted to unified AIBreakdown format
-  - **Comprehensive Logging**: Real-time complexity analysis feedback with detailed scoring
-  - **Backend Integration**: Smart Depth Control fully integrated with goal breakdown endpoint
-  - **Performance**: Optimizes AI breakdown to avoid over-engineering simple goals while maintaining flexibility for complex ones
+- July 4, 2025: **Complete Enhanced AI System with Smart Depth Control & Break Down Further Feature**
+  - **Enhanced Complexity Analysis**: Advanced heuristics analyzing intent patterns, time indicators, scope keywords, and domain complexity
+    - Intent patterns: personal_desire, creation, learning, planning, action
+    - Time indicators: urgent, short_term, long_term analysis
+    - Scope levels: simple, medium, complex scope detection
+    - Domain complexity: personal, business, technical domain scoring
+  - **Smart Depth Control**: Dynamic breakdown depth assignment with detailed reasoning
+    - Simple goals (score ≤2) → maxDepth = 1 (flat task list)
+    - Medium goals (score ≤6) → maxDepth = 2 (subgoals → tasks)
+    - Complex goals (score >6) → maxDepth = 3 (full hierarchy)
+  - **Break Down Further**: Users can break down any task/project with AI using rich context
+    - "Break Down" buttons (⚡) on all tasks and projects
+    - Context-aware prompts include parent project/goal information
+    - Interactive dialog shows AI analysis and generated sub-items
+    - One-click apply to create subtasks or tasks in database
+  - **Database Fix**: Resolved decimal hours issue with proper field mapping (estimatedHours → decimal, timeEstimate → minutes)
+  - **JSON Parsing**: Enhanced to handle OpenAI markdown code block responses
+  - **Performance**: System optimizes breakdown complexity while enabling granular AI-powered subdivision
 
 - July 4, 2025: **Complete Automatic Cascade Progress Updates Implementation**
   - **Backend Cascade Logic**: Subtask completion triggers automatic recalculation and persistence of percentComplete at all hierarchy levels
