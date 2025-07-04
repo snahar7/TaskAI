@@ -319,8 +319,15 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
         throw new Error('No response content from OpenAI');
       }
 
-      // Parse JSON response and adapt to our AIBreakdown schema
-      const rawData = JSON.parse(content);
+      // Parse JSON response (handle markdown code blocks)
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      const rawData = JSON.parse(cleanContent);
       const adaptedBreakdown = this.adaptResponseToSchema(rawData, maxDepth, complexity);
       
       console.log(`✅ Successfully generated ${complexity} goal breakdown`);
