@@ -747,16 +747,19 @@ export default function DatabaseOptimizedPage() {
             </div>
           ) : breakdownDialog.breakdown ? (
             <div className="space-y-6">
+              {/* Debug: Show raw breakdown data */}
+              {console.log('Breakdown data:', breakdownDialog.breakdown)}
+              
               {/* Analysis Summary */}
-              {breakdownDialog.breakdown.breakdown?.analysis && (
+              {breakdownDialog.breakdown?.analysis && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h4 className="font-medium text-blue-900 mb-2">AI Analysis</h4>
-                  <p className="text-sm text-blue-800 mb-2">{breakdownDialog.breakdown.breakdown.analysis.reasoning}</p>
-                  {breakdownDialog.breakdown.breakdown.analysis.suggestions && (
+                  <p className="text-sm text-blue-800 mb-2">{breakdownDialog.breakdown.analysis.reasoning}</p>
+                  {breakdownDialog.breakdown.analysis.suggestions && (
                     <div className="text-sm text-blue-700">
                       <strong>Suggestions:</strong>
                       <ul className="list-disc list-inside mt-1">
-                        {breakdownDialog.breakdown.breakdown.analysis.suggestions.map((suggestion: string, idx: number) => (
+                        {breakdownDialog.breakdown.analysis.suggestions.map((suggestion: string, idx: number) => (
                           <li key={idx}>{suggestion}</li>
                         ))}
                       </ul>
@@ -769,10 +772,10 @@ export default function DatabaseOptimizedPage() {
               <div>
                 <h4 className="font-medium mb-3">
                   Generated {breakdownDialog.itemType === 'task' ? 'Subtasks' : 'Tasks'} 
-                  ({breakdownDialog.breakdown.breakdown?.subItems?.length || 0})
+                  ({breakdownDialog.breakdown?.subItems?.length || 0})
                 </h4>
                 <div className="space-y-3">
-                  {breakdownDialog.breakdown.breakdown?.subItems?.map((item: any, idx: number) => (
+                  {breakdownDialog.breakdown?.subItems?.map((item: any, idx: number) => (
                     <div key={idx} className="border rounded-lg p-4 bg-gray-50">
                       <div className="flex justify-between items-start mb-2">
                         <h5 className="font-medium">{item.title}</h5>
@@ -800,11 +803,11 @@ export default function DatabaseOptimizedPage() {
                 </Button>
                 <Button 
                   onClick={() => {
-                    if (breakdownDialog.itemType && breakdownDialog.itemId && breakdownDialog.breakdown.breakdown?.subItems) {
+                    if (breakdownDialog.itemType && breakdownDialog.itemId && breakdownDialog.breakdown?.subItems) {
                       applyBreakdownMutation.mutate({
                         type: breakdownDialog.itemType,
                         id: breakdownDialog.itemId,
-                        subItems: breakdownDialog.breakdown.breakdown.subItems
+                        subItems: breakdownDialog.breakdown.subItems
                       });
                     }
                   }}
