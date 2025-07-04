@@ -762,5 +762,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard stats endpoint - provides aggregated data for dashboard
+  app.get("/api/dashboard/stats", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // Get all goals, projects, tasks, and subtasks
+      const allGoals = await storage.getAllGoals();
+      const allTasks = [];
+      const allSubtasks = [];
+      const todayTasks = [];
+      const overdueTasks = [];
+      const quickWins = [];
+      const behindSchedule = [];
+      
+      // Collect all tasks and subtasks with their context
+      for (const goal of allGoals) {
+        const projects = await storage.getProjectsByGoalId(goal.id);
+        for (const project of projects) {
+          const tasks = await storage.getTasksByProjectId(project.id);
+          for (const task of tasks) {
+            const taskWithContext = { ...task, project, goal };
+            allTasks.push(taskWithContext);
+            
+            // Check if task is due today
+            if (task.deadline && new Date(task.deadline).toISOString().split('T')[0] === todayStr) {
+              todayTasks.push(taskWithContext);
+            }
+            
+            // Check if task is overdue
+            if (task.deadline && new Date(task.deadline) < today && !task.completed) {
+              overdueTasks.push(taskWithContext);
+            }
+            
+            // Check if task is a quick win (< 1 hour)
+            if (task.estimatedHours && Number(task.estimatedHours) < 1 && !task.completed) {
+              quickWins.push(taskWithContext);
+            }
+            
+            // Check if task is behind schedule (incomplete with passed deadline)
+            if (task.deadline && new Date(task.deadline) < today && !task.completed) {
+              behindSchedule.push(taskWithContext);
+            }
+            
+            // Get subtasks for additional analysis
+            const subtasks = await storage.getSubtasksByTaskId(task.id);
+            for (const subtask of subtasks) {
+              const subtaskWithContext = { ...subtask, task, project, goal };
+              allSubtasks.push(subtaskWithContext);
+              
+              // Add subtasks to relevant categories
+              if (subtask.deadline && new Date(subtask.deadline).toISOString().split('T')[0] === todayStr) {
+                todayTasks.push(subtaskWithContext);
+              }
+              
+              if (subtask.deadline && new Date(subtask.deadline) < today && !subtask.completed) {
+                overdueTasks.push(subtaskWithContext);
+              }
+              
+              if (subtask.estimatedHours && Number(subtask.estimatedHours) < 1 && !subtask.completed) {
+                quickWins.push(subtaskWithContext);
+              }
+              
+              if (subtask.deadline && new Date(subtask.deadline) < today && !subtask.completed) {
+                behindSchedule.push(subtaskWithContext);
+              }
+            }
+          }
+        }
+      }
+      
+      // Calculate productivity metrics
+      const completedToday = allSubtasks.filter(s => 
+        s.completed && s.updatedAt && new Date(s.updatedAt).toDateString() === today.toDateString()
+      ).length;
+      
+      const totalActive = allTasks.filter(t => !t.completed).length + allSubtasks.filter(s => !s.completed).length;
+      const totalCompleted = allTasks.filter(t => t.completed).length + allSubtasks.filter(s => s.completed).length;
+      
+      const productivity = totalActive + totalCompleted > 0 ? 
+        Math.round((totalCompleted / (totalActive + totalCompleted)) * 100) : 0;
+      
+      // Calculate average completion time (mock for now, would need historical data)
+      const avgCompletionTime = 2.3; // hours
+      
+      // Goals on track (percentage)
+      const goalsOnTrack = allGoals.filter(g => Number(g.percentComplete || 0) > 50).length;
+      const goalsOnTrackPercent = allGoals.length > 0 ? Math.round((goalsOnTrack / allGoals.length) * 100) : 0;
+      
+      res.json({
+        // Key metrics
+        todayTasks: todayTasks.slice(0, 5), // Top 5 for today's focus
+        overdueTasks: overdueTasks.slice(0, 10),
+        quickWins: quickWins.slice(0, 15),
+        behindSchedule: behindSchedule.slice(0, 10),
+        
+        // Analytics
+        metrics: {
+          tasksCompletedToday: completedToday,
+          avgCompletionTime: avgCompletionTime,
+          goalsOnTrackPercent: goalsOnTrackPercent,
+          productivityScore: productivity
+        },
+        
+        // Counts for filters
+        counts: {
+          todayTasks: todayTasks.length,
+          overdueTasks: overdueTasks.length,
+          quickWins: quickWins.length,
+          behindSchedule: behindSchedule.length,
+          totalGoals: allGoals.length,
+          totalTasks: allTasks.length,
+          totalSubtasks: allSubtasks.length
+        },
+        
+        // Goal data for overview
+        goals: allGoals.map(goal => ({
+          id: goal.id,
+          title: goal.title,
+          description: goal.description,
+          percentComplete: Number(goal.percentComplete || 0),
+          deadline: goal.deadline,
+          priority: goal.priority || 'medium',
+          status: goal.status
+        }))
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return httpServer;
 }
