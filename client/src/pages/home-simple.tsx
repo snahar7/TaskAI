@@ -31,7 +31,7 @@ export default function HomePage() {
       const approveResponse = await fetch("/api/goals/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ breakdownId: breakdown.id }),
+        body: JSON.stringify({ pendingId: breakdown.pendingId, approved: true }),
       });
       const result = await approveResponse.json();
 
