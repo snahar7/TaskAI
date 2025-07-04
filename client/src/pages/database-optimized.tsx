@@ -43,7 +43,7 @@ export default function DatabaseOptimizedPage() {
         isOpen: true,
         itemType: type,
         itemId: id,
-        breakdown: data,
+        breakdown: data.breakdown, // Extract the actual breakdown data
         isLoading: false
       });
     },
