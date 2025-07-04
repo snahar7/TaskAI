@@ -24,8 +24,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create goal breakdown (Phase I MVP endpoint)
   app.post("/api/goals/breakdown", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log("Raw request body:", req.body);
-      console.log("Request headers:", req.headers);
+      console.log("=== DEBUG: Goal Breakdown Request ===");
+      console.log("Raw request body:", JSON.stringify(req.body, null, 2));
+      console.log("Request body type:", typeof req.body);
+      console.log("Request body keys:", Object.keys(req.body || {}));
+      console.log("Content-Type header:", req.headers['content-type']);
+      console.log("goalInput value:", req.body?.goalInput);
+      console.log("targetDate value:", req.body?.targetDate);
+      console.log("=====================================");
+      
       const { goalInput, targetDate } = goalInputSchema.parse(req.body);
       
       console.log("Generating breakdown for:", goalInput);
