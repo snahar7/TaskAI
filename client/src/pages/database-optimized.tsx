@@ -60,7 +60,7 @@ export default function DatabaseOptimizedPage() {
       return apiRequest("PATCH", `/api/${type}s/${id}/complete`, { completed });
     },
     onMutate: async ({ type, id, completed }) => {
-      // Cancel outgoing refetches for instant UI feedback
+      // Cancel all outgoing refetches for instant UI feedback
       await queryClient.cancelQueries();
       
       // Store snapshots for rollback
@@ -79,6 +79,37 @@ export default function DatabaseOptimizedPage() {
               queryClient.setQueryData(key, oldData.map(subtask => 
                 subtask.id === id ? { ...subtask, completed, status: completed ? "completed" : "in_progress" } : subtask
               ));
+            }
+          }
+        });
+        
+        // Also optimistically update parent caches with estimated progress
+        const allProjectKeys = queryClient.getQueryCache().findAll({ queryKey: ['/api/projects/'] });
+        allProjectKeys.forEach(query => {
+          const key = query.queryKey as string[];
+          if (key[0].startsWith('/api/projects/') && key[0].includes('/tasks')) {
+            const oldData = queryClient.getQueryData(key) as any[];
+            if (oldData) {
+              snapshots[key.join() + "_tasks"] = oldData;
+              // Update with estimated progress (will be corrected by server response)
+              queryClient.setQueryData(key, oldData.map(task => {
+                // Find if this task contains the subtask we're updating
+                const taskSubtasks = queryClient.getQueryData([`/api/tasks/${task.id}/subtasks`]) as any[];
+                if (taskSubtasks && taskSubtasks.some(s => s.id === id)) {
+                  // Calculate estimated progress for this task
+                  const updatedSubtasks = taskSubtasks.map(s => 
+                    s.id === id ? { ...s, completed } : s
+                  );
+                  const completedCount = updatedSubtasks.filter(s => s.completed).length;
+                  const estimatedProgress = Math.round((completedCount / updatedSubtasks.length) * 100);
+                  return { 
+                    ...task, 
+                    percentComplete: estimatedProgress.toFixed(2),
+                    status: estimatedProgress === 100 ? 'completed' : estimatedProgress > 0 ? 'in_progress' : 'pending'
+                  };
+                }
+                return task;
+              }));
             }
           }
         });
@@ -134,19 +165,40 @@ export default function DatabaseOptimizedPage() {
         });
       }
     },
-    onSuccess: (_data, { type, id }) => {
-      // Always refresh top-level goals
+    onSettled: (_data, _error, { type, id }) => {
+      // Comprehensive cache invalidation for cascade progress updates
+      
+      // Always refresh top-level goals (contains percentComplete values)
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
 
-      // Invalidate specific caches based on what was completed
       if (type === "subtask") {
-        // Refresh subtask lists when a subtask is toggled
+        // For subtask completion, invalidate all hierarchy levels upward
+        
+        // 1. Invalidate all subtask lists (immediate level)
         queryClient.invalidateQueries({
           predicate: (query) =>
             Array.isArray(query.queryKey) &&
             typeof query.queryKey[0] === "string" &&
             query.queryKey[0].startsWith("/api/tasks/") &&
             query.queryKey[0].includes("/subtasks")
+        });
+        
+        // 2. Invalidate all task lists (parent level - for updated percentComplete)
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/projects/") &&
+            query.queryKey[0].includes("/tasks")
+        });
+        
+        // 3. Invalidate all project lists (grandparent level - for updated percentComplete)
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/goals/") &&
+            query.queryKey[0].includes("/projects")
         });
       }
 
@@ -158,6 +210,15 @@ export default function DatabaseOptimizedPage() {
             typeof query.queryKey[0] === "string" &&
             query.queryKey[0].startsWith("/api/projects/") &&
             query.queryKey[0].includes("/tasks")
+        });
+        
+        // Also refresh project lists for updated percentComplete
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/goals/") &&
+            query.queryKey[0].includes("/projects")
         });
       }
 

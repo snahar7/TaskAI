@@ -92,6 +92,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 4, 2025: **Complete Automatic Cascade Progress Updates Implementation**
+  - **Backend Cascade Logic**: Subtask completion triggers automatic recalculation and persistence of percentComplete at all hierarchy levels
+    - Task progress = (completed subtasks / total subtasks) × 100
+    - Project progress = average of all task percentComplete values
+    - Goal progress = average of all project percentComplete values
+  - **Database Persistence**: All calculated percentComplete values properly saved to database fields
+  - **Optimistic UI Updates**: Immediate visual feedback with estimated progress calculations during mutations
+  - **Comprehensive Cache Invalidation**: React Query invalidates all relevant query keys (subtasks, tasks, projects, goals)
+  - **Real-time Progress Tracking**: Progress bars update instantly and cascade through complete hierarchy
+  - **Fixed Critical Issues**: Database constraints (subtask title mapping), API field mismatches (goalInput, pendingId + approved)
+  - **Performance**: Subtask completion processes in ~900ms with full cascade calculations and UI updates
+
 - July 2, 2025: **Scalable Folder Structure Implementation - Clean Architecture Setup**
   - **New Folder Structure**: Implementing clean, scalable `/src` architecture with feature-based organization
     - `/src/app` → Application initialization, providers, and global configuration

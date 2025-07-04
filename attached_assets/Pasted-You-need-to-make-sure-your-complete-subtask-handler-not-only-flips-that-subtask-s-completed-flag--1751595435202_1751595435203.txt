@@ -1,0 +1,39 @@
+You need to make sure your “complete subtask” handler not only flips that subtask’s completed flag, but also:
+
+Recalculate & persist at every level
+
+ts
+Copy
+Edit
+// In PATCH /api/subtasks/:id/complete
+const updated = await storage.updateSubtaskCompletion(id, completed)
+const taskId    = updated.taskId
+// 1a) Recalc the task’s percentComplete and save it
+const taskPct   = await storage.getTaskProgress(taskId)
+await storage.updateTaskProgress(taskId, taskPct.percentComplete)
+// 1b) Pull its projectId, recalc & save the project
+const { projectId } = await storage.getTask(taskId)
+const projPct        = await storage.getProjectProgress(projectId)
+await storage.updateProjectProgress(projectId, projPct.percentComplete)
+// 1c) Pull that project’s goalId, recalc & save the goal
+const { goalId }     = await storage.getProject(projectId)
+const goalPct        = await storage.getGoalProgress(goalId)
+await storage.updateGoalProgress(goalId, goalPct.percentComplete)
+Optimistic UI + query invalidation
+In your React-Query mutation for subtask completion, beyond updating the /api/goals cache, you must also invalidate (or optimistically update) all of:
+
+js
+Copy
+Edit
+onMutate: async ({ subtaskId, completed }) => {
+  await queryClient.cancelQueries("/api/goals")
+  await queryClient.cancelQueries([`/api/tasks/${parentTaskId}/subtasks`])
+  await queryClient.cancelQueries([`/api/projects/${parentProjectId}/tasks`])
+  // …then optimistically bump percentComplete on task & project in your cached data…
+},
+onSettled: () => {
+  queryClient.invalidateQueries("/api/goals")
+  queryClient.invalidateQueries([`/api/tasks/${parentTaskId}/subtasks`])
+  queryClient.invalidateQueries([`/api/projects/${parentProjectId}/tasks`])
+}
+By doing both the backend cascade (so your database always has the correct percentages on subtask→task→project→goal) and the frontend cache invalidations (so your UI refetches the newly‐calculated values at every level), you’ll see the progress bars update immediately on subtasks and ripple upwards through tasks and projects.
