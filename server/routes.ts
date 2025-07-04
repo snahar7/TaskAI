@@ -151,11 +151,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create subtasks under each task
           const createdSubtasks = [];
           for (const aiSubtask of aiTask.subtasks) {
-            console.log("Creating subtask:", aiSubtask.title, aiSubtask);
+            console.log("Creating subtask:", aiSubtask.title || aiSubtask.name, aiSubtask);
             const subtask = await storage.createSubtask({
               taskId: task.id,
-              title: aiSubtask.title,
-              name: aiSubtask.title,
+              title: aiSubtask.title || aiSubtask.name,
+              name: aiSubtask.title || aiSubtask.name,
               description: aiSubtask.description || null,
               timeEstimate: aiSubtask.timeEstimate?.toString() || aiSubtask.estimatedHours?.toString() || null,
               deadline: aiSubtask.dueDate ? new Date(aiSubtask.dueDate) : null,

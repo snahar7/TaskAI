@@ -65,6 +65,11 @@ export interface IEnhancedStorage {
   updateSubtaskCompletion(id: number, completed: boolean): Promise<void>;
   updateSubtaskApproval(id: number, approved: boolean): Promise<void>;
   
+  // Cascade progress update methods
+  cascadeSubtaskProgress(subtaskId: number): Promise<void>;
+  cascadeTaskProgress(taskId: number): Promise<void>;
+  cascadeProjectProgress(projectId: number): Promise<void>;
+  
   // Teams
   createTeam(team: InsertTeam): Promise<Team>;
   getAllTeams(): Promise<Team[]>;
@@ -157,6 +162,86 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       createdAt: data.createdAt || now,
       updatedAt: data.updatedAt || now,
     };
+  }
+
+  // Progress calculation helpers
+  private recalcPercent(items: { completed: boolean }[]): number {
+    if (!items.length) return 0;
+    const done = items.filter(i => i.completed).length;
+    return Math.round((done / items.length) * 100);
+  }
+
+  private recalcPercentFromProgress(items: { percentComplete: string }[]): number {
+    if (!items.length) return 0;
+    const totalProgress = items.reduce((sum, item) => sum + parseFloat(item.percentComplete || '0'), 0);
+    return Math.round(totalProgress / items.length);
+  }
+
+  private async calculateTaskProgress(taskId: number): Promise<number> {
+    const subtaskList = await this.getSubtasksByTaskId(taskId);
+    return this.recalcPercent(subtaskList); // Subtasks have completed boolean
+  }
+
+  private async calculateProjectProgress(projectId: number): Promise<number> {
+    const taskList = await this.getTasksByProjectId(projectId);
+    return this.recalcPercent(taskList); // Tasks have completed boolean
+  }
+
+  private async calculateGoalProgress(goalId: number): Promise<number> {
+    const projectList = await this.getProjectsByGoalId(goalId);
+    return this.recalcPercentFromProgress(projectList); // Projects have percentComplete
+  }
+
+  // Cascade progress update methods
+  async cascadeSubtaskProgress(subtaskId: number): Promise<void> {
+    // Get the subtask and its parent task
+    const [subtask] = await this.db.select().from(subtasks).where(eq(subtasks.id, subtaskId));
+    if (!subtask) return;
+
+    // Calculate and update task progress
+    const taskProgress = await this.calculateTaskProgress(subtask.taskId);
+    await this.updateTaskProgress(subtask.taskId, taskProgress);
+
+    // Get task and cascade to project
+    const [task] = await this.db.select().from(tasks).where(eq(tasks.id, subtask.taskId));
+    if (!task) return;
+
+    const projectProgress = await this.calculateProjectProgress(task.projectId);
+    await this.updateProjectProgress(task.projectId, projectProgress);
+
+    // Get project and cascade to goal
+    const [project] = await this.db.select().from(projects).where(eq(projects.id, task.projectId));
+    if (!project) return;
+
+    const goalProgress = await this.calculateGoalProgress(project.goalId);
+    await this.updateGoalProgress(project.goalId, goalProgress);
+  }
+
+  async cascadeTaskProgress(taskId: number): Promise<void> {
+    // Get the task and its parent project
+    const [task] = await this.db.select().from(tasks).where(eq(tasks.id, taskId));
+    if (!task) return;
+
+    // Calculate and update project progress
+    const projectProgress = await this.calculateProjectProgress(task.projectId);
+    await this.updateProjectProgress(task.projectId, projectProgress);
+
+    // Get project and cascade to goal
+    const [project] = await this.db.select().from(projects).where(eq(projects.id, task.projectId));
+    if (!project) return;
+
+    const goalProgress = await this.calculateGoalProgress(project.goalId);
+    await this.updateGoalProgress(project.goalId, goalProgress);
+  }
+
+  async cascadeProjectProgress(projectId: number): Promise<void> {
+    // Get the project and its parent goal
+    const [project] = await this.db.select().from(projects).where(eq(projects.id, projectId));
+    if (!project) return;
+
+    // Calculate and update goal progress
+    const goalProgress = await this.calculateGoalProgress(project.goalId);
+    await this.updateGoalProgress(project.goalId, goalProgress);
   }
 
   // Users
