@@ -23,7 +23,7 @@ export default function HomePage() {
       const breakdownResponse = await fetch("/api/goals/breakdown", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: goalText }),
+        body: JSON.stringify({ goalInput: goalText }),
       });
       const breakdown = await breakdownResponse.json();
 
