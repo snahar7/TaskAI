@@ -515,3 +515,117 @@ export interface AIBreakdown {
   };
   projects: AIProject[];
 }
+
+// Timeline Estimation Tables
+export const timeEstimates = pgTable("time_estimates", {
+  id: serial("id").primaryKey(),
+  entityId: integer("entity_id").notNull(),
+  entityType: text("entity_type").notNull(), // 'goal', 'project', 'task', 'subtask'
+  optimisticHours: decimal("optimistic_hours", { precision: 8, scale: 2 }),
+  realisticHours: decimal("realistic_hours", { precision: 8, scale: 2 }),
+  pessimisticHours: decimal("pessimistic_hours", { precision: 8, scale: 2 }),
+  confidence: decimal("confidence", { precision: 3, scale: 2 }), // 0.00 to 1.00
+  complexityFactors: text("complexity_factors").array(),
+  domain: text("domain"),
+  bufferHours: decimal("buffer_hours", { precision: 8, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const estimationHistory = pgTable("estimation_history", {
+  id: serial("id").primaryKey(),
+  entityId: integer("entity_id").notNull(),
+  entityType: text("entity_type").notNull(),
+  estimatedHours: decimal("estimated_hours", { precision: 8, scale: 2 }),
+  actualHours: decimal("actual_hours", { precision: 8, scale: 2 }),
+  estimatedStartDate: timestamp("estimated_start_date"),
+  actualStartDate: timestamp("actual_start_date"),
+  estimatedEndDate: timestamp("estimated_end_date"),
+  actualEndDate: timestamp("actual_end_date"),
+  complexityFactors: text("complexity_factors").array(),
+  domain: text("domain"),
+  accuracy: decimal("accuracy", { precision: 5, scale: 4 }), // actual/estimated ratio
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at")
+});
+
+export const taskDependencies = pgTable("task_dependencies", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull(),
+  dependsOnTaskId: integer("depends_on_task_id").notNull(),
+  dependencyType: text("dependency_type").default("finish_to_start"), // finish_to_start, start_to_start, etc.
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const userProductivityProfiles = pgTable("user_productivity_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  dailyCapacity: decimal("daily_capacity", { precision: 4, scale: 2 }).default("6.00"),
+  workingDays: text("working_days").array().default("{1,2,3,4,5}"), // Monday-Friday
+  peakHoursStart: integer("peak_hours_start").default(9),
+  peakHoursEnd: integer("peak_hours_end").default(12),
+  domainEfficiency: text("domain_efficiency"), // JSON string
+  historicalAccuracy: decimal("historical_accuracy", { precision: 3, scale: 2 }).default("0.75"),
+  averageOverrun: decimal("average_overrun", { precision: 3, scale: 2 }).default("1.30"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const scheduledTasks = pgTable("scheduled_tasks", {
+  id: serial("id").primaryKey(),
+  entityId: integer("entity_id").notNull(),
+  entityType: text("entity_type").notNull(),
+  scheduledStartDate: timestamp("scheduled_start_date"),
+  scheduledEndDate: timestamp("scheduled_end_date"),
+  estimatedDuration: decimal("estimated_duration", { precision: 8, scale: 2 }),
+  bufferTime: decimal("buffer_time", { precision: 8, scale: 2 }),
+  criticalPath: boolean("critical_path").default(false),
+  dependencies: text("dependencies").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Insert schemas for new tables
+export const insertTimeEstimateSchema = createInsertSchema(timeEstimates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEstimationHistorySchema = createInsertSchema(estimationHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserProductivityProfileSchema = createInsertSchema(userProductivityProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertScheduledTaskSchema = createInsertSchema(scheduledTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types for new tables
+export type InsertTimeEstimate = z.infer<typeof insertTimeEstimateSchema>;
+export type TimeEstimate = typeof timeEstimates.$inferSelect;
+
+export type InsertEstimationHistory = z.infer<typeof insertEstimationHistorySchema>;
+export type EstimationHistory = typeof estimationHistory.$inferSelect;
+
+export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
+export type TaskDependency = typeof taskDependencies.$inferSelect;
+
+export type InsertUserProductivityProfile = z.infer<typeof insertUserProductivityProfileSchema>;
+export type UserProductivityProfile = typeof userProductivityProfiles.$inferSelect;
+
+export type InsertScheduledTask = z.infer<typeof insertScheduledTaskSchema>;
+export type ScheduledTask = typeof scheduledTasks.$inferSelect;

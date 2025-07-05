@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Database, CheckSquare, BarChart3 } from "lucide-react";
+import { Home, Database, CheckSquare, BarChart3, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navigation() {
@@ -57,6 +57,17 @@ export function Navigation() {
               >
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Dashboard
+              </Button>
+            </Link>
+            
+            <Link href="/timeline">
+              <Button
+                variant={isActive("/timeline") ? "default" : "ghost"}
+                size="sm"
+                className="text-sm font-medium"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Timeline
               </Button>
             </Link>
           </div>
