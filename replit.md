@@ -92,6 +92,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 9, 2025: **Complete Automatic Timeline Generation Implementation**
+  - **Enhanced Home Page**: Added target completion date field with mobile-optimized form components
+    - Optional target date input with calendar picker and validation
+    - Dynamic button text based on whether timeline generation is enabled
+    - Real-time feedback showing when AI will generate automatic timelines
+  - **Automatic Timeline Integration**: Enhanced goal breakdown process with intelligent scheduling
+    - When target date provided → AI automatically generates timeline with deadlines
+    - Timeline data includes dependency-aware scheduling and resource optimization
+    - All tasks and subtasks get realistic deadlines distributed across available time
+  - **Enhanced GPT Agent**: Added comprehensive timeline generation methods
+    - `generateAutomaticTimeline()` - Creates dependency-aware schedules with buffer time
+    - `applyTimelineToBreakdown()` - Applies calculated deadlines to goal hierarchy
+    - Smart workload distribution considering 6 hours/day capacity and 5-day work weeks
+  - **Database Enhancement**: Updated pendingBreakdowns table to store timeline data
+    - Added timeline JSON field to persist auto-generated schedules
+    - Schema migration applied successfully for timeline storage
+  - **User Experience**: Seamless workflow from goal input to complete scheduled breakdown
+    - Users can input goal + target date → get instant breakdown with deadlines
+    - Timeline preview shown immediately after successful goal creation
+    - Manual timeline refinement still available via Timeline tab
+
 - July 9, 2025: **Complete Mobile Optimization Implementation**
   - **Responsive Navigation**: Implemented dual navigation system with hamburger menu for mobile and bottom navigation bar
     - Desktop: Traditional horizontal navigation with proper spacing

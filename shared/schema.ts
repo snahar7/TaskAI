@@ -227,6 +227,7 @@ export const pendingBreakdowns = pgTable("pending_breakdowns", {
   id: serial("id").primaryKey(),
   originalInput: text("original_input").notNull(),
   breakdown: json("breakdown").notNull(), // Full hierarchy JSON
+  timeline: json("timeline"), // Auto-generated timeline data (optional)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -543,6 +543,241 @@ Return JSON in this exact format:
       throw error;
     }
   }
+
+  /**
+   * Generate automatic timeline for a goal breakdown with target completion date
+   * This integrates intelligent scheduling directly into the goal creation process
+   */
+  async generateAutomaticTimeline(
+    breakdown: AIBreakdown, 
+    targetDate: string,
+    options?: {
+      workingDaysPerWeek?: number;
+      hoursPerDay?: number;
+      bufferPercentage?: number;
+    }
+  ): Promise<{
+    scheduledTasks: Array<{
+      id: string;
+      type: 'project' | 'task' | 'subtask';
+      title: string;
+      startDate: string;
+      endDate: string;
+      estimatedHours: number;
+      dependencies: string[];
+    }>;
+    timeline: {
+      totalDuration: number;
+      workingDays: number;
+      criticalPath: string[];
+      bufferTime: number;
+    };
+    totalTasks: number;
+  }> {
+    console.log(`📅 Generating automatic timeline for target date: ${targetDate}`);
+    
+    const workingDaysPerWeek = options?.workingDaysPerWeek || 5;
+    const hoursPerDay = options?.hoursPerDay || 6;
+    const bufferPercentage = options?.bufferPercentage || 0.2;
+    
+    try {
+      // First, extract all tasks and subtasks with estimates
+      const allTasks: Array<{
+        id: string;
+        type: 'project' | 'task' | 'subtask';
+        title: string;
+        estimatedHours: number;
+        parentId?: string;
+        dependencies: string[];
+      }> = [];
+
+      // Add projects
+      breakdown.projects.forEach((project, projectIndex) => {
+        const projectId = `project-${projectIndex}`;
+        allTasks.push({
+          id: projectId,
+          type: 'project',
+          title: project.name || project.title,
+          estimatedHours: project.estimatedHours || 1,
+          dependencies: []
+        });
+
+        // Add tasks under each project
+        project.tasks.forEach((task, taskIndex) => {
+          const taskId = `task-${projectIndex}-${taskIndex}`;
+          allTasks.push({
+            id: taskId,
+            type: 'task',
+            title: task.name || task.title,
+            estimatedHours: task.estimatedHours || 1,
+            parentId: projectId,
+            dependencies: [projectId] // Tasks depend on their project
+          });
+
+          // Add subtasks under each task
+          task.subtasks.forEach((subtask, subtaskIndex) => {
+            const subtaskId = `subtask-${projectIndex}-${taskIndex}-${subtaskIndex}`;
+            allTasks.push({
+              id: subtaskId,
+              type: 'subtask',
+              title: subtask.name || subtask.title,
+              estimatedHours: subtask.estimatedHours || 0.5,
+              parentId: taskId,
+              dependencies: [taskId] // Subtasks depend on their task
+            });
+          });
+        });
+      });
+
+      // Calculate total effort and timeline
+      const totalEffortHours = allTasks.reduce((sum, task) => sum + task.estimatedHours, 0);
+      const totalEffortWithBuffer = totalEffortHours * (1 + bufferPercentage);
+      const workingDaysNeeded = Math.ceil(totalEffortWithBuffer / hoursPerDay);
+      
+      const startDate = new Date();
+      const endDate = new Date(targetDate);
+      const availableCalendarDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const availableWorkingDays = Math.floor(availableCalendarDays * (workingDaysPerWeek / 7));
+
+      console.log(`📊 Timeline Analysis:
+        - Total effort: ${totalEffortHours} hours
+        - With buffer (${bufferPercentage * 100}%): ${totalEffortWithBuffer} hours  
+        - Working days needed: ${workingDaysNeeded}
+        - Available working days: ${availableWorkingDays}
+        - Total tasks/subtasks: ${allTasks.length}`);
+
+      // Generate AI-powered timeline with dependency-aware scheduling
+      const timelinePrompt = `
+You are an expert project scheduler. Create a realistic timeline for this goal breakdown.
+
+GOAL: ${breakdown.goal.title || breakdown.goal.name}
+TARGET COMPLETION: ${targetDate}
+AVAILABLE WORKING DAYS: ${availableWorkingDays}
+CAPACITY: ${hoursPerDay} hours/day
+
+TASKS TO SCHEDULE:
+${allTasks.map((task, i) => `${i + 1}. ${task.type.toUpperCase()}: "${task.title}" (${task.estimatedHours}h)`).join('\n')}
+
+CONSTRAINTS:
+- Projects must be started before their tasks
+- Tasks must be started before their subtasks
+- Work only ${workingDaysPerWeek} days per week
+- No more than ${hoursPerDay} hours per day
+- Include ${bufferPercentage * 100}% buffer time
+
+Create a realistic schedule that:
+1. Respects dependencies (projects → tasks → subtasks)
+2. Distributes work evenly across available time
+3. Identifies critical path items
+4. Adds appropriate buffer time
+
+Return JSON in this format:
+{
+  "scheduledTasks": [
+    {
+      "id": "task-0-0",
+      "type": "task",
+      "title": "Task title",
+      "startDate": "2024-07-10",
+      "endDate": "2024-07-12", 
+      "estimatedHours": 4,
+      "dependencies": ["project-0"]
+    }
+  ],
+  "timeline": {
+    "totalDuration": ${workingDaysNeeded},
+    "workingDays": ${availableWorkingDays},
+    "criticalPath": ["critical-task-id-1", "critical-task-id-2"],
+    "bufferTime": ${totalEffortWithBuffer - totalEffortHours}
+  }
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert project scheduler. Always return valid JSON with realistic dates and dependencies.'
+          },
+          {
+            role: 'user',
+            content: timelinePrompt
+          }
+        ],
+        max_tokens: this.maxTokens,
+        temperature: 0.3,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No timeline response from OpenAI');
+      }
+
+      // Parse JSON response
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      const timelineData = JSON.parse(cleanContent);
+      timelineData.totalTasks = allTasks.length;
+
+      console.log(`✅ Generated automatic timeline with ${timelineData.scheduledTasks.length} scheduled items`);
+      return timelineData;
+
+    } catch (error) {
+      console.error('Error generating automatic timeline:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Apply timeline dates to the original breakdown structure
+   * This updates the breakdown with the calculated deadlines
+   */
+  applyTimelineToBreakdown(
+    breakdown: AIBreakdown, 
+    scheduledTasks: Array<{
+      id: string;
+      type: 'project' | 'task' | 'subtask';
+      startDate: string;
+      endDate: string;
+    }>
+  ): void {
+    console.log(`🔄 Applying timeline dates to ${scheduledTasks.length} items`);
+    
+    // Create lookup map for quick access
+    const scheduleMap = new Map(scheduledTasks.map(task => [task.id, task]));
+    
+    // Apply dates to projects
+    breakdown.projects.forEach((project, projectIndex) => {
+      const projectSchedule = scheduleMap.get(`project-${projectIndex}`);
+      if (projectSchedule) {
+        project.dueDate = projectSchedule.endDate;
+        if (!project.targetDate) project.targetDate = projectSchedule.endDate;
+      }
+
+      // Apply dates to tasks
+      project.tasks.forEach((task, taskIndex) => {
+        const taskSchedule = scheduleMap.get(`task-${projectIndex}-${taskIndex}`);
+        if (taskSchedule) {
+          task.dueDate = taskSchedule.endDate;
+        }
+
+        // Apply dates to subtasks
+        task.subtasks.forEach((subtask, subtaskIndex) => {
+          const subtaskSchedule = scheduleMap.get(`subtask-${projectIndex}-${taskIndex}-${subtaskIndex}`);
+          if (subtaskSchedule) {
+            subtask.dueDate = subtaskSchedule.endDate;
+          }
+        });
+      });
+    });
+    
+    console.log(`✅ Applied timeline dates to breakdown structure`);
+  }
 }
 
 // Export singleton instance

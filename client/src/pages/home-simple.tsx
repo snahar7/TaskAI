@@ -2,28 +2,36 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Target, Lightbulb, ArrowRight, Database, CheckCircle2 } from "lucide-react";
+import { Target, Lightbulb, ArrowRight, Database, CheckCircle2, Calendar, Clock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { MobileInput, MobileButton, MobileFormField } from "@/components/mobile-form";
 
 export default function HomePage() {
   const [goalInput, setGoalInput] = useState("");
+  const [targetDate, setTargetDate] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [generatedTimeline, setGeneratedTimeline] = useState<any>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const createGoalMutation = useMutation({
-    mutationFn: async (goalText: string) => {
+    mutationFn: async ({ goalText, targetCompletionDate }: { goalText: string; targetCompletionDate?: string }) => {
       setIsGenerating(true);
       
-      // First, generate the breakdown
+      // First, generate the breakdown with optional target date
       const breakdownResponse = await fetch("/api/goals/breakdown", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goalInput: goalText }),
+        body: JSON.stringify({ 
+          goalInput: goalText,
+          targetDate: targetCompletionDate 
+        }),
       });
       const breakdown = await breakdownResponse.json();
 
@@ -35,21 +43,34 @@ export default function HomePage() {
       });
       const result = await approveResponse.json();
 
+      // If target date was provided, also store timeline info for display
+      if (targetCompletionDate && breakdown.timeline) {
+        setGeneratedTimeline(breakdown.timeline);
+      }
+
       return result;
     },
     onSuccess: () => {
       setIsGenerating(false);
       setShowSuccess(true);
       setGoalInput("");
+      setTargetDate("");
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      
+      const hasTimeline = generatedTimeline && targetDate;
       
       toast({
         title: "Goal Created Successfully!",
-        description: "Your goal has been broken down into projects, tasks, and subtasks.",
+        description: hasTimeline 
+          ? "Your goal has been broken down with automatic timeline generation!" 
+          : "Your goal has been broken down into projects, tasks, and subtasks.",
       });
 
       // Reset success state after animation
-      setTimeout(() => setShowSuccess(false), 3000);
+      setTimeout(() => {
+        setShowSuccess(false);
+        setGeneratedTimeline(null);
+      }, 3000);
     },
     onError: (error) => {
       setIsGenerating(false);
@@ -71,7 +92,20 @@ export default function HomePage() {
       return;
     }
 
-    await createGoalMutation.mutateAsync(goalInput.trim());
+    // Validate target date if provided
+    if (targetDate && new Date(targetDate) <= new Date()) {
+      toast({
+        title: "Invalid Target Date",
+        description: "Target completion date must be in the future.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await createGoalMutation.mutateAsync({
+      goalText: goalInput.trim(),
+      targetCompletionDate: targetDate || undefined
+    });
   };
 
   return (
@@ -116,14 +150,36 @@ export default function HomePage() {
             )}
 
             {/* Input Area */}
-            <div className="space-y-4">
-              <Textarea
-                placeholder="Example: Launch a mobile app for fitness tracking with 10,000 users by end of year"
-                value={goalInput}
-                onChange={(e) => setGoalInput(e.target.value)}
-                className="min-h-[120px] text-lg border-2 border-gray-200 focus:border-blue-500 resize-none"
-                disabled={isGenerating}
-              />
+            <div className="space-y-6">
+              <MobileFormField label="Describe Your Goal">
+                <Textarea
+                  placeholder="Example: Launch a mobile app for fitness tracking with 10,000 users by end of year"
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  className="min-h-[120px] text-base sm:text-lg border-2 border-gray-200 focus:border-blue-500 resize-none"
+                  disabled={isGenerating}
+                />
+              </MobileFormField>
+
+              <MobileFormField label="Target Completion Date (Optional)">
+                <div className="relative">
+                  <MobileInput
+                    type="date"
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    disabled={isGenerating}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="pr-10"
+                  />
+                  <Calendar className="absolute right-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
+                </div>
+                {targetDate && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600 mt-2">
+                    <Clock className="h-4 w-4" />
+                    <span>AI will generate automatic timeline and deadlines</span>
+                  </div>
+                )}
+              </MobileFormField>
               
               {/* Tips */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -143,24 +199,54 @@ export default function HomePage() {
             </div>
 
             {/* Action Button */}
-            <Button
+            <MobileButton
               onClick={handleSubmit}
               disabled={isGenerating || !goalInput.trim()}
-              size="lg"
-              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 font-semibold"
             >
               {isGenerating ? (
                 <div className="flex items-center space-x-3">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Creating your breakdown...</span>
+                  <span>{targetDate ? "Creating breakdown + timeline..." : "Creating your breakdown..."}</span>
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <span>Break Down My Goal</span>
+                  <span>{targetDate ? "Break Down + Generate Timeline" : "Break Down My Goal"}</span>
                   <ArrowRight className="h-5 w-5" />
                 </div>
               )}
-            </Button>
+            </MobileButton>
+
+            {/* Timeline Preview */}
+            {generatedTimeline && showSuccess && (
+              <Card className="bg-green-50 border-green-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg text-green-800 flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Auto-Generated Timeline
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="text-center p-3 bg-white rounded-lg">
+                      <div className="font-semibold text-green-700">Start Date</div>
+                      <div className="text-green-600">{new Date().toLocaleDateString()}</div>
+                    </div>
+                    <div className="text-center p-3 bg-white rounded-lg">
+                      <div className="font-semibold text-green-700">Target Date</div>
+                      <div className="text-green-600">{new Date(targetDate).toLocaleDateString()}</div>
+                    </div>
+                    <div className="text-center p-3 bg-white rounded-lg">
+                      <div className="font-semibold text-green-700">Total Tasks</div>
+                      <div className="text-green-600">{generatedTimeline.totalTasks || "Multiple"}</div>
+                    </div>
+                  </div>
+                  <div className="text-center text-sm text-green-700">
+                    ✨ Deadlines automatically assigned to all tasks and subtasks
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </CardContent>
         </Card>
 

@@ -35,20 +35,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { goalInput, targetDate } = goalInputSchema.parse(req.body);
       
-      console.log("Generating breakdown for:", goalInput);
+      console.log("Generating breakdown for:", goalInput, targetDate ? `with target date: ${targetDate}` : "(no target date)");
       
       // Generate AI breakdown with Smart Depth Control
       const aiBreakdown = await gptAgent.generateTaskBreakdown(goalInput, targetDate);
       
+      // If target date is provided, also generate automatic timeline
+      let timelineData = null;
+      if (targetDate) {
+        console.log("Generating automatic timeline for target date:", targetDate);
+        try {
+          timelineData = await gptAgent.generateAutomaticTimeline(aiBreakdown, targetDate);
+          
+          // Apply timeline dates to the breakdown
+          if (timelineData && timelineData.scheduledTasks) {
+            gptAgent.applyTimelineToBreakdown(aiBreakdown, timelineData.scheduledTasks);
+          }
+        } catch (timelineError) {
+          console.warn("Timeline generation failed, continuing without it:", timelineError);
+        }
+      }
+      
       // Store as pending breakdown for approval
       const pendingBreakdown = await storage.createPendingBreakdown({
         originalInput: goalInput,
-        breakdown: aiBreakdown
+        breakdown: aiBreakdown,
+        timeline: timelineData
       });
       
       res.json({
         pendingId: pendingBreakdown.id,
-        breakdown: aiBreakdown
+        breakdown: aiBreakdown,
+        timeline: timelineData
       });
     } catch (error) {
       next(error);
