@@ -586,6 +586,42 @@ export const scheduledTasks = pgTable("scheduled_tasks", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// AI Standup Conversation System
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  preferenceType: text("preference_type").notNull(), // work_style, estimation_pattern, context_clue, etc.
+  preferenceKey: text("preference_key").notNull(), // morning_person, underestimates_research, etc.
+  preferenceValue: text("preference_value").notNull(), // true, 150%, etc.
+  confidence: decimal("confidence", { precision: 3, scale: 2 }).default("0.5"), // how confident AI is in this insight
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const standupConversations = pgTable("standup_conversations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  weekStartDate: text("week_start_date").notNull(),
+  status: text("status").default("in_progress").notNull(), // in_progress, completed, paused
+  conversationData: json("conversation_data").notNull(), // full conversation history
+  tasksDiscussed: json("tasks_discussed").notNull(), // array of task IDs that were discussed
+  newTasksCreated: json("new_tasks_created").notNull(), // array of newly created task IDs
+  insightsLearned: json("insights_learned").notNull(), // new insights about user patterns
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const aiInsights = pgTable("ai_insights", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  insightType: text("insight_type").notNull(), // estimation_accuracy, work_pattern, process_improvement, etc.
+  insightCategory: text("insight_category").notNull(), // personal, process, strategic
+  insight: text("insight").notNull(), // human-readable insight
+  confidence: decimal("confidence", { precision: 3, scale: 2 }).default("0.5"),
+  supportingData: json("supporting_data"), // data that supports this insight
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas for new tables
 export const insertTimeEstimateSchema = createInsertSchema(timeEstimates).omit({
   id: true,
@@ -615,6 +651,23 @@ export const insertScheduledTaskSchema = createInsertSchema(scheduledTasks).omit
   updatedAt: true,
 });
 
+export const insertUserPreferenceSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStandupConversationSchema = createInsertSchema(standupConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAiInsightSchema = createInsertSchema(aiInsights).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types for new tables
 export type InsertTimeEstimate = z.infer<typeof insertTimeEstimateSchema>;
 export type TimeEstimate = typeof timeEstimates.$inferSelect;
@@ -630,3 +683,12 @@ export type UserProductivityProfile = typeof userProductivityProfiles.$inferSele
 
 export type InsertScheduledTask = z.infer<typeof insertScheduledTaskSchema>;
 export type ScheduledTask = typeof scheduledTasks.$inferSelect;
+
+export type InsertUserPreference = z.infer<typeof insertUserPreferenceSchema>;
+export type UserPreference = typeof userPreferences.$inferSelect;
+
+export type InsertStandupConversation = z.infer<typeof insertStandupConversationSchema>;
+export type StandupConversation = typeof standupConversations.$inferSelect;
+
+export type InsertAiInsight = z.infer<typeof insertAiInsightSchema>;
+export type AiInsight = typeof aiInsights.$inferSelect;
