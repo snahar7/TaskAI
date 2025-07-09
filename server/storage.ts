@@ -16,7 +16,7 @@ import {
   type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -345,6 +345,47 @@ export class MemStorage implements IStorage {
 
   async deletePendingBreakdown(id: number): Promise<void> {
     this.pendingBreakdowns.delete(id);
+  }
+  
+  // AI Conversation System - Stub implementations for MemStorage
+  async createUserPreference(preference: InsertUserPreference): Promise<UserPreference> {
+    throw new Error("AI Conversation System not implemented in MemStorage");
+  }
+  
+  async getUserPreferences(userId: number): Promise<UserPreference[]> {
+    return [];
+  }
+  
+  async updateUserPreference(id: number, updates: Partial<UserPreference>): Promise<void> {
+    throw new Error("AI Conversation System not implemented in MemStorage");
+  }
+  
+  async createStandupConversation(conversation: InsertStandupConversation): Promise<StandupConversation> {
+    throw new Error("AI Conversation System not implemented in MemStorage");
+  }
+  
+  async getStandupConversation(id: number): Promise<StandupConversation | undefined> {
+    return undefined;
+  }
+  
+  async getCurrentStandupConversation(userId: number): Promise<StandupConversation | undefined> {
+    return undefined;
+  }
+  
+  async updateStandupConversation(id: number, updates: Partial<StandupConversation>): Promise<void> {
+    throw new Error("AI Conversation System not implemented in MemStorage");
+  }
+  
+  async createAiInsight(insight: InsertAiInsight): Promise<AiInsight> {
+    throw new Error("AI Conversation System not implemented in MemStorage");
+  }
+  
+  async getAiInsights(userId: number): Promise<AiInsight[]> {
+    return [];
+  }
+  
+  async getWeekTasks(userId: number, weekStartDate: Date): Promise<Task[]> {
+    return Array.from(this.tasks.values()).filter(task => !task.completed).slice(0, 20);
   }
 }
 
@@ -792,8 +833,11 @@ export class DatabaseStorage implements IStorage {
   
   async getCurrentStandupConversation(userId: number): Promise<StandupConversation | undefined> {
     const [conversation] = await db.select().from(standupConversations)
-      .where(eq(standupConversations.userId, userId))
-      .orderBy(standupConversations.createdAt)
+      .where(and(
+        eq(standupConversations.userId, userId),
+        eq(standupConversations.status, "in_progress")
+      ))
+      .orderBy(desc(standupConversations.createdAt))
       .limit(1);
     return conversation || undefined;
   }

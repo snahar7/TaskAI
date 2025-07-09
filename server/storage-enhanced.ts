@@ -1,6 +1,7 @@
 import { 
   users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags,
   files, comments, dependencies, entityTags, followers, teamMembers, entityLinks,
+  userPreferences, standupConversations, aiInsights,
   type User, type InsertUser,
   type Goal, type InsertGoal,
   type Project, type InsertProject, 
@@ -12,11 +13,14 @@ import {
   type Tag, type InsertTag,
   type Comment, type InsertComment,
   type File, type InsertFile,
+  type UserPreference, type InsertUserPreference,
+  type StandupConversation, type InsertStandupConversation,
+  type AiInsight, type InsertAiInsight,
   type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks,
   type GoalWithDetails, type ProjectWithDetails, type TaskWithDetails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, or, sql, desc } from "drizzle-orm";
 
 export interface IEnhancedStorage {
   // Users
@@ -138,6 +142,22 @@ export interface IEnhancedStorage {
   deleteProject(id: number): Promise<void>;
   deleteTask(id: number): Promise<void>;
   deleteSubtask(id: number): Promise<void>;
+  
+  // AI Conversation System
+  createUserPreference(preference: InsertUserPreference): Promise<UserPreference>;
+  getUserPreferences(userId: number): Promise<UserPreference[]>;
+  updateUserPreference(id: number, updates: Partial<UserPreference>): Promise<void>;
+  
+  createStandupConversation(conversation: InsertStandupConversation): Promise<StandupConversation>;
+  getStandupConversation(id: number): Promise<StandupConversation | undefined>;
+  getCurrentStandupConversation(userId: number): Promise<StandupConversation | undefined>;
+  updateStandupConversation(id: number, updates: Partial<StandupConversation>): Promise<void>;
+  
+  createAiInsight(insight: InsertAiInsight): Promise<AiInsight>;
+  getAiInsights(userId: number): Promise<AiInsight[]>;
+  
+  // Get week tasks for standup
+  getWeekTasks(userId: number, weekStartDate: Date): Promise<Task[]>;
 }
 
 export class EnhancedDatabaseStorage implements IEnhancedStorage {
@@ -1584,6 +1604,66 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
     if (subtask?.taskId) {
       await this.recalculateHierarchyProgressBatch(subtask.taskId);
     }
+  }
+  
+  // AI Conversation System Implementation
+  async createUserPreference(insertPreference: InsertUserPreference): Promise<UserPreference> {
+    const [preference] = await this.db.insert(userPreferences).values(insertPreference).returning();
+    return preference;
+  }
+  
+  async getUserPreferences(userId: number): Promise<UserPreference[]> {
+    return await this.db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
+  }
+  
+  async updateUserPreference(id: number, updates: Partial<UserPreference>): Promise<void> {
+    await this.db.update(userPreferences).set(updates).where(eq(userPreferences.id, id));
+  }
+  
+  async createStandupConversation(insertConversation: InsertStandupConversation): Promise<StandupConversation> {
+    const [conversation] = await this.db.insert(standupConversations).values(insertConversation).returning();
+    return conversation;
+  }
+  
+  async getStandupConversation(id: number): Promise<StandupConversation | undefined> {
+    const [conversation] = await this.db.select().from(standupConversations).where(eq(standupConversations.id, id));
+    return conversation || undefined;
+  }
+  
+  async getCurrentStandupConversation(userId: number): Promise<StandupConversation | undefined> {
+    const [conversation] = await this.db.select().from(standupConversations)
+      .where(and(
+        eq(standupConversations.userId, userId),
+        eq(standupConversations.status, "in_progress")
+      ))
+      .orderBy(desc(standupConversations.createdAt))
+      .limit(1);
+    return conversation || undefined;
+  }
+  
+  async updateStandupConversation(id: number, updates: Partial<StandupConversation>): Promise<void> {
+    await this.db.update(standupConversations).set(updates).where(eq(standupConversations.id, id));
+  }
+  
+  async createAiInsight(insertInsight: InsertAiInsight): Promise<AiInsight> {
+    const [insight] = await this.db.insert(aiInsights).values(insertInsight).returning();
+    return insight;
+  }
+  
+  async getAiInsights(userId: number): Promise<AiInsight[]> {
+    return await this.db.select().from(aiInsights).where(eq(aiInsights.userId, userId));
+  }
+  
+  async getWeekTasks(userId: number, weekStartDate: Date): Promise<Task[]> {
+    const weekEndDate = new Date(weekStartDate);
+    weekEndDate.setDate(weekEndDate.getDate() + 7);
+    
+    // Get tasks that are due this week or have no due date (assuming they're current)
+    return await this.db.select().from(tasks).where(
+      // For now, get all tasks since we don't have user assignment properly set up
+      // In a real system, this would filter by assigned user and date range
+      eq(tasks.completed, false)
+    ).limit(20); // Limit to reasonable number for standup
   }
 }
 
