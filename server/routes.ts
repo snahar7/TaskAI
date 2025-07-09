@@ -840,6 +840,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userResponse
       );
       
+      // Apply suggested actions to database
+      const appliedActions = [];
+      for (const action of result.suggestedActions) {
+        if (action.type === 'update_task' && action.data?.taskId) {
+          try {
+            await storage.updateTask(action.data.taskId, action.data.updates);
+            appliedActions.push({ ...action, status: 'applied' });
+          } catch (error) {
+            appliedActions.push({ ...action, status: 'failed', error: error.message });
+          }
+        } else if (action.type === 'create_task' && action.data?.taskData) {
+          try {
+            const newTask = await storage.createTask(action.data.taskData);
+            appliedActions.push({ ...action, status: 'applied', createdTaskId: newTask.id });
+          } catch (error) {
+            appliedActions.push({ ...action, status: 'failed', error: error.message });
+          }
+        }
+      }
+      
       // Update conversation in database
       await storage.updateStandupConversation(conversationId, {
         conversationData: result.updatedState,
@@ -849,6 +869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         aiResponse: result.aiResponse,
         suggestedActions: result.suggestedActions,
+        appliedActions,
         currentTask: result.updatedState.tasksToDiscuss[result.updatedState.currentTaskIndex] || null,
         progress: {
           current: result.updatedState.currentTaskIndex + 1,

@@ -95,12 +95,33 @@ export class AIConversationService {
     // Parse AI response for actionable insights
     const { responseText, suggestedActions } = await this.parseAIResponse(aiResponse, conversationState);
     
+    // Process suggested actions and add to pending actions
+    const currentTask = conversationState.tasksToDiscuss[conversationState.currentTaskIndex];
+    for (const action of suggestedActions) {
+      if (action.type === 'update_task' && currentTask) {
+        conversationState.pendingActions.taskUpdates.push({
+          taskId: currentTask.id,
+          updates: action.data || {}
+        });
+      } else if (action.type === 'create_task') {
+        conversationState.pendingActions.newTasks.push({
+          taskData: action.data || {},
+          parentId: currentTask?.id,
+          parentType: 'task'
+        });
+      }
+    }
+    
     // Update conversation state with AI response
     conversationState.conversationHistory.push({
       role: 'assistant',
       content: responseText,
       timestamp: new Date(),
-      metadata: { actionType: 'suggestion' }
+      metadata: { 
+        actionType: 'suggestion',
+        taskId: currentTask?.id,
+        suggestedActions: suggestedActions.length
+      }
     });
 
     return {
