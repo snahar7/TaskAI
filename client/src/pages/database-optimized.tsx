@@ -629,11 +629,11 @@ export default function DatabaseOptimizedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-2 sm:p-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Task Database - Optimized</h1>
-          <p className="text-gray-600">Hierarchical view with progressive loading for better performance</p>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Task Database - Optimized</h1>
+          <p className="text-sm sm:text-base text-gray-600">Hierarchical view with progressive loading for better performance</p>
         </div>
 
         {goals.length === 0 ? (
@@ -645,15 +645,15 @@ export default function DatabaseOptimizedPage() {
             <Table className="min-w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[200px]">Name</TableHead>
-                  <TableHead className="min-w-[80px]">Type</TableHead>
-                  <TableHead className="min-w-[90px] hidden sm:table-cell">Status</TableHead>
-                  <TableHead className="min-w-[90px] hidden md:table-cell">Priority</TableHead>
-                  <TableHead className="min-w-[100px]">Progress</TableHead>
-                  <TableHead className="min-w-[100px] hidden lg:table-cell">Deadline</TableHead>
-                  <TableHead className="min-w-[100px] hidden lg:table-cell">Assigned</TableHead>
-                  <TableHead className="min-w-[60px]">Done</TableHead>
-                  <TableHead className="min-w-[70px]">Actions</TableHead>
+                  <TableHead className="min-w-[200px] text-xs sm:text-sm">Name</TableHead>
+                  <TableHead className="min-w-[80px] text-xs sm:text-sm">Type</TableHead>
+                  <TableHead className="min-w-[90px] text-xs sm:text-sm hidden sm:table-cell">Status</TableHead>
+                  <TableHead className="min-w-[90px] text-xs sm:text-sm hidden md:table-cell">Priority</TableHead>
+                  <TableHead className="min-w-[100px] text-xs sm:text-sm">Progress</TableHead>
+                  <TableHead className="min-w-[100px] text-xs sm:text-sm hidden lg:table-cell">Deadline</TableHead>
+                  <TableHead className="min-w-[100px] text-xs sm:text-sm hidden lg:table-cell">Assigned</TableHead>
+                  <TableHead className="min-w-[60px] text-xs sm:text-sm">Done</TableHead>
+                  <TableHead className="min-w-[70px] text-xs sm:text-sm">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

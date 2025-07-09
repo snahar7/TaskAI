@@ -78,31 +78,31 @@ export default function TimelinePage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold">AI Timeline Estimation</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">AI Timeline Estimation</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Intelligent scheduling and time estimation using hybrid AI methods
           </p>
         </div>
-        <Badge variant="secondary" className="flex items-center gap-2">
-          <Brain className="h-4 w-4" />
+        <Badge variant="secondary" className="flex items-center gap-2 text-xs sm:text-sm">
+          <Brain className="h-3 w-3 sm:h-4 sm:w-4" />
           Method 5: Hybrid System
         </Badge>
       </div>
 
-      <Tabs defaultValue="estimation" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="estimation">Time Estimation</TabsTrigger>
-          <TabsTrigger value="scheduling">Project Scheduling</TabsTrigger>
-          <TabsTrigger value="insights">Learning Insights</TabsTrigger>
-          <TabsTrigger value="profile">Productivity Profile</TabsTrigger>
+      <Tabs defaultValue="estimation" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+          <TabsTrigger value="estimation" className="text-xs sm:text-sm py-2 sm:py-3">Time Estimation</TabsTrigger>
+          <TabsTrigger value="scheduling" className="text-xs sm:text-sm py-2 sm:py-3">Project Scheduling</TabsTrigger>
+          <TabsTrigger value="insights" className="text-xs sm:text-sm py-2 sm:py-3">Learning Insights</TabsTrigger>
+          <TabsTrigger value="profile" className="text-xs sm:text-sm py-2 sm:py-3">Productivity Profile</TabsTrigger>
         </TabsList>
 
         {/* Time Estimation Tab */}
-        <TabsContent value="estimation" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="estimation" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             
             {/* AI Time Estimation */}
             <Card>
@@ -117,12 +117,12 @@ export default function TimelinePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Select Goal/Project/Task</Label>
+                  <Label className="text-sm sm:text-base">Select Goal/Project/Task</Label>
                   <Select onValueChange={(value) => {
                     const [type, id] = value.split('-');
                     setSelectedEntity({ id: parseInt(id), type });
                   }}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-sm sm:text-base">
                       <SelectValue placeholder="Choose entity to estimate" />
                     </SelectTrigger>
                     <SelectContent>
@@ -138,7 +138,7 @@ export default function TimelinePage() {
                 <Button 
                   onClick={handleGenerateEstimate}
                   disabled={!selectedEntity || estimateMutation.isPending}
-                  className="w-full"
+                  className="w-full h-12 text-sm sm:text-base"
                 >
                   {estimateMutation.isPending ? "Analyzing..." : "Generate AI Estimate"}
                 </Button>
@@ -344,8 +344,8 @@ export default function TimelinePage() {
         </TabsContent>
 
         {/* Learning Insights Tab */}
-        <TabsContent value="insights" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="insights" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Estimation Accuracy</CardTitle>
@@ -408,7 +408,7 @@ export default function TimelinePage() {
         </TabsContent>
 
         {/* Productivity Profile Tab */}
-        <TabsContent value="profile" className="space-y-6">
+        <TabsContent value="profile" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

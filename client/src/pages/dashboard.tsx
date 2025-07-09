@@ -60,35 +60,37 @@ export default function DashboardPage() {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Your productivity command center</p>
+    <div className="container mx-auto p-3 sm:p-6 max-w-7xl">
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Your productivity command center</p>
       </div>
 
-      <Tabs defaultValue="action" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="action">Action Center</TabsTrigger>
-          <TabsTrigger value="search">Smart Filters</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="goals">Goal Overview</TabsTrigger>
+      <Tabs defaultValue="action" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+          <TabsTrigger value="action" className="text-xs sm:text-sm py-2 sm:py-3">Action Center</TabsTrigger>
+          <TabsTrigger value="search" className="text-xs sm:text-sm py-2 sm:py-3">Smart Filters</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs sm:text-sm py-2 sm:py-3">Analytics</TabsTrigger>
+          <TabsTrigger value="goals" className="text-xs sm:text-sm py-2 sm:py-3">Goal Overview</TabsTrigger>
         </TabsList>
 
         {/* Action-Oriented Dashboard */}
-        <TabsContent value="action" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="action" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             
             {/* Today's Focus */}
             <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarDays className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                    <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
                     Today's Focus
                   </CardTitle>
-                  <CardDescription>Top priority tasks for {new Date().toLocaleDateString()}</CardDescription>
+                  <CardDescription className="text-sm">Top priority tasks for {new Date().toLocaleDateString()}</CardDescription>
                 </div>
-                <Badge variant="secondary">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</Badge>
+                <Badge variant="secondary" className="text-xs sm:text-sm">
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                </Badge>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -97,11 +99,11 @@ export default function DashboardPage() {
                   ) : todayTasks.length > 0 ? (
                     todayTasks.slice(0, 5).map((task: any) => (
                       <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                          <div>
-                            <p className="font-medium">{task.title}</p>
-                            <p className="text-sm text-muted-foreground">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm sm:text-base truncate">{task.title}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
                               From {task.project?.title || task.goal?.title} • Est: {task.estimatedHours || 1}h
                             </p>
                           </div>
@@ -109,12 +111,14 @@ export default function DashboardPage() {
                         <Button 
                           size="sm" 
                           variant="outline"
+                          className="h-10 w-10 p-0 sm:h-8 sm:w-auto sm:px-3 shrink-0"
                           onClick={() => completeMutation.mutate({ 
                             type: task.taskId ? 'subtask' : 'task', 
                             id: task.id 
                           })}
                         >
                           <CheckCircle2 className="h-4 w-4" />
+                          <span className="sr-only sm:not-sr-only sm:ml-2">Done</span>
                         </Button>
                       </div>
                     ))
@@ -130,11 +134,11 @@ export default function DashboardPage() {
             {/* Overdue Items */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-600">
-                  <AlertCircle className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-red-600 text-base sm:text-lg">
+                  <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                   Overdue Items
                 </CardTitle>
-                <CardDescription>Tasks that need immediate attention</CardDescription>
+                <CardDescription className="text-sm">Tasks that need immediate attention</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -147,11 +151,12 @@ export default function DashboardPage() {
                             Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}
                           </p>
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">Reschedule</Button>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button size="sm" variant="outline" className="h-10 text-xs sm:text-sm">Reschedule</Button>
                           <Button 
                             size="sm" 
                             variant="destructive"
+                            className="h-10 text-xs sm:text-sm"
                             onClick={() => completeMutation.mutate({ 
                               type: task.taskId ? 'subtask' : 'task', 
                               id: task.id 

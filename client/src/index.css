@@ -2,6 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile Optimizations */
+@layer base {
+  /* Improved touch targets on mobile */
+  @media (max-width: 768px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* Better form inputs on mobile */
+    input, select, textarea, button {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    /* Improved scrolling on mobile */
+    html {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Better tap highlighting */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Improved focus states for mobile */
+    button:focus, input:focus, select:focus, textarea:focus {
+      outline: 2px solid hsl(var(--primary));
+      outline-offset: 2px;
+    }
+  }
+}
+
+@layer components {
+  /* Mobile-first responsive containers */
+  .mobile-container {
+    @apply px-3 sm:px-6 mx-auto max-w-7xl;
+  }
+  
+  /* Mobile-optimized grid layouts */
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6;
+  }
+  
+  /* Mobile-friendly card layouts */
+  .mobile-card {
+    @apply p-4 sm:p-6 rounded-lg border bg-white shadow-sm;
+  }
+  
+  /* Mobile text scaling */
+  .mobile-heading {
+    @apply text-xl sm:text-2xl lg:text-3xl font-bold;
+  }
+  
+  .mobile-subheading {
+    @apply text-lg sm:text-xl lg:text-2xl font-semibold;
+  }
+  
+  .mobile-text {
+    @apply text-sm sm:text-base;
+  }
+  
+  /* Mobile navigation spacing */
+  .mobile-nav-spacing {
+    @apply pb-16 md:pb-0;
+  }
+  
+  /* Mobile action buttons */
+  .mobile-action-btn {
+    @apply h-12 px-4 text-base sm:text-sm touch-manipulation;
+  }
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(20, 14.3%, 4.1%);
