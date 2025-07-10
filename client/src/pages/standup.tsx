@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Play, ArrowRight, CheckCircle, Clock, User } from 'lucide-react';
+import { MessageSquare, Play, ArrowRight, CheckCircle, Clock, User, Brain, Sparkles, Send, Mic } from 'lucide-react';
+import { 
+  ModernCard, 
+  ModernCardHeader, 
+  ModernCardContent, 
+  StatusBadge, 
+  ProgressRing,
+  ModernEmptyState
+} from '@/components/modern-ui';
 
 interface ConversationMessage {
   role: 'user' | 'assistant';
@@ -171,81 +178,121 @@ export default function StandupPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">AI Standup Assistant</h1>
-        <p className="text-muted-foreground">
-          Have a conversation with your AI assistant to plan and refine your weekly tasks
-        </p>
+    <div className="modern-container max-w-6xl py-8 lg:py-12">
+      <div className="mb-12">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 bg-gradient-to-br from-primary to-primary/80 rounded-xl">
+            <Brain className="h-8 w-8 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="modern-heading">AI Standup</h1>
+            <p className="modern-text">Weekly planning conversation with your AI assistant</p>
+          </div>
+        </div>
       </div>
 
       {!currentStandup?.hasCurrentStandup ? (
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2">
-              <MessageSquare className="h-6 w-6" />
-              Start Your Weekly Standup
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">
-              Ready to plan your week? Your AI assistant will go through your tasks, 
-              ask thoughtful questions, and help you think through the details.
+        <ModernCard className="max-w-3xl mx-auto">
+          <ModernCardHeader>
+            <div className="text-center w-full">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="p-3 bg-primary/10 rounded-xl">
+                  <MessageSquare className="h-6 w-6 text-primary" />
+                </div>
+                <h2 className="modern-subheading">Start Your Weekly Standup</h2>
+              </div>
+              <p className="modern-text max-w-2xl mx-auto">
+                Ready to plan your week? Your AI assistant will go through your tasks, 
+                ask thoughtful questions, and help you think through the details.
             </p>
-            <Button 
-              onClick={handleStartStandup}
-              disabled={isLoading}
-              size="lg"
-              className="min-w-[200px]"
-            >
-              {isLoading ? (
-                <>
-                  <Clock className="mr-2 h-4 w-4 animate-spin" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Start Standup
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+            </div>
+          </ModernCardHeader>
+          <ModernCardContent>
+            <div className="text-center space-y-6">
+              <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary" />
+                  Intelligent Task Review
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Adaptive Learning
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  Personalized Planning
+                </div>
+              </div>
+              
+              <Button 
+                onClick={handleStartStandup}
+                disabled={isLoading}
+                className="modern-button modern-button-primary min-w-[200px] h-12 text-base font-semibold"
+              >
+                {isLoading ? (
+                  <>
+                    <Clock className="mr-2 h-4 w-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Weekly Standup
+                  </>
+                )}
+              </Button>
+            </div>
+          </ModernCardContent>
+        </ModernCard>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Conversation Area */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Weekly Planning Conversation
+          {/* Modern Conversation Area */}
+          <ModernCard className="lg:col-span-2">
+            <ModernCardHeader>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="modern-subheading">Weekly Planning Conversation</h2>
+                    <p className="modern-text">AI-powered task review and planning</p>
+                  </div>
                 </div>
-                <Badge variant={currentStandup.status === 'completed' ? 'default' : 'secondary'}>
+                <StatusBadge status={currentStandup.status === 'completed' ? 'completed' : 'in_progress'}>
                   {currentStandup.status === 'completed' ? 'Completed' : 'In Progress'}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px] mb-4">
-                <div className="space-y-4">
+                </StatusBadge>
+              </div>
+            </ModernCardHeader>
+            <ModernCardContent>
+              <ScrollArea className="h-[400px] mb-6">
+                <div className="space-y-4 p-1">
                   {conversationHistory.map((message, index) => (
                     <div
                       key={index}
                       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
+                        className={`max-w-[80%] p-4 rounded-2xl shadow-sm ${
                           message.role === 'user'
                             ? 'bg-primary text-primary-foreground ml-4'
-                            : 'bg-muted mr-4'
+                            : 'bg-muted/50 mr-4 border'
                         }`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs mt-1 opacity-70">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
+                        <div className="flex items-start gap-2 mb-2">
+                          {message.role === 'assistant' && (
+                            <Brain className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          )}
+                          {message.role === 'user' && (
+                            <User className="h-4 w-4 text-primary-foreground mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm leading-relaxed">{message.content}</p>
+                            <p className="text-xs mt-2 opacity-70">
+                              {message.timestamp.toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -253,35 +300,46 @@ export default function StandupPage() {
               </ScrollArea>
               
               {currentStandup.status !== 'completed' && (
-                <div className="space-y-3">
-                  <div className="flex gap-2">
+                <div className="space-y-4">
+                  <div className="flex gap-3">
                     <Input
                       placeholder="Type your response..."
                       value={userInput}
                       onChange={(e) => setUserInput(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                       disabled={isLoading}
+                      className="modern-input flex-1"
                     />
                     <Button 
                       onClick={handleSendMessage}
                       disabled={!userInput.trim() || isLoading}
+                      className="modern-button modern-button-primary px-6"
                     >
-                      Send
+                      <Send className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleNextTask}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                    Move to Next Task
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleNextTask}
+                      disabled={isLoading}
+                      className="modern-button modern-button-secondary flex-1"
+                    >
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Move to Next Task
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      disabled={isLoading}
+                      className="modern-button modern-button-secondary"
+                    >
+                      <Mic className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </ModernCardContent>
+          </ModernCard>
 
           {/* Progress & Current Task */}
           <div className="space-y-6">
