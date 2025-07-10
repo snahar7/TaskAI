@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -162,20 +163,21 @@ export default function DashboardPage() {
                           id: task.id 
                         })}
                       />
-                    ))
-                  ) : (
-                    <ModernEmptyState
-                      icon={<CalendarDays className="h-12 w-12 text-muted-foreground" />}
-                      title="No tasks due today"
-                      description="You're all caught up! Great work staying on track."
-                      action={
-                        <Button variant="outline" className="modern-button modern-button-secondary">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add New Task
-                        </Button>
-                      }
-                    />
-                  )}
+                    ))}
+                  </div>
+                ) : (
+                  <ModernEmptyState
+                    icon={<CalendarDays className="h-12 w-12 text-muted-foreground" />}
+                    title="No tasks due today"
+                    description="You're all caught up! Great work staying on track."
+                    action={
+                      <Button variant="outline" className="modern-button modern-button-secondary">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Task
+                      </Button>
+                    }
+                  />
+                )}
               </ModernCardContent>
             </ModernCard>
 
@@ -225,8 +227,8 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </ModernCardContent>
+            </ModernCard>
 
             {/* Priority Matrix */}
             <Card>
