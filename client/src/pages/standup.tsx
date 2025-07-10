@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Play, ArrowRight, CheckCircle, Clock, User, Brain, Sparkles, Send, Mic } from 'lucide-react';
+import { MessageSquare, Play, ArrowRight, CheckCircle, Clock, User, Brain, Sparkles, Send, Mic, Users } from 'lucide-react';
 import { 
   ModernCard, 
   ModernCardHeader, 
