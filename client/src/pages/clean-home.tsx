@@ -155,34 +155,36 @@ export default function CleanHome() {
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="relative">
-          <div className="relative bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="relative bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden backdrop-blur-sm">
             {/* Main Input */}
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="write your goal or a task"
-              className="w-full border-0 text-lg placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-              disabled={createTaskMutation.isPending}
-            />
+            <div className="p-6 pb-0">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="write your goal or a task"
+                className="w-full border-0 text-lg placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto py-4 px-0 text-gray-900 font-medium"
+                disabled={createTaskMutation.isPending}
+              />
+            </div>
 
             {/* Bottom Section */}
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50/50 border-t border-gray-100">
               {/* Mode Icons */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => toggleMode('goal')}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-md transition-all",
+                    "flex items-center gap-2 px-3 py-2 rounded-full transition-all duration-200 font-medium",
                     selectedModes.goal
-                      ? "bg-green-100 text-green-700 border border-green-300"
-                      : "text-gray-500 hover:text-green-600 hover:bg-green-50"
+                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 scale-105"
+                      : "text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 hover:scale-105"
                   )}
                 >
                   <Target className="h-4 w-4" />
-                  {selectedModes.goal && <span className="text-sm font-medium">Goal</span>}
+                  {selectedModes.goal && <span className="text-sm">Goal</span>}
                 </Button>
 
                 <Button
@@ -191,14 +193,14 @@ export default function CleanHome() {
                   size="sm"
                   onClick={() => toggleMode('standup')}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-md transition-all",
+                    "flex items-center gap-2 px-3 py-2 rounded-full transition-all duration-200 font-medium",
                     selectedModes.standup
-                      ? "bg-purple-100 text-purple-700 border border-purple-300"
-                      : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"
+                      ? "bg-violet-500 text-white shadow-lg shadow-violet-500/25 scale-105"
+                      : "text-gray-600 hover:text-violet-600 hover:bg-violet-50 hover:scale-105"
                   )}
                 >
                   <MessageSquare className="h-4 w-4" />
-                  {selectedModes.standup && <span className="text-sm font-medium">Standup</span>}
+                  {selectedModes.standup && <span className="text-sm">Standup</span>}
                 </Button>
               </div>
 
@@ -207,7 +209,12 @@ export default function CleanHome() {
                 type="submit"
                 size="sm"
                 disabled={!input.trim() || createTaskMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2"
+                className={cn(
+                  "rounded-full px-6 py-2 font-medium transition-all duration-200 shadow-lg",
+                  !input.trim() || createTaskMutation.isPending
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 text-white hover:shadow-xl hover:shadow-blue-500/25 hover:scale-105"
+                )}
               >
                 {createTaskMutation.isPending ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -220,10 +227,24 @@ export default function CleanHome() {
         </form>
 
         {/* Helper Text */}
-        <div className="mt-6 text-center text-sm text-gray-500 space-y-1">
-          <p>Select <span className="text-green-600 font-medium">Goal</span> to break down complex tasks with AI</p>
-          <p>Select <span className="text-purple-600 font-medium">Standup</span> to add insights and planning</p>
-          <p>Or just press enter to add a simple task to your to-do list</p>
+        <div className="mt-8 text-center space-y-2">
+          <div className="flex items-center justify-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+              <span className="text-gray-600">
+                <span className="font-medium text-emerald-600">Goal</span> for AI breakdown
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-violet-500 rounded-full"></div>
+              <span className="text-gray-600">
+                <span className="font-medium text-violet-600">Standup</span> for insights
+              </span>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500">
+            Or just type and press enter to add a simple task
+          </p>
         </div>
       </div>
     </div>
