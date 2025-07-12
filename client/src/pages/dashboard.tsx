@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -16,22 +16,9 @@ import {
   Search,
   Filter,
   TrendingUp,
-  BarChart3,
-  Brain,
-  Zap,
-  Users
+  BarChart3
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  ModernCard, 
-  ModernCardHeader, 
-  ModernCardContent, 
-  StatusBadge, 
-  ProgressRing, 
-  MetricCard,
-  ModernTaskItem,
-  ModernEmptyState
-} from "@/components/modern-ui";
 
 interface DashboardStats {
   todayTasks: any[];
@@ -73,43 +60,10 @@ export default function DashboardPage() {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="modern-container max-w-7xl py-8 lg:py-12">
-      <div className="mb-12">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-gradient-to-br from-primary to-primary/80 rounded-xl">
-            <BarChart3 className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="modern-heading">Dashboard</h1>
-            <p className="modern-text">Your productivity command center</p>
-          </div>
-        </div>
-        
-        {/* Quick Stats */}
-        <div className="modern-grid gap-4 mb-8">
-          <MetricCard
-            title="Active Goals"
-            value={counts.totalGoals || 0}
-            description="Current objectives"
-            icon={<Target className="h-5 w-5 text-primary" />}
-            trend="neutral"
-          />
-          <MetricCard
-            title="Today's Tasks"
-            value={todayTasks.length}
-            description="Due today"
-            icon={<CalendarDays className="h-5 w-5 text-primary" />}
-            trend={todayTasks.length > 3 ? "up" : "neutral"}
-          />
-          <MetricCard
-            title="Completion Rate"
-            value={`${Math.round(metrics.completionRate || 0)}%`}
-            description="This week"
-            icon={<TrendingUp className="h-5 w-5 text-success" />}
-            trend="up"
-            trendValue="+12% from last week"
-          />
-        </div>
+    <div className="container mx-auto p-3 sm:p-6 max-w-7xl">
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Your productivity command center</p>
       </div>
 
       <Tabs defaultValue="action" className="space-y-4 sm:space-y-6">
@@ -121,80 +75,72 @@ export default function DashboardPage() {
         </TabsList>
 
         {/* Action-Oriented Dashboard */}
-        <TabsContent value="action" className="modern-spacing-lg">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="action" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             
             {/* Today's Focus */}
-            <ModernCard className="lg:col-span-2">
-              <ModernCardHeader>
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <CalendarDays className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h2 className="modern-subheading">Today's Focus</h2>
-                      <p className="modern-text">Top priority tasks for {new Date().toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="text-sm">
-                    {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
-                  </Badge>
+            <Card className="lg:col-span-2">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                    <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Today's Focus
+                  </CardTitle>
+                  <CardDescription className="text-sm">Top priority tasks for {new Date().toLocaleDateString()}</CardDescription>
                 </div>
-              </ModernCardHeader>
-              <ModernCardContent>
-                {isLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="modern-text">Loading today's tasks...</p>
-                  </div>
-                ) : todayTasks.length > 0 ? (
-                  <div className="space-y-3">
-                    {todayTasks.slice(0, 5).map((task: any) => (
-                      <ModernTaskItem
-                        key={task.id}
-                        title={task.title}
-                        description={`From ${task.project?.title || task.goal?.title} • Est: ${task.estimatedHours || 1}h`}
-                        status={task.completed ? "completed" : "pending"}
-                        priority={task.priority as "high" | "medium" | "low"}
-                        dueDate={task.deadline}
-                        onClick={() => completeMutation.mutate({ 
-                          type: task.taskId ? 'subtask' : 'task', 
-                          id: task.id 
-                        })}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <ModernEmptyState
-                    icon={<CalendarDays className="h-12 w-12 text-muted-foreground" />}
-                    title="No tasks due today"
-                    description="You're all caught up! Great work staying on track."
-                    action={
-                      <Button variant="outline" className="modern-button modern-button-secondary">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add New Task
-                      </Button>
-                    }
-                  />
-                )}
-              </ModernCardContent>
-            </ModernCard>
+                <Badge variant="secondary" className="text-xs sm:text-sm">
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {isLoading ? (
+                    <div className="text-center py-4">Loading today's tasks...</div>
+                  ) : todayTasks.length > 0 ? (
+                    todayTasks.slice(0, 5).map((task: any) => (
+                      <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm sm:text-base truncate">{task.title}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                              From {task.project?.title || task.goal?.title} • Est: {task.estimatedHours || 1}h
+                            </p>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="h-10 w-10 p-0 sm:h-8 sm:w-auto sm:px-3 shrink-0"
+                          onClick={() => completeMutation.mutate({ 
+                            type: task.taskId ? 'subtask' : 'task', 
+                            id: task.id 
+                          })}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="sr-only sm:not-sr-only sm:ml-2">Done</span>
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No tasks due today. Great job staying on track!
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Overdue Items */}
-            <ModernCard className="border-destructive/20">
-              <ModernCardHeader>
-                <div className="flex items-center gap-3 w-full">
-                  <div className="p-2 bg-destructive/10 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-destructive" />
-                  </div>
-                  <div>
-                    <h2 className="modern-subheading text-destructive">Overdue Items</h2>
-                    <p className="modern-text">Tasks that need immediate attention</p>
-                  </div>
-                </div>
-              </ModernCardHeader>
-              <ModernCardContent>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600 text-base sm:text-lg">
+                  <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                  Overdue Items
+                </CardTitle>
+                <CardDescription className="text-sm">Tasks that need immediate attention</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-3">
                   {overdueTasks.length > 0 ? (
                     overdueTasks.slice(0, 5).map((task: any) => (
@@ -227,8 +173,8 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-              </ModernCardContent>
-            </ModernCard>
+              </CardContent>
+            </Card>
 
             {/* Priority Matrix */}
             <Card>

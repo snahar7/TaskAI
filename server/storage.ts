@@ -1,6 +1,5 @@
 import { 
   users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags,
-  userPreferences, standupConversations, aiInsights,
   type User, type InsertUser,
   type Goal, type InsertGoal,
   type Project, type InsertProject, 
@@ -10,13 +9,10 @@ import {
   type Team, type InsertTeam,
   type Category, type InsertCategory,
   type Tag, type InsertTag,
-  type UserPreference, type InsertUserPreference,
-  type StandupConversation, type InsertStandupConversation,
-  type AiInsight, type InsertAiInsight,
   type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -58,22 +54,6 @@ export interface IStorage {
   getAllPendingBreakdowns(): Promise<PendingBreakdown[]>;
   getPendingBreakdown(id: number): Promise<PendingBreakdown | undefined>;
   deletePendingBreakdown(id: number): Promise<void>;
-  
-  // AI Conversation System
-  createUserPreference(preference: InsertUserPreference): Promise<UserPreference>;
-  getUserPreferences(userId: number): Promise<UserPreference[]>;
-  updateUserPreference(id: number, updates: Partial<UserPreference>): Promise<void>;
-  
-  createStandupConversation(conversation: InsertStandupConversation): Promise<StandupConversation>;
-  getStandupConversation(id: number): Promise<StandupConversation | undefined>;
-  getCurrentStandupConversation(userId: number): Promise<StandupConversation | undefined>;
-  updateStandupConversation(id: number, updates: Partial<StandupConversation>): Promise<void>;
-  
-  createAiInsight(insight: InsertAiInsight): Promise<AiInsight>;
-  getAiInsights(userId: number): Promise<AiInsight[]>;
-  
-  // Get week tasks for standup
-  getWeekTasks(userId: number, weekStartDate: Date): Promise<Task[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -345,47 +325,6 @@ export class MemStorage implements IStorage {
 
   async deletePendingBreakdown(id: number): Promise<void> {
     this.pendingBreakdowns.delete(id);
-  }
-  
-  // AI Conversation System - Stub implementations for MemStorage
-  async createUserPreference(preference: InsertUserPreference): Promise<UserPreference> {
-    throw new Error("AI Conversation System not implemented in MemStorage");
-  }
-  
-  async getUserPreferences(userId: number): Promise<UserPreference[]> {
-    return [];
-  }
-  
-  async updateUserPreference(id: number, updates: Partial<UserPreference>): Promise<void> {
-    throw new Error("AI Conversation System not implemented in MemStorage");
-  }
-  
-  async createStandupConversation(conversation: InsertStandupConversation): Promise<StandupConversation> {
-    throw new Error("AI Conversation System not implemented in MemStorage");
-  }
-  
-  async getStandupConversation(id: number): Promise<StandupConversation | undefined> {
-    return undefined;
-  }
-  
-  async getCurrentStandupConversation(userId: number): Promise<StandupConversation | undefined> {
-    return undefined;
-  }
-  
-  async updateStandupConversation(id: number, updates: Partial<StandupConversation>): Promise<void> {
-    throw new Error("AI Conversation System not implemented in MemStorage");
-  }
-  
-  async createAiInsight(insight: InsertAiInsight): Promise<AiInsight> {
-    throw new Error("AI Conversation System not implemented in MemStorage");
-  }
-  
-  async getAiInsights(userId: number): Promise<AiInsight[]> {
-    return [];
-  }
-  
-  async getWeekTasks(userId: number, weekStartDate: Date): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter(task => !task.completed).slice(0, 20);
   }
 }
 
@@ -805,66 +744,6 @@ export class DatabaseStorage implements IStorage {
 
   async deletePendingBreakdown(id: number): Promise<void> {
     await db.delete(pendingBreakdowns).where(eq(pendingBreakdowns.id, id));
-  }
-  
-  // AI Conversation System
-  async createUserPreference(insertPreference: InsertUserPreference): Promise<UserPreference> {
-    const [preference] = await db.insert(userPreferences).values(insertPreference).returning();
-    return preference;
-  }
-  
-  async getUserPreferences(userId: number): Promise<UserPreference[]> {
-    return await db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
-  }
-  
-  async updateUserPreference(id: number, updates: Partial<UserPreference>): Promise<void> {
-    await db.update(userPreferences).set(updates).where(eq(userPreferences.id, id));
-  }
-  
-  async createStandupConversation(insertConversation: InsertStandupConversation): Promise<StandupConversation> {
-    const [conversation] = await db.insert(standupConversations).values(insertConversation).returning();
-    return conversation;
-  }
-  
-  async getStandupConversation(id: number): Promise<StandupConversation | undefined> {
-    const [conversation] = await db.select().from(standupConversations).where(eq(standupConversations.id, id));
-    return conversation || undefined;
-  }
-  
-  async getCurrentStandupConversation(userId: number): Promise<StandupConversation | undefined> {
-    const [conversation] = await db.select().from(standupConversations)
-      .where(and(
-        eq(standupConversations.userId, userId),
-        eq(standupConversations.status, "in_progress")
-      ))
-      .orderBy(desc(standupConversations.createdAt))
-      .limit(1);
-    return conversation || undefined;
-  }
-  
-  async updateStandupConversation(id: number, updates: Partial<StandupConversation>): Promise<void> {
-    await db.update(standupConversations).set(updates).where(eq(standupConversations.id, id));
-  }
-  
-  async createAiInsight(insertInsight: InsertAiInsight): Promise<AiInsight> {
-    const [insight] = await db.insert(aiInsights).values(insertInsight).returning();
-    return insight;
-  }
-  
-  async getAiInsights(userId: number): Promise<AiInsight[]> {
-    return await db.select().from(aiInsights).where(eq(aiInsights.userId, userId));
-  }
-  
-  async getWeekTasks(userId: number, weekStartDate: Date): Promise<Task[]> {
-    const weekEndDate = new Date(weekStartDate);
-    weekEndDate.setDate(weekEndDate.getDate() + 7);
-    
-    // Get tasks that are due this week or have no due date (assuming they're current)
-    return await db.select().from(tasks).where(
-      // For now, get all tasks since we don't have user assignment properly set up
-      // In a real system, this would filter by assigned user and date range
-      eq(tasks.completed, false)
-    ).limit(20); // Limit to reasonable number for standup
   }
 }
 

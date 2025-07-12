@@ -3,22 +3,20 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { CollapsibleSidebar } from "@/components/collapsible-sidebar";
-import CleanHome from "@/pages/clean-home";
-import TodoPage from "@/pages/todo";
-import GoalsPage from "@/pages/goals";
-import Standup from "@/pages/standup";
-import AssistPage from "@/pages/assist";
+import { Navigation } from "@/components/navigation";
+import Home from "@/pages/home-simple";
+import Database from "@/pages/database-optimized";
+import Dashboard from "@/pages/dashboard";
+import Timeline from "@/pages/timeline";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={CleanHome} />
-      <Route path="/todo" component={TodoPage} />
-      <Route path="/goals" component={GoalsPage} />
-      <Route path="/standup" component={Standup} />
-      <Route path="/assist" component={AssistPage} />
+      <Route path="/" component={Home} />
+      <Route path="/database" component={Database} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/timeline" component={Timeline} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -28,14 +26,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <div className="min-h-screen bg-gray-50 flex">
-          {/* Collapsible Sidebar */}
-          <CollapsibleSidebar />
-          
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto">
-            <Router />
-          </main>
+        <div className="min-h-screen bg-slate-50 pb-16 md:pb-0">
+          <Navigation />
+          <Router />
         </div>
         <Toaster />
       </TooltipProvider>
