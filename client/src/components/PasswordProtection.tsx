@@ -35,12 +35,8 @@ export default function PasswordProtection({ children }: PasswordProtectionProps
   // Login mutation
   const loginMutation = useMutation<LoginResponse, Error, { password: string }>({
     mutationFn: async ({ password }) => {
-      const response = await apiRequest('/api/stealth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-      return response;
+      const response = await apiRequest('POST', '/api/stealth/login', { password });
+      return response.json();
     },
     onSuccess: (data) => {
       if (data.success) {
