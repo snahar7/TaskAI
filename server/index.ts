@@ -28,65 +28,6 @@ declare module 'express-session' {
   }
 }
 
-// Password protection middleware
-const STEALTH_PASSWORD = process.env.STEALTH_PASSWORD || 'taflo2025';
-
-const requirePassword = (req: Request, res: Response, next: NextFunction) => {
-  // Skip password protection for login routes
-  if (req.path === '/api/stealth/login' || req.path === '/api/stealth/check') {
-    return next();
-  }
-
-  // Allow static assets (CSS, JS) to be served without password protection
-  if (req.path.startsWith('/assets/')) {
-    return next();
-  }
-
-  // Check if user is authenticated in session
-  if (req.session?.authenticated) {
-    return next();
-  }
-
-  // If not authenticated, return 401 for API routes
-  if (req.path.startsWith('/api/')) {
-    return res.status(401).json({ 
-      error: 'Password required', 
-      message: 'Please enter the stealth password to access this app' 
-    });
-  }
-
-  // For all other routes (including index.html), redirect to password page
-  // We'll serve the main HTML file which will handle the password modal
-  next();
-};
-
-// Password login routes
-app.post('/api/stealth/login', (req: Request, res: Response) => {
-  const { password } = req.body;
-  
-  if (password === STEALTH_PASSWORD) {
-    req.session.authenticated = true;
-    return res.json({ success: true, message: 'Access granted' });
-  }
-  
-  return res.status(401).json({ 
-    error: 'Invalid password', 
-    message: 'Incorrect password. Please try again.' 
-  });
-});
-
-app.get('/api/stealth/check', (req: Request, res: Response) => {
-  return res.json({ authenticated: req.session?.authenticated || false });
-});
-
-app.post('/api/stealth/logout', (req: Request, res: Response) => {
-  req.session.authenticated = false;
-  return res.json({ success: true, message: 'Logged out' });
-});
-
-// Apply password protection to all routes
-app.use(requirePassword);
-
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
