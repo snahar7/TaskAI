@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import type { Goal, Project, Task, Subtask } from "@shared/schema";
+import { UserAvatar } from "@/components/UserAvatar";
 
 function DatabaseOptimizedPage() {
   const queryClient = useQueryClient();
@@ -803,14 +804,7 @@ function DatabaseOptimizedPage() {
               </TableCell>
               <TableCell className="hidden lg:table-cell">
                 <div onClick={(e) => e.stopPropagation()}>
-                  <EditableField
-                    type="projects"
-                    id={project.id}
-                    field="assignedTo"
-                    value={project.assignedTo || ""}
-                    displayValue={project.assignedTo || "Unassigned"}
-                    placeholder="Assign to"
-                  />
+                  <UserAvatar userId={project.assignedTo} size="sm" />
                 </div>
               </TableCell>
               <TableCell>
@@ -1001,14 +995,7 @@ function DatabaseOptimizedPage() {
               </TableCell>
               <TableCell className="hidden lg:table-cell">
                 <div onClick={(e) => e.stopPropagation()}>
-                  <EditableField
-                    type="tasks"
-                    id={task.id}
-                    field="assignedTo"
-                    value={task.assignedTo || ""}
-                    displayValue={task.assignedTo || "Unassigned"}
-                    placeholder="Assign to"
-                  />
+                  <UserAvatar userId={task.assignedTo} size="sm" />
                 </div>
               </TableCell>
               <TableCell>
@@ -1158,14 +1145,7 @@ function DatabaseOptimizedPage() {
             </TableCell>
             <TableCell className="hidden lg:table-cell">
               <div onClick={(e) => e.stopPropagation()}>
-                <EditableField
-                  type="subtasks"
-                  id={subtask.id}
-                  field="assignedTo"
-                  value={subtask.assignedTo || ""}
-                  displayValue={subtask.assignedTo || "Unassigned"}
-                  placeholder="Assign to"
-                />
+                <UserAvatar userId={subtask.assignedTo} size="sm" />
               </div>
             </TableCell>
             <TableCell>
@@ -1343,14 +1323,7 @@ function DatabaseOptimizedPage() {
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         <div onClick={(e) => e.stopPropagation()}>
-                          <EditableField
-                            type="goals"
-                            id={goal.id}
-                            field="assignedTo"
-                            value={goal.assignedTo || ""}
-                            displayValue={goal.assignedTo || "Unassigned"}
-                            placeholder="Assign to"
-                          />
+                          <UserAvatar userId={goal.assignedTo} size="sm" />
                         </div>
                       </TableCell>
                       <TableCell>

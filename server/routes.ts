@@ -735,6 +735,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user by ID (for UserAvatar component)
+  app.get("/api/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = await storage.getUserById(id);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Break down task/project/subtask further with AI
   app.post("/api/:type/:id/breakdown", async (req: Request, res: Response, next: NextFunction) => {
     try {

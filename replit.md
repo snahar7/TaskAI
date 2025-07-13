@@ -104,12 +104,17 @@ Preferred communication style: Simple, everyday language.
   - **Automatic User Assignment**: All new goals, projects, tasks, and subtasks automatically assigned to authenticated user
     - Backend middleware extracts user context from authentication
     - Database integration ensures proper data ownership and filtering
-    - Confirmed working with test goal creation (assignedTo field populated correctly)
+    - AI breakdown system automatically assigns all hierarchy items to authenticated user
   - **Profile Management Page**: Complete profile editing interface at `/profile`
-    - Profile picture upload with fallback to initials
+    - Profile picture upload functionality with validation and real-time preview
     - Edit personal information (name, display name, email)
     - Account overview with authentication method and member since date
     - Sign out functionality integrated into profile page
+  - **Enhanced Database View**: User avatars in Assignment column with hover tooltips
+    - Assignment column shows user profile pictures/initials instead of user IDs
+    - Hover tooltips display full user names and email information
+    - Small avatars (size="sm") optimized for table display
+    - Proper fallback handling for unassigned items and loading states
   - **Domain Configuration**: Replit domain identified for Firebase authorized domains setup
     - Domain: `6c3ab34f-d199-4fe4-938c-8a3f4f137227-00-1tqc9nbusbvfu.picard.replit.dev`
     - Google OAuth requires domain authorization in Firebase console
