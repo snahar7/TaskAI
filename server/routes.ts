@@ -1060,6 +1060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const itemType = req.params.type as 'tasks' | 'projects' | 'subtasks';
       const itemId = parseInt(req.params.id);
       const { subItems } = req.body;
+      const userId = getCurrentUserId(req);
 
       if (!subItems || !Array.isArray(subItems)) {
         return res.status(400).json({ error: "subItems array is required" });
@@ -1084,7 +1085,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             priority: subItem.urgency || "medium",
             status: "pending",
             completed: false,
-            approved: true
+            approved: true,
+            assignedTo: userId // Automatically assign to authenticated user
           });
           createdItems.push(subtask);
         }
@@ -1104,7 +1106,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             priority: subItem.urgency || "medium",
             status: "pending",
             completed: false,
-            approved: true
+            approved: true,
+            assignedTo: userId // Automatically assign to authenticated user
           });
           createdItems.push(task);
         }
