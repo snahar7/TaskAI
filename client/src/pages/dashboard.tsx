@@ -689,6 +689,16 @@ export default function DashboardPage() {
                 <CardDescription>Tasks categorized by urgency and importance</CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Debug Info */}
+                {dashboardStats && (
+                  <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+                    <p>Debug: Found {dashboardStats?.todayTasks?.length || 0} today tasks</p>
+                    {dashboardStats?.todayTasks?.slice(0, 2).map((task: any) => (
+                      <p key={task.id}>Task: "{task.title}" - Priority: {task.priority} - Deadline: {task.deadline} - Completed: {task.completed ? 'Yes' : 'No'}</p>
+                    ))}
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-2 gap-4 h-96">
                   {/* Urgent & Important */}
                   <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg">
@@ -699,10 +709,12 @@ export default function DashboardPage() {
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {dashboardStats?.todayTasks
                         ?.filter((task: any) => {
+                          console.log(`Filtering task: ${task.title}, Priority: ${task.priority}, Deadline: ${task.deadline}, Completed: ${task.completed}`);
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || new Date(deadline) < new Date(today);
+                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
                           const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                          console.log(`  IsUrgent: ${isUrgent}, IsImportant: ${isImportant}, Completed: ${task.completed}`);
                           return isUrgent && isImportant && !task.completed;
                         })
                         .map((task: any) => (
@@ -729,7 +741,7 @@ export default function DashboardPage() {
                         ?.filter((task: any) => {
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || new Date(deadline) < new Date(today);
+                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
                           const isImportant = task.priority === 'urgent' || task.priority === 'high';
                           return !isUrgent && isImportant && !task.completed;
                         })
@@ -757,7 +769,7 @@ export default function DashboardPage() {
                         ?.filter((task: any) => {
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || new Date(deadline) < new Date(today);
+                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
                           const isImportant = task.priority === 'urgent' || task.priority === 'high';
                           return isUrgent && !isImportant && !task.completed;
                         })
@@ -785,7 +797,7 @@ export default function DashboardPage() {
                         ?.filter((task: any) => {
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || new Date(deadline) < new Date(today);
+                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
                           const isImportant = task.priority === 'urgent' || task.priority === 'high';
                           return !isUrgent && !isImportant && !task.completed;
                         })
