@@ -73,6 +73,8 @@ export const projects = pgTable("projects", {
   teamId: integer("team_id").references(() => teams.id),
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
+  estimatedDays: integer("estimated_days"), // New field for day-based estimation
+  startDate: timestamp("start_date"), // New field for start date
   customFields: json("custom_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -99,6 +101,8 @@ export const tasks = pgTable("tasks", {
   teamId: integer("team_id").references(() => teams.id),
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
+  estimatedDays: integer("estimated_days"), // New field for day-based estimation
+  startDate: timestamp("start_date"), // New field for start date
   customFields: json("custom_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -127,6 +131,8 @@ export const subtasks = pgTable("subtasks", {
   teamId: integer("team_id").references(() => teams.id),
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
+  estimatedDays: integer("estimated_days"), // New field for day-based estimation
+  startDate: timestamp("start_date"), // New field for start date
   customFields: json("custom_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -471,12 +477,14 @@ export type GoalWithDetails = Goal & {
   tags?: Tag[];
 };
 
-// AI Breakdown structure for OpenAI responses - updated for new field names
+// AI Breakdown structure for OpenAI responses - updated for new field names with day-based estimation
 export interface AISubtask {
   name: string; // changed from title to name
   description?: string;
   estimatedHours?: number;
+  estimatedDays?: number; // New field for realistic day-based estimation
   dueDate?: string;
+  startDate?: string; // New field for start date
   urgency?: 'low' | 'medium' | 'high';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   timeEstimate?: number;
@@ -486,7 +494,9 @@ export interface AITask {
   name: string; // changed from title to name
   description?: string;
   estimatedHours?: number;
+  estimatedDays?: number; // New field for realistic day-based estimation
   dueDate?: string;
+  startDate?: string; // New field for start date
   urgency?: 'low' | 'medium' | 'high';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   timeEstimate?: number;
@@ -497,7 +507,9 @@ export interface AIProject {
   name: string; // changed from title to name
   description?: string;
   estimatedDuration?: string;
+  estimatedDays?: number; // New field for realistic day-based estimation
   targetDate?: string;
+  startDate?: string; // New field for start date
   urgency?: 'low' | 'medium' | 'high';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   timeEstimate?: number;
@@ -509,7 +521,9 @@ export interface AIBreakdown {
     name: string; // changed from title to name
     description?: string;
     estimatedDuration?: string;
+    estimatedDays?: number; // New field for realistic day-based estimation
     targetDate?: string;
+    startDate?: string; // New field for start date
     urgency?: 'low' | 'medium' | 'high';
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     timeEstimate?: number;

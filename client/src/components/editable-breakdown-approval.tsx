@@ -73,6 +73,69 @@ export function EditableBreakdownApproval({
     });
   };
 
+  // Helper function to add business days (excluding weekends)
+  const addBusinessDays = (startDate: Date, days: number): Date => {
+    let result = new Date(startDate);
+    let daysAdded = 0;
+    
+    while (daysAdded < days) {
+      result.setDate(result.getDate() + 1);
+      // Skip weekends (Saturday = 6, Sunday = 0)
+      if (result.getDay() !== 0 && result.getDay() !== 6) {
+        daysAdded++;
+      }
+    }
+    return result;
+  };
+
+  // Recalculate deadlines up the hierarchy when days are edited
+  const recalculateHierarchyDeadlines = (projectIndex: number, taskIndex?: number) => {
+    const updatedBreakdown = { ...editedBreakdown };
+    let currentDate = new Date(updatedBreakdown.goal.startDate || new Date());
+
+    // Recalculate all projects from the beginning
+    updatedBreakdown.projects.forEach((project, pIndex) => {
+      let projectStartDate = new Date(currentDate);
+      
+      // Process tasks within project
+      project.tasks?.forEach((task, tIndex) => {
+        task.startDate = new Date(currentDate).toISOString().split('T')[0];
+        
+        // Process subtasks within task
+        if (task.subtasks && task.subtasks.length > 0) {
+          task.subtasks.forEach((subtask) => {
+            subtask.startDate = new Date(currentDate).toISOString().split('T')[0];
+            
+            // Calculate subtask deadline
+            const subtaskDays = subtask.estimatedDays || 1;
+            const subtaskEndDate = addBusinessDays(currentDate, subtaskDays);
+            subtask.dueDate = subtaskEndDate.toISOString().split('T')[0];
+            
+            // Move current date forward
+            currentDate = new Date(subtaskEndDate);
+          });
+          
+          // Task ends when all subtasks are complete
+          task.dueDate = new Date(currentDate).toISOString().split('T')[0];
+        } else {
+          // Task without subtasks
+          const taskDays = task.estimatedDays || 1;
+          const taskEndDate = addBusinessDays(currentDate, taskDays);
+          task.dueDate = taskEndDate.toISOString().split('T')[0];
+          currentDate = new Date(taskEndDate);
+        }
+      });
+      
+      // Project ends when all tasks are complete
+      project.dueDate = new Date(currentDate).toISOString().split('T')[0];
+    });
+
+    // Goal ends when all projects are complete
+    updatedBreakdown.goal.dueDate = new Date(currentDate).toISOString().split('T')[0];
+    
+    setEditedBreakdown(updatedBreakdown);
+  };
+
   const updateGoal = (field: string, value: string) => {
     setEditedBreakdown(prev => ({
       ...prev,
@@ -120,6 +183,49 @@ export function EditableBreakdownApproval({
         } : project
       )
     }));
+  };
+
+  // Update task days and recalculate hierarchy deadlines
+  const updateTaskDays = (projectIndex: number, taskIndex: number, value: string) => {
+    const days = parseInt(value) || 1;
+    setEditedBreakdown(prev => ({
+      ...prev,
+      projects: prev.projects.map((project, pIndex) => 
+        pIndex === projectIndex ? {
+          ...project,
+          tasks: project.tasks.map((task, tIndex) => 
+            tIndex === taskIndex ? { ...task, estimatedDays: days } : task
+          )
+        } : project
+      )
+    }));
+    
+    // Recalculate deadlines for the entire hierarchy
+    setTimeout(() => recalculateHierarchyDeadlines(projectIndex, taskIndex), 0);
+  };
+
+  // Update subtask days and recalculate hierarchy deadlines
+  const updateSubtaskDays = (projectIndex: number, taskIndex: number, subtaskIndex: number, value: string) => {
+    const days = parseInt(value) || 1;
+    setEditedBreakdown(prev => ({
+      ...prev,
+      projects: prev.projects.map((project, pIndex) => 
+        pIndex === projectIndex ? {
+          ...project,
+          tasks: project.tasks.map((task, tIndex) => 
+            tIndex === taskIndex ? {
+              ...task,
+              subtasks: task.subtasks.map((subtask, sIndex) => 
+                sIndex === subtaskIndex ? { ...subtask, estimatedDays: days } : subtask
+              )
+            } : task
+          )
+        } : project
+      )
+    }));
+    
+    // Recalculate deadlines for the entire hierarchy
+    setTimeout(() => recalculateHierarchyDeadlines(projectIndex, taskIndex), 0);
   };
 
   const getUrgencyColor = (urgency: string) => {
@@ -372,7 +478,7 @@ export function EditableBreakdownApproval({
                                     />
                                   </div>
                                   
-                                  <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid grid-cols-3 gap-4">
                                     <div>
                                       <label className="text-sm font-medium text-gray-600">Due Date</label>
                                       <EditableField
@@ -381,6 +487,17 @@ export function EditableBreakdownApproval({
                                         itemId={`task-${projectIndex}-${taskIndex}`}
                                         field="dueDate"
                                         placeholder="YYYY-MM-DD"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">Estimated Days</label>
+                                      <EditableField
+                                        value={task.estimatedDays?.toString() || ''}
+                                        onChange={(value) => updateTaskDays(projectIndex, taskIndex, value)}
+                                        itemId={`task-${projectIndex}-${taskIndex}`}
+                                        field="estimatedDays"
+                                        placeholder="Days"
                                       />
                                     </div>
                                     
@@ -426,7 +543,18 @@ export function EditableBreakdownApproval({
                                         />
                                       </div>
                                       
-                                      <div className="grid grid-cols-2 gap-2">
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <div>
+                                          <label className="text-xs font-medium text-gray-600">Estimated Days</label>
+                                          <EditableField
+                                            value={subtask.estimatedDays?.toString() || ''}
+                                            onChange={(value) => updateSubtaskDays(projectIndex, taskIndex, subtaskIndex, value)}
+                                            itemId={`subtask-${projectIndex}-${taskIndex}-${subtaskIndex}`}
+                                            field="estimatedDays"
+                                            placeholder="Days"
+                                          />
+                                        </div>
+                                        
                                         <div>
                                           <label className="text-xs font-medium text-gray-600">Estimated Hours</label>
                                           <EditableField

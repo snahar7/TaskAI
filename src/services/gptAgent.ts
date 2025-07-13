@@ -209,6 +209,7 @@ Return JSON with a flat list of actionable tasks:
       "description": "string",
       "urgency": "Low|Medium|High",
       "estimatedHours": number,
+      "estimatedDays": number,
       "dueDate": "YYYY-MM-DD"
     }
   ]
@@ -238,6 +239,7 @@ Return JSON with subgoals and their tasks:
           "description": "string",
           "urgency": "Low|Medium|High",
           "estimatedHours": number,
+          "estimatedDays": number,
           "dueDate": "YYYY-MM-DD"
         }
       ]
@@ -276,6 +278,7 @@ Return JSON with full project hierarchy:
               "description": "string",
               "urgency": "Low|Medium|High",
               "estimatedHours": number,
+              "estimatedDays": number,
               "dueDate": "YYYY-MM-DD"
             }
           ]
@@ -287,6 +290,98 @@ Return JSON with full project hierarchy:
 
 Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subtasks.`;
     }
+  }
+
+  /**
+   * Calculate realistic day-based estimates and deadlines for all hierarchy levels
+   */
+  private calculateDayBasedDeadlines(breakdown: AIBreakdown, startDate: Date = new Date()): AIBreakdown {
+    console.log('📅 Calculating day-based deadlines from start date:', startDate.toDateString());
+    
+    let currentDate = new Date(startDate);
+    
+    // Helper function to add business days (excluding weekends)
+    const addBusinessDays = (date: Date, days: number): Date => {
+      let result = new Date(date);
+      let daysAdded = 0;
+      
+      while (daysAdded < days) {
+        result.setDate(result.getDate() + 1);
+        // Skip weekends (Saturday = 6, Sunday = 0)
+        if (result.getDay() !== 0 && result.getDay() !== 6) {
+          daysAdded++;
+        }
+      }
+      return result;
+    };
+    
+    // Helper function to estimate realistic days based on hours and complexity
+    const estimateRealisticDays = (hours: number, complexity: 'simple' | 'medium' | 'complex' = 'medium'): number => {
+      // Assume 6 productive hours per day, with complexity multipliers
+      const hoursPerDay = 6;
+      const complexityMultiplier = { simple: 1, medium: 1.3, complex: 1.6 }[complexity];
+      const adjustedHours = hours * complexityMultiplier;
+      return Math.max(1, Math.ceil(adjustedHours / hoursPerDay));
+    };
+    
+    // Process each project in sequence
+    breakdown.projects.forEach((project, projectIndex) => {
+      let projectStartDate = new Date(currentDate);
+      let projectEndDate = new Date(currentDate);
+      
+      // Calculate project estimated days based on total hours
+      const projectTotalHours = project.tasks?.reduce((sum, task) => sum + (task.estimatedHours || 0), 0) || project.estimatedHours || 40;
+      project.estimatedDays = estimateRealisticDays(projectTotalHours, 'medium');
+      project.startDate = projectStartDate.toISOString().split('T')[0];
+      
+      // Process tasks within project
+      project.tasks?.forEach((task, taskIndex) => {
+        task.startDate = new Date(currentDate).toISOString().split('T')[0];
+        
+        // Calculate task estimated days
+        const taskHours = task.estimatedHours || 8;
+        task.estimatedDays = estimateRealisticDays(taskHours, 'simple');
+        
+        // Process subtasks within task
+        if (task.subtasks && task.subtasks.length > 0) {
+          task.subtasks.forEach((subtask, subtaskIndex) => {
+            subtask.startDate = new Date(currentDate).toISOString().split('T')[0];
+            
+            // Calculate subtask estimated days (lowest level - most accurate)
+            const subtaskHours = subtask.estimatedHours || 2;
+            subtask.estimatedDays = estimateRealisticDays(subtaskHours, 'simple');
+            
+            // Calculate subtask deadline
+            const subtaskEndDate = addBusinessDays(currentDate, subtask.estimatedDays);
+            subtask.dueDate = subtaskEndDate.toISOString().split('T')[0];
+            
+            // Move current date forward
+            currentDate = new Date(subtaskEndDate);
+          });
+          
+          // Task ends when all subtasks are complete
+          task.dueDate = new Date(currentDate).toISOString().split('T')[0];
+        } else {
+          // Task without subtasks
+          const taskEndDate = addBusinessDays(currentDate, task.estimatedDays);
+          task.dueDate = taskEndDate.toISOString().split('T')[0];
+          currentDate = new Date(taskEndDate);
+        }
+      });
+      
+      // Project ends when all tasks are complete
+      projectEndDate = new Date(currentDate);
+      project.dueDate = projectEndDate.toISOString().split('T')[0];
+      
+      console.log(`📋 Project "${project.name || project.title}" scheduled from ${projectStartDate.toDateString()} to ${projectEndDate.toDateString()}`);
+    });
+    
+    // Goal ends when all projects are complete
+    breakdown.goal.startDate = startDate.toISOString().split('T')[0];
+    breakdown.goal.dueDate = new Date(currentDate).toISOString().split('T')[0];
+    breakdown.goal.estimatedDays = Math.ceil((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return breakdown;
   }
 
   /**
@@ -409,9 +504,12 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
       }
       
       const rawData = JSON.parse(cleanContent);
-      const adaptedBreakdown = this.adaptResponseToSchema(rawData, maxDepth, complexity);
+      let adaptedBreakdown = this.adaptResponseToSchema(rawData, maxDepth, complexity);
       
-      console.log(`✅ Successfully generated ${complexity} goal breakdown`);
+      // Calculate realistic day-based deadlines for the entire breakdown
+      adaptedBreakdown = this.calculateDayBasedDeadlines(adaptedBreakdown, new Date());
+      
+      console.log(`✅ Successfully generated ${complexity} goal breakdown with day-based deadlines`);
       return adaptedBreakdown;
     } catch (error) {
       console.error('Error in generateTaskBreakdown:', error);
