@@ -7,9 +7,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo, Trash2, Zap, Edit2, Save, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo, Trash2, Zap, Edit2, Save, X, Link2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import type { Goal, Project, Task, Subtask } from "@shared/schema";
@@ -787,6 +788,12 @@ function DatabaseOptimizedPage() {
       staleTime: 1000 * 60 * 2,
     });
 
+    // Fetch all tasks for dependency lookups
+    const { data: allTasks = [] } = useQuery<Task[]>({
+      queryKey: ['/api/tasks/all'],
+      staleTime: 1000 * 60 * 2,
+    });
+
     // Sort tasks by deadline (earliest first, then null deadlines)
     const sortedTasks = [...tasks].sort((a, b) => {
       if (!a.deadline && !b.deadline) return 0;
@@ -819,6 +826,26 @@ function DatabaseOptimizedPage() {
                     {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
                   <CheckSquare className="h-4 w-4 text-green-600" />
+                  {task.dependencies && Array.isArray(task.dependencies) && task.dependencies.length > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link2 className="h-4 w-4 text-blue-500 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <div className="text-sm">
+                            <p className="font-medium mb-1">Depends on:</p>
+                            {task.dependencies.map((depId, index) => {
+                              const dependentTask = allTasks.find(t => t.id === depId);
+                              return dependentTask ? (
+                                <p key={index} className="text-xs">• {dependentTask.title}</p>
+                              ) : null;
+                            })}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                   <div onClick={(e) => e.stopPropagation()}>
                     <EditableField
                       type="tasks"

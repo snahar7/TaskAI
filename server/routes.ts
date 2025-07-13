@@ -239,6 +239,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all tasks (for dependency lookups)
+  app.get("/api/tasks/all", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tasks = await storage.getAllTasks();
+      res.json(tasks);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get tasks for a specific project
   app.get("/api/projects/:projectId/tasks", async (req: Request, res: Response, next: NextFunction) => {
     try {
