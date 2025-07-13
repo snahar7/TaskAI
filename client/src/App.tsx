@@ -9,6 +9,8 @@ import Home from "@/pages/home-simple";
 import Database from "@/pages/database-optimized";
 import Dashboard from "@/pages/dashboard";
 import TaskDetail from "@/pages/task-detail";
+import GoalDetail from "@/pages/goal-detail";
+import ProjectDetail from "@/pages/project-detail";
 import { ProfilePage } from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
@@ -19,6 +21,8 @@ function Router() {
       <Route path="/database" component={Database} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/task/:taskId" component={TaskDetail} />
+      <Route path="/goal/:goalId" component={GoalDetail} />
+      <Route path="/project/:projectId" component={ProjectDetail} />
       <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>

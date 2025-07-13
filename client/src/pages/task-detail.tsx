@@ -56,16 +56,23 @@ export default function TaskDetailPage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Fetch all users for assignment dropdown
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ["/api/users/team/1"], // Using team 1 for now
+    staleTime: 1000 * 60 * 5,
+  });
+
   // Task update mutation
   const updateTaskMutation = useMutation({
     mutationFn: async (updates: any) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}`, updates);
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, updates);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setEditingField(null);
+      setEditValue("");
     },
   });
 
@@ -161,19 +168,40 @@ export default function TaskDetailPage() {
               
               {/* Breadcrumb */}
               <div className="flex items-center text-sm text-gray-500">
-                <Home className="h-4 w-4" />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-0 h-auto text-gray-500 hover:text-blue-600"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  <Home className="h-4 w-4" />
+                </Button>
                 <ChevronRight className="h-4 w-4 mx-2" />
                 {task.goal && (
                   <>
-                    <Target className="h-4 w-4" />
-                    <span className="mx-2">{task.goal.title}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1"
+                      onClick={() => navigate(`/goal/${task.goal.id}`)}
+                    >
+                      <Target className="h-4 w-4" />
+                      <span>{task.goal.title}</span>
+                    </Button>
                     <ChevronRight className="h-4 w-4 mx-2" />
                   </>
                 )}
                 {task.project && (
                   <>
-                    <Briefcase className="h-4 w-4" />
-                    <span className="mx-2">{task.project.title}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1"
+                      onClick={() => navigate(`/project/${task.project.id}`)}
+                    >
+                      <Briefcase className="h-4 w-4" />
+                      <span>{task.project.title}</span>
+                    </Button>
                     <ChevronRight className="h-4 w-4 mx-2" />
                   </>
                 )}
@@ -387,138 +415,152 @@ export default function TaskDetailPage() {
                     <User className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">Assigned to</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {task.assignedTo ? (
-                      <>
-                        <UserAvatar userId={task.assignedTo} size="sm" />
-                        <span className="text-sm">
-                          {assignedUser ? 
-                            assignedUser.displayName || `${assignedUser.firstName} ${assignedUser.lastName}` : 
-                            `User ID: ${task.assignedTo}`
-                          }
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-sm text-gray-500">Unassigned</span>
-                    )}
-                  </div>
+                  {editingField === "assignedTo" ? (
+                    <div className="space-y-2">
+                      <Select value={editValue} onValueChange={setEditValue}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select user" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Unassigned</SelectItem>
+                          {allUsers.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.displayName || `${user.firstName} ${user.lastName}` || user.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded border"
+                      onClick={() => startEditing("assignedTo", task.assignedTo?.toString() || "")}
+                    >
+                      {task.assignedTo ? (
+                        <>
+                          <UserAvatar userId={task.assignedTo} size="sm" />
+                          <span className="text-sm">
+                            {assignedUser ? 
+                              assignedUser.displayName || `${assignedUser.firstName} ${assignedUser.lastName}` : 
+                              `User ID: ${task.assignedTo}`
+                            }
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-gray-500">Click to assign</span>
+                      )}
+                      <Edit2 className="h-3 w-3 ml-auto text-gray-400" />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Subtasks */}
-            {subtasks.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Subtasks</CardTitle>
-                  <CardDescription>
-                    Break down this task into smaller, manageable pieces
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {subtasks.map((subtask: any) => (
-                    <div 
-                      key={subtask.id}
-                      className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-0 h-6 w-6"
-                        onClick={() => toggleSubtask(subtask.id, subtask.completed)}
-                      >
-                        {subtask.completed ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-gray-400" />
-                        )}
-                      </Button>
-                      
-                      <div className="flex-1">
-                        <p className={`text-sm font-medium ${
-                          subtask.completed ? "line-through text-gray-500" : "text-gray-900"
-                        }`}>
-                          {subtask.title}
-                        </p>
-                        {subtask.description && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {subtask.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {subtask.deadline && (
-                        <div className="text-xs text-gray-500">
-                          {format(new Date(subtask.deadline), "MMM dd")}
-                        </div>
-                      )}
-
-                      {subtask.estimatedHours && (
-                        <div className="text-xs text-gray-500">
-                          {subtask.estimatedHours}h
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Task Status */}
+            {/* Subtasks List */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Status</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Circle className="h-5 w-5" />
+                  Subtasks ({subtasks.length})
+                </CardTitle>
+                <CardDescription>Subtasks for this task</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Completion</span>
-                    <span className="text-sm text-gray-500">{completionPercentage}%</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Subtasks</span>
-                    <span className="text-sm text-gray-500">
-                      {completedSubtasks}/{subtasks.length}
-                    </span>
-                  </div>
-
-                  {task.createdAt && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Created</span>
-                      <span className="text-sm text-gray-500">
-                        {format(new Date(task.createdAt), "MMM dd, yyyy")}
-                      </span>
+                <div className="space-y-3">
+                  {subtasks.length > 0 ? (
+                    subtasks.map((subtask: any) => (
+                      <div 
+                        key={subtask.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => toggleSubtask(subtask.id, subtask.completed)}
+                          >
+                            {subtask.completed ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <Circle className="h-4 w-4 text-gray-400" />
+                            )}
+                          </Button>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm ${subtask.completed ? 'line-through text-gray-500' : 'font-medium'}`}>
+                              {subtask.title}
+                            </p>
+                            {subtask.description && (
+                              <p className="text-xs text-gray-500 mt-1">{subtask.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {subtask.deadline && (
+                            <span className="text-xs text-gray-500">
+                              Due: {new Date(subtask.deadline).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No subtasks for this task yet.
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
+          </div>
 
+          {/* Sidebar */}
+          <div className="space-y-6">
             {/* Quick Actions */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Actions</CardTitle>
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => navigate(`/database?highlight=${taskId}`)}
-                >
-                  View in Database
+                <Button className="w-full">
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Mark Complete
                 </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => navigate("/dashboard")}
-                >
-                  Back to Dashboard
+                <Button variant="outline" className="w-full">
+                  Break Down Task
                 </Button>
+                <Button variant="outline" className="w-full">
+                  Add Subtask
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Task Stats */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Task Statistics</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total Subtasks</span>
+                  <Badge variant="secondary">{subtasks.length}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Completed</span>
+                  <Badge variant="secondary">{subtasks.filter((s: any) => s.completed).length}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Progress</span>
+                  <Badge variant="secondary">{completionPercentage}%</Badge>
+                </div>
               </CardContent>
             </Card>
           </div>
