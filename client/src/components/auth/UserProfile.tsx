@@ -17,6 +17,9 @@ import { AuthModal } from './AuthModal';
 export function UserProfile() {
   const { user, logout, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  
+  // Debug logging
+  console.log('UserProfile render - user:', user, 'loading:', loading);
 
   const handleLogout = async () => {
     try {

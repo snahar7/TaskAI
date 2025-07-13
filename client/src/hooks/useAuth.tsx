@@ -32,17 +32,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         try {
           // Sync with backend to get/create user profile
+          const providerId = firebaseUser.providerData[0]?.providerId || 'email';
+          const provider = providerId === 'google.com' ? 'google' : 'email';
+          
           const response = await apiRequest('POST', '/api/auth/sync', {
             firebaseId: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
             profilePicture: firebaseUser.photoURL,
-            provider: firebaseUser.providerData[0]?.providerId || 'email'
+            provider
           });
           
           if (response.ok) {
             const userData = await response.json();
+            console.log('User sync successful:', userData.user);
             setUser(userData.user);
+          } else {
+            console.error('User sync failed:', response.status, response.statusText);
           }
         } catch (error) {
           console.error('Error syncing user:', error);

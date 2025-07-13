@@ -23,8 +23,8 @@ export function registerAuthRoutes(app: Express) {
       // Check if user exists by email or googleId
       let user = await storage.getUserByEmail(email);
       
-      if (!user && provider === 'google') {
-        // Create new Google user
+      if (!user) {
+        // Create new user (Google or email)
         const names = (displayName || '').split(' ').filter(Boolean);
         user = await storage.createUser({
           email,
@@ -32,9 +32,9 @@ export function registerAuthRoutes(app: Express) {
           firstName: names[0] || email.split('@')[0],
           lastName: names.slice(1).join(' ') || '',
           profilePicture: profilePicture || null,
-          googleId: firebaseId,
-          provider: 'google',
-          emailVerified: true,
+          googleId: provider === 'google' ? firebaseId : null,
+          provider,
+          emailVerified: provider === 'google' ? true : false,
         });
       } else if (user) {
         // Update existing user's last login and any missing fields
