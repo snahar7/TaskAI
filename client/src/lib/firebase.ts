@@ -4,13 +4,13 @@ import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBmtrCysYltZr_9wESwyu1EJ4f-1yayQA0",
-  authDomain: "trak-1c51e.firebaseapp.com",
-  projectId: "trak-1c51e",
-  storageBucket: "trak-1c51e.firebasestorage.app",
-  messagingSenderId: "474964346924",
-  appId: "1:474964346924:web:1ac39d8960761931392989",
-  measurementId: "G-1FTRYNJ0DM"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBmtrCysYltZr_9wESwyu1EJ4f-1yayQA0",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "trak-1c51e.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "trak-1c51e",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "trak-1c51e.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "474964346924",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:474964346924:web:1ac39d8960761931392989",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-1FTRYNJ0DM"
 };
 
 // Initialize Firebase
