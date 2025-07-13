@@ -29,7 +29,8 @@ import {
   Flag,
   Link2,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Zap
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
