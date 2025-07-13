@@ -878,14 +878,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const taskWithContext = { ...task, project, goal };
             allTasks.push(taskWithContext);
             
-            // Check if task is due today
-            if (task.deadline && new Date(task.deadline).toISOString().split('T')[0] === todayStr) {
-              todayTasks.push(taskWithContext);
+            // Check if task is in today's focus (today is between start date and deadline)
+            const taskDeadline = task.deadline ? new Date(task.deadline) : null;
+            const taskStartDate = task.startDate ? new Date(task.startDate) : null;
+            
+            // Today's focus: tasks where today falls between start date and deadline
+            if (taskDeadline && taskDeadline >= today) {
+              if (!taskStartDate || taskStartDate <= today) {
+                // Task is active today (started and not yet due)
+                todayTasks.push(taskWithContext);
+              }
             }
             
-            // Check if task is overdue
-            if (task.deadline && new Date(task.deadline) < today && !task.completed) {
+            // Check if task is overdue (deadline passed and not completed)
+            if (taskDeadline && taskDeadline < today && task.status !== "completed" && !task.completed) {
               overdueTasks.push(taskWithContext);
+            }
+            
+            // Get subtasks for this task
+            const subtasks = await storage.getSubtasksByTaskId(task.id);
+            for (const subtask of subtasks) {
+              const subtaskWithContext = { ...subtask, task, project, goal };
+              allSubtasks.push(subtaskWithContext);
+              
+              // Check if subtask is in today's focus
+              const subtaskDeadline = subtask.deadline ? new Date(subtask.deadline) : null;
+              const subtaskStartDate = subtask.startDate ? new Date(subtask.startDate) : null;
+              
+              if (subtaskDeadline && subtaskDeadline >= today) {
+                if (!subtaskStartDate || subtaskStartDate <= today) {
+                  // Subtask is active today
+                  todayTasks.push(subtaskWithContext);
+                }
+              }
+              
+              // Check if subtask is overdue
+              if (subtaskDeadline && subtaskDeadline < today && subtask.status !== "completed" && !subtask.completed) {
+                overdueTasks.push(subtaskWithContext);
+              }
+              
+              // Check if subtask is a quick win (< 1 hour)
+              if (subtask.estimatedHours && Number(subtask.estimatedHours) < 1 && !subtask.completed) {
+                quickWins.push(subtaskWithContext);
+              }
+              
+              // Check if subtask is behind schedule
+              if (subtaskDeadline && subtaskDeadline < today && !subtask.completed) {
+                behindSchedule.push(subtaskWithContext);
+              }
             }
             
             // Check if task is a quick win (< 1 hour)
@@ -896,30 +936,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Check if task is behind schedule (incomplete with passed deadline)
             if (task.deadline && new Date(task.deadline) < today && !task.completed) {
               behindSchedule.push(taskWithContext);
-            }
-            
-            // Get subtasks for additional analysis
-            const subtasks = await storage.getSubtasksByTaskId(task.id);
-            for (const subtask of subtasks) {
-              const subtaskWithContext = { ...subtask, task, project, goal };
-              allSubtasks.push(subtaskWithContext);
-              
-              // Add subtasks to relevant categories
-              if (subtask.deadline && new Date(subtask.deadline).toISOString().split('T')[0] === todayStr) {
-                todayTasks.push(subtaskWithContext);
-              }
-              
-              if (subtask.deadline && new Date(subtask.deadline) < today && !subtask.completed) {
-                overdueTasks.push(subtaskWithContext);
-              }
-              
-              if (subtask.estimatedHours && Number(subtask.estimatedHours) < 1 && !subtask.completed) {
-                quickWins.push(subtaskWithContext);
-              }
-              
-              if (subtask.deadline && new Date(subtask.deadline) < today && !subtask.completed) {
-                behindSchedule.push(subtaskWithContext);
-              }
             }
           }
         }
@@ -943,10 +959,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const goalsOnTrack = allGoals.filter(g => Number(g.percentComplete || 0) > 50).length;
       const goalsOnTrackPercent = allGoals.length > 0 ? Math.round((goalsOnTrack / allGoals.length) * 100) : 0;
       
+      // Sort today's focus by priority and deadline
+      const sortedTodayTasks = todayTasks.sort((a, b) => {
+        const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 2;
+        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 2;
+        
+        if (aPriority !== bPriority) return bPriority - aPriority; // Higher priority first
+        
+        // If same priority, sort by deadline (sooner first)
+        if (a.deadline && b.deadline) {
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        }
+        return a.deadline ? -1 : 1; // Tasks with deadlines first
+      });
+      
+      // Sort overdue items by how overdue they are (most overdue first)
+      const sortedOverdueTasks = overdueTasks.sort((a, b) => {
+        if (a.deadline && b.deadline) {
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        }
+        return a.deadline ? -1 : 1;
+      });
+
       res.json({
         // Key metrics
-        todayTasks: todayTasks.slice(0, 5), // Top 5 for today's focus
-        overdueTasks: overdueTasks.slice(0, 10),
+        todayTasks: sortedTodayTasks.slice(0, 8), // Top 8 for today's focus
+        overdueTasks: sortedOverdueTasks.slice(0, 10),
         quickWins: quickWins.slice(0, 15),
         behindSchedule: behindSchedule.slice(0, 10),
         

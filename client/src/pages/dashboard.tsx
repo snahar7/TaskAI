@@ -86,7 +86,7 @@ export default function DashboardPage() {
                     <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
                     Today's Focus
                   </CardTitle>
-                  <CardDescription className="text-sm">Top priority tasks for {new Date().toLocaleDateString()}</CardDescription>
+                  <CardDescription className="text-sm">Tasks active today (between start date and deadline)</CardDescription>
                 </div>
                 <Badge variant="secondary" className="text-xs sm:text-sm">
                   {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
@@ -97,34 +97,53 @@ export default function DashboardPage() {
                   {isLoading ? (
                     <div className="text-center py-4">Loading today's tasks...</div>
                   ) : todayTasks.length > 0 ? (
-                    todayTasks.slice(0, 5).map((task: any) => (
-                      <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm sm:text-base truncate">{task.title}</p>
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                              From {task.project?.title || task.goal?.title} • Est: {task.estimatedHours || 1}h
-                            </p>
+                    todayTasks.map((item: any) => {
+                      const isSubtask = item.task !== undefined;
+                      const displayTitle = isSubtask ? `${item.task.title} → ${item.title}` : item.title;
+                      const parentInfo = isSubtask ? item.task.title : (item.project?.title || item.goal?.title || "No Project");
+                      const priorityColor = {
+                        urgent: "bg-red-500",
+                        high: "bg-orange-500", 
+                        medium: "bg-blue-500",
+                        low: "bg-gray-400"
+                      }[item.priority] || "bg-blue-500";
+                      
+                      return (
+                        <div key={`${isSubtask ? 'subtask' : 'task'}-${item.id}`} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={`w-2 h-2 rounded-full ${priorityColor}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm sm:text-base truncate">{displayTitle}</p>
+                              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                                <span>From {parentInfo}</span>
+                                {item.estimatedHours && <span>• {item.estimatedHours}h</span>}
+                                {item.deadline && (
+                                  <span>• Due: {new Date(item.deadline).toLocaleDateString()}</span>
+                                )}
+                                {item.startDate && (
+                                  <span>• Started: {new Date(item.startDate).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="h-10 w-10 p-0 sm:h-8 sm:w-auto sm:px-3 shrink-0"
+                            onClick={() => completeMutation.mutate({ 
+                              type: isSubtask ? 'subtask' : 'task', 
+                              id: item.id 
+                            })}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="sr-only sm:not-sr-only sm:ml-2">Done</span>
+                          </Button>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="h-10 w-10 p-0 sm:h-8 sm:w-auto sm:px-3 shrink-0"
-                          onClick={() => completeMutation.mutate({ 
-                            type: task.taskId ? 'subtask' : 'task', 
-                            id: task.id 
-                          })}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span className="sr-only sm:not-sr-only sm:ml-2">Done</span>
-                        </Button>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-center py-4 text-muted-foreground">
-                      No tasks due today. Great job staying on track!
+                      No tasks are active today. All scheduled tasks are either completed or not yet started.
                     </div>
                   )}
                 </div>
@@ -143,30 +162,44 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="space-y-3">
                   {overdueTasks.length > 0 ? (
-                    overdueTasks.slice(0, 5).map((task: any) => (
-                      <div key={task.id} className="flex items-center justify-between p-3 border border-red-200 rounded-lg">
-                        <div>
-                          <p className="font-medium text-red-800">{task.title}</p>
-                          <p className="text-sm text-red-600">
-                            Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}
-                          </p>
+                    overdueTasks.slice(0, 5).map((item: any) => {
+                      const isSubtask = item.task !== undefined;
+                      const displayTitle = isSubtask ? `${item.task.title} → ${item.title}` : item.title;
+                      const parentInfo = isSubtask ? item.task.title : (item.project?.title || item.goal?.title || "No Project");
+                      const daysPastDue = item.deadline ? 
+                        Math.floor((new Date().getTime() - new Date(item.deadline).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                      
+                      return (
+                        <div key={`${isSubtask ? 'subtask' : 'task'}-${item.id}`} className="flex items-center justify-between p-3 border border-red-200 rounded-lg bg-red-50">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-red-800 truncate">{displayTitle}</p>
+                            <div className="flex items-center gap-2 text-sm text-red-600">
+                              <span>From {parentInfo}</span>
+                              {item.deadline && (
+                                <span>• {daysPastDue} days overdue</span>
+                              )}
+                              {item.estimatedHours && (
+                                <span>• {item.estimatedHours}h</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+                            <Button size="sm" variant="outline" className="h-8 text-xs">Reschedule</Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              className="h-8 text-xs"
+                              onClick={() => completeMutation.mutate({ 
+                                type: isSubtask ? 'subtask' : 'task', 
+                                id: item.id 
+                              })}
+                            >
+                              Complete
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Button size="sm" variant="outline" className="h-10 text-xs sm:text-sm">Reschedule</Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            className="h-10 text-xs sm:text-sm"
-                            onClick={() => completeMutation.mutate({ 
-                              type: task.taskId ? 'subtask' : 'task', 
-                              id: task.id 
-                            })}
-                          >
-                            Complete
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-center py-4 text-muted-foreground">
                       No overdue tasks. You're on top of things!
