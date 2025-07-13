@@ -751,6 +751,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get team members for assignment dropdown
+  app.get("/api/users/team/:teamId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      const teamMembers = await storage.getTeamMembers(teamId);
+      res.json(teamMembers);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Join team via invite code (used during signup)
+  app.post("/api/teams/join", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId, inviteCode } = req.body;
+      
+      if (!userId || !inviteCode) {
+        return res.status(400).json({ error: "User ID and invite code required" });
+      }
+
+      const result = await storage.joinTeamByInviteCode(userId, inviteCode);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Break down task/project/subtask further with AI
   app.post("/api/:type/:id/breakdown", async (req: Request, res: Response, next: NextFunction) => {
     try {

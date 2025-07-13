@@ -22,6 +22,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   const { login, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  
+  // Extract invite code from URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteCode = urlParams.get('invite');
 
   const loginForm = useForm<EmailLogin>({
     resolver: zodResolver(emailLoginSchema),
@@ -53,9 +57,15 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   const handleSignup = async (data: EmailSignup) => {
     setLoading(true);
     try {
-      await signUp(data.email, data.password, data.firstName, data.lastName);
-      toast({ title: "Account created!", description: "Welcome to Taflo! You're all set up." });
+      await signUp(data.email, data.password, data.firstName, data.lastName, inviteCode);
+      const joinMessage = inviteCode ? " You've been added to your team!" : " You're all set up.";
+      toast({ title: "Account created!", description: `Welcome to Taflo!${joinMessage}` });
       onOpenChange(false);
+      
+      // Clear invite code from URL after successful signup
+      if (inviteCode) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     } catch (error: any) {
       toast({
         title: "Sign up failed",
@@ -70,9 +80,15 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signInWithGoogle();
-      toast({ title: "Welcome!", description: "You've been signed in with Google." });
+      await signInWithGoogle(inviteCode);
+      const joinMessage = inviteCode ? " You've been added to your team!" : "";
+      toast({ title: "Welcome!", description: `You've been signed in with Google.${joinMessage}` });
       onOpenChange(false);
+      
+      // Clear invite code from URL after successful signin
+      if (inviteCode) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     } catch (error: any) {
       let errorMessage = "Please try again.";
       if (error.code === 'auth/unauthorized-domain') {

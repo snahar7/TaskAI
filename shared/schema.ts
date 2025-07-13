@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-// Users table - enhanced with OAuth support
+// Users table - enhanced with OAuth support and team features
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique(),
@@ -16,6 +16,8 @@ export const users = pgTable("users", {
   googleId: text("google_id").unique(),
   provider: text("provider").default('email').notNull(), // 'email', 'google'
   emailVerified: boolean("email_verified").default(false).notNull(),
+  inviteCode: varchar("invite_code", { length: 255 }).unique(), // Unique invite code for team invitations
+  teamId: integer("team_id"), // Team association for collaboration
   lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

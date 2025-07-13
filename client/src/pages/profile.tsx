@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Mail, Calendar, Shield } from "lucide-react";
+import { Camera, Mail, Calendar, Shield, Copy, Users, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function ProfilePage() {
@@ -250,6 +250,62 @@ export function ProfilePage() {
                       Edit Profile
                     </Button>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Team Collaboration */}
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Team Collaboration
+                </CardTitle>
+                <CardDescription>
+                  Share your invite link to add team members who can collaborate on your tasks
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="inviteLink">Your Invite Link</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      id="inviteLink"
+                      value={`${window.location.origin}?invite=${user.inviteCode}`}
+                      readOnly
+                      className="bg-slate-50 font-mono text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}?invite=${user.inviteCode}`);
+                        toast({
+                          title: "Link copied!",
+                          description: "Your invite link has been copied to clipboard.",
+                        });
+                      }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Anyone who signs up using this link will automatically join your team and can be assigned tasks.
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <Link2 className="w-4 h-4 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">How it works</p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Share this link with team members. When they sign up using your link, they'll automatically join your team and appear in assignment dropdowns.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

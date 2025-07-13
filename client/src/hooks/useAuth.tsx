@@ -10,8 +10,8 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signUp: (email: string, password: string, firstName: string, lastName: string, inviteCode?: string | null) => Promise<void>;
+  signInWithGoogle: (inviteCode?: string | null) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -35,12 +35,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const providerId = firebaseUser.providerData[0]?.providerId || 'email';
           const provider = providerId === 'google.com' ? 'google' : 'email';
           
+          // Check for invite code in URL or sessionStorage for new users
+          const urlParams = new URLSearchParams(window.location.search);
+          const inviteCode = urlParams.get('invite') || sessionStorage.getItem('pendingInviteCode');
+          
+          // Clear stored invite code after use
+          if (sessionStorage.getItem('pendingInviteCode')) {
+            sessionStorage.removeItem('pendingInviteCode');
+          }
+          
           const response = await apiRequest('POST', '/api/auth/sync', {
             firebaseId: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
             profilePicture: firebaseUser.photoURL,
-            provider
+            provider,
+            inviteCode
           });
           
           if (response.ok) {
@@ -68,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmail(email, password);
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string, inviteCode?: string | null) => {
     const { signUpWithEmail } = await import('@/lib/firebase');
     const firebaseUser = await signUpWithEmail(email, password);
     
@@ -78,12 +88,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       firstName,
       lastName,
-      provider: 'email'
+      provider: 'email',
+      inviteCode
     });
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (inviteCode?: string | null) => {
     const { signInWithGoogle: firebaseGoogleSignIn } = await import('@/lib/firebase');
+    
+    // Store invite code in sessionStorage temporarily for the sync call
+    if (inviteCode) {
+      sessionStorage.setItem('pendingInviteCode', inviteCode);
+    }
+    
     await firebaseGoogleSignIn();
   };
 

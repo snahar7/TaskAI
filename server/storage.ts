@@ -23,6 +23,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<void>;
   
+  // Teams
+  getTeamMembers(teamId: number): Promise<User[]>;
+  getUserByInviteCode(inviteCode: string): Promise<User | undefined>;
+  joinTeamByInviteCode(userId: number, inviteCode: string): Promise<{ success: boolean; message: string }>;
+  
   // Goals
   createGoal(goal: InsertGoal): Promise<Goal>;
   getAllGoals(): Promise<Goal[]>;
@@ -748,6 +753,36 @@ export class DatabaseStorage implements IStorage {
 
   async deletePendingBreakdown(id: number): Promise<void> {
     await db.delete(pendingBreakdowns).where(eq(pendingBreakdowns.id, id));
+  }
+
+  // Teams
+  async getTeamMembers(teamId: number): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.teamId, teamId));
+  }
+
+  async getUserByInviteCode(inviteCode: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.inviteCode, inviteCode));
+    return user || undefined;
+  }
+
+  async joinTeamByInviteCode(userId: number, inviteCode: string): Promise<{ success: boolean; message: string }> {
+    try {
+      // Find the user who owns this invite code
+      const inviter = await this.getUserByInviteCode(inviteCode);
+      if (!inviter) {
+        return { success: false, message: "Invalid invite code" };
+      }
+
+      // Update the joining user's team to match the inviter's team
+      await db.update(users)
+        .set({ teamId: inviter.teamId })
+        .where(eq(users.id, userId));
+
+      return { success: true, message: "Successfully joined team" };
+    } catch (error) {
+      console.error("Error joining team:", error);
+      return { success: false, message: "Failed to join team" };
+    }
   }
 }
 

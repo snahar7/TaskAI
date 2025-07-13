@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import type { Goal, Project, Task, Subtask } from "@shared/schema";
 import { UserAvatar } from "@/components/UserAvatar";
+import { TeamAssignmentDropdown } from "@/components/TeamAssignmentDropdown";
 
 function DatabaseOptimizedPage() {
   const queryClient = useQueryClient();
@@ -804,7 +805,11 @@ function DatabaseOptimizedPage() {
               </TableCell>
               <TableCell className="hidden lg:table-cell">
                 <div onClick={(e) => e.stopPropagation()}>
-                  <UserAvatar userId={project.assignedTo} size="sm" />
+                  <TeamAssignmentDropdown 
+                    type="projects" 
+                    id={project.id} 
+                    assignedUserId={project.assignedTo} 
+                  />
                 </div>
               </TableCell>
               <TableCell>
@@ -995,7 +1000,11 @@ function DatabaseOptimizedPage() {
               </TableCell>
               <TableCell className="hidden lg:table-cell">
                 <div onClick={(e) => e.stopPropagation()}>
-                  <UserAvatar userId={task.assignedTo} size="sm" />
+                  <TeamAssignmentDropdown 
+                    type="tasks" 
+                    id={task.id} 
+                    assignedUserId={task.assignedTo} 
+                  />
                 </div>
               </TableCell>
               <TableCell>
@@ -1145,7 +1154,11 @@ function DatabaseOptimizedPage() {
             </TableCell>
             <TableCell className="hidden lg:table-cell">
               <div onClick={(e) => e.stopPropagation()}>
-                <UserAvatar userId={subtask.assignedTo} size="sm" />
+                <TeamAssignmentDropdown 
+                  type="subtasks" 
+                  id={subtask.id} 
+                  assignedUserId={subtask.assignedTo} 
+                />
               </div>
             </TableCell>
             <TableCell>
@@ -1323,7 +1336,11 @@ function DatabaseOptimizedPage() {
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         <div onClick={(e) => e.stopPropagation()}>
-                          <UserAvatar userId={goal.assignedTo} size="sm" />
+                          <TeamAssignmentDropdown 
+                            type="goals" 
+                            id={goal.id} 
+                            assignedUserId={goal.assignedTo} 
+                          />
                         </div>
                       </TableCell>
                       <TableCell>

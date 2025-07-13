@@ -11,19 +11,23 @@ export function registerAuthRoutes(app: Express) {
   app.post("/api/auth/sync", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const syncSchema = z.object({
-        firebaseId: z.string(),
+        firebaseId: z.string().optional().nullable(),
         email: z.string().email(),
         displayName: z.string().optional().nullable(),
         profilePicture: z.string().optional().nullable(),
         provider: z.string().default('email'),
+        inviteCode: z.string().optional().nullable(),
       });
 
-      const { firebaseId, email, displayName, profilePicture, provider } = syncSchema.parse(req.body);
+      const { firebaseId, email, displayName, profilePicture, provider, inviteCode } = syncSchema.parse(req.body);
 
       // Check if user exists by email or googleId
       let user = await storage.getUserByEmail(email);
       
       if (!user) {
+        // Generate unique invite code for new user
+        const uniqueInviteCode = `invite_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+        
         // Create new user (Google or email)
         const names = (displayName || '').split(' ').filter(Boolean);
         user = await storage.createUser({
@@ -35,7 +39,20 @@ export function registerAuthRoutes(app: Express) {
           googleId: provider === 'google' ? firebaseId : null,
           provider,
           emailVerified: provider === 'google' ? true : false,
+          inviteCode: uniqueInviteCode,
+          teamId: null, // Will be set after user creation
         });
+        
+        // Set initial team to user's own ID (each user starts their own team)
+        await storage.updateUser(user.id, { teamId: user.id });
+        
+        // If invite code provided, join the inviter's team
+        if (inviteCode) {
+          await storage.joinTeamByInviteCode(user.id, inviteCode);
+        }
+        
+        // Refresh user data to get updated teamId
+        user = await storage.getUserById(user.id);
       } else if (user) {
         // Update existing user's last login and any missing fields
         const updates: any = {};
@@ -63,14 +80,15 @@ export function registerAuthRoutes(app: Express) {
   app.post("/api/auth/signup", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const signupSchema = z.object({
-        firebaseId: z.string(),
+        firebaseId: z.string().optional().nullable(),
         email: z.string().email(),
         firstName: z.string(),
         lastName: z.string(),
         provider: z.string().default('email'),
+        inviteCode: z.string().optional().nullable(),
       });
 
-      const { firebaseId, email, firstName, lastName, provider } = signupSchema.parse(req.body);
+      const { firebaseId, email, firstName, lastName, provider, inviteCode } = signupSchema.parse(req.body);
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
@@ -78,6 +96,9 @@ export function registerAuthRoutes(app: Express) {
         return res.status(409).json({ error: "User already exists" });
       }
 
+      // Generate unique invite code for new user
+      const uniqueInviteCode = `invite_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+      
       // Create new user
       const user = await storage.createUser({
         email,
@@ -86,7 +107,17 @@ export function registerAuthRoutes(app: Express) {
         displayName: `${firstName} ${lastName}`,
         provider,
         emailVerified: true,
+        inviteCode: uniqueInviteCode,
+        teamId: null, // Will be set after user creation
       });
+      
+      // Set initial team to user's own ID (each user starts their own team)
+      await storage.updateUser(user.id, { teamId: user.id });
+      
+      // If invite code provided, join the inviter's team
+      if (inviteCode) {
+        await storage.joinTeamByInviteCode(user.id, inviteCode);
+      }
 
       res.json({ user });
     } catch (error) {
