@@ -460,17 +460,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Edit item titles (universal endpoint for all levels)
+  // Edit item fields (universal endpoint for all levels)
   app.patch("/api/:type/:id/edit", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { type } = req.params;
+      const type = req.params.type;
       const id = parseInt(req.params.id);
-      const { title, description, estimatedHours, dueDate, urgency } = req.body;
+      const updates = req.body;
       
-      // This would need to be implemented based on the type
-      // For now, just acknowledge the edit request
-      res.json({ message: `${type} edit received for ID ${id}` });
+      console.log(`Editing ${type} ${id} with updates:`, updates);
+      
+      // Update the appropriate entity based on type
+      let updatedItem;
+      
+      if (type === "goals") {
+        updatedItem = await storage.updateGoal(id, updates);
+      } else if (type === "projects") {
+        updatedItem = await storage.updateProject(id, updates);
+      } else if (type === "tasks") {
+        updatedItem = await storage.updateTask(id, updates);
+      } else if (type === "subtasks") {
+        updatedItem = await storage.updateSubtask(id, updates);
+      } else {
+        return res.status(400).json({ error: `Invalid type: ${type}` });
+      }
+      
+      res.json({ 
+        message: `${type} updated successfully`, 
+        item: updatedItem 
+      });
     } catch (error) {
+      console.error(`Error updating ${req.params.type} ${req.params.id}:`, error);
       next(error);
     }
   });

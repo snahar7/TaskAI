@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo, Trash2, Zap } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronDown, ChevronRight, Target, FolderOpen, CheckSquare, ListTodo, Trash2, Zap, Edit2, Save, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
@@ -16,6 +19,56 @@ export default function DatabaseOptimizedPage() {
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
+  
+  // Editing state management
+  const [editingItems, setEditingItems] = useState<{
+    [key: string]: { // key format: "type-id-field" e.g. "goal-1-title"
+      value: any;
+      originalValue: any;
+    }
+  }>({});
+
+  // Helper functions for editing
+  const startEditing = (type: string, id: number, field: string, currentValue: any) => {
+    const key = `${type}-${id}-${field}`;
+    setEditingItems(prev => ({
+      ...prev,
+      [key]: {
+        value: currentValue,
+        originalValue: currentValue
+      }
+    }));
+  };
+
+  const updateEditingValue = (type: string, id: number, field: string, value: any) => {
+    const key = `${type}-${id}-${field}`;
+    setEditingItems(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        value
+      }
+    }));
+  };
+
+  const cancelEditing = (type: string, id: number, field: string) => {
+    const key = `${type}-${id}-${field}`;
+    setEditingItems(prev => {
+      const newState = { ...prev };
+      delete newState[key];
+      return newState;
+    });
+  };
+
+  const getEditingValue = (type: string, id: number, field: string) => {
+    const key = `${type}-${id}-${field}`;
+    return editingItems[key]?.value;
+  };
+
+  const isEditing = (type: string, id: number, field: string) => {
+    const key = `${type}-${id}-${field}`;
+    return key in editingItems;
+  };
   
   // Break down functionality state
   const [breakdownDialog, setBreakdownDialog] = useState<{
@@ -91,6 +144,194 @@ export default function DatabaseOptimizedPage() {
       });
     },
   });
+
+  // Update item mutation for saving edits
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ type, id, field, value }: { type: string; id: number; field: string; value: any }) => {
+      const response = await apiRequest("PATCH", `/api/${type}/${id}/edit`, { [field]: value });
+      return await response.json();
+    },
+    onSuccess: (data, { type, id, field }) => {
+      // Remove from editing state
+      cancelEditing(type, id, field);
+      
+      // Invalidate relevant caches
+      if (type === "goals") {
+        queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      } else if (type === "projects") {
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/goals/") &&
+            query.queryKey[0].includes("/projects")
+        });
+      } else if (type === "tasks") {
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/projects/") &&
+            query.queryKey[0].includes("/tasks")
+        });
+      } else if (type === "subtasks") {
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].startsWith("/api/tasks/") &&
+            query.queryKey[0].includes("/subtasks")
+        });
+      }
+    },
+    onError: (error, { type, id, field }) => {
+      console.error('Failed to update item:', error);
+      // Reset to original value on error
+      cancelEditing(type, id, field);
+    }
+  });
+
+  // Editable field component
+  const EditableField = ({ 
+    type, 
+    id, 
+    field, 
+    value, 
+    displayValue, 
+    fieldType = "text",
+    options = [],
+    className = "",
+    placeholder = ""
+  }: {
+    type: string;
+    id: number;
+    field: string;
+    value: any;
+    displayValue?: string;
+    fieldType?: "text" | "textarea" | "select" | "date" | "number";
+    options?: string[];
+    className?: string;
+    placeholder?: string;
+  }) => {
+    const editing = isEditing(type, id, field);
+    const editingValue = getEditingValue(type, id, field);
+
+    if (editing) {
+      return (
+        <div className="flex items-center gap-1">
+          {fieldType === "text" && (
+            <Input
+              value={editingValue || ""}
+              onChange={(e) => updateEditingValue(type, id, field, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  updateItemMutation.mutate({ type, id, field, value: editingValue });
+                } else if (e.key === "Escape") {
+                  cancelEditing(type, id, field);
+                }
+              }}
+              className={`h-8 ${className}`}
+              placeholder={placeholder}
+              autoFocus
+            />
+          )}
+          {fieldType === "textarea" && (
+            <Textarea
+              value={editingValue || ""}
+              onChange={(e) => updateEditingValue(type, id, field, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.ctrlKey) {
+                  updateItemMutation.mutate({ type, id, field, value: editingValue });
+                } else if (e.key === "Escape") {
+                  cancelEditing(type, id, field);
+                }
+              }}
+              className={`min-h-[60px] ${className}`}
+              placeholder={placeholder}
+              autoFocus
+            />
+          )}
+          {fieldType === "select" && (
+            <Select
+              value={editingValue || ""}
+              onValueChange={(value) => updateEditingValue(type, id, field, value)}
+            >
+              <SelectTrigger className={`h-8 ${className}`}>
+                <SelectValue placeholder={placeholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {fieldType === "date" && (
+            <Input
+              type="date"
+              value={editingValue || ""}
+              onChange={(e) => updateEditingValue(type, id, field, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  updateItemMutation.mutate({ type, id, field, value: editingValue });
+                } else if (e.key === "Escape") {
+                  cancelEditing(type, id, field);
+                }
+              }}
+              className={`h-8 ${className}`}
+              autoFocus
+            />
+          )}
+          {fieldType === "number" && (
+            <Input
+              type="number"
+              value={editingValue || ""}
+              onChange={(e) => updateEditingValue(type, id, field, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  updateItemMutation.mutate({ type, id, field, value: editingValue });
+                } else if (e.key === "Escape") {
+                  cancelEditing(type, id, field);
+                }
+              }}
+              className={`h-8 ${className}`}
+              placeholder={placeholder}
+              autoFocus
+            />
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => updateItemMutation.mutate({ type, id, field, value: editingValue })}
+            disabled={updateItemMutation.isPending}
+            className="h-8 w-8 p-0 text-green-600 hover:text-green-800"
+          >
+            <Save className="h-3 w-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => cancelEditing(type, id, field)}
+            className="h-8 w-8 p-0 text-red-600 hover:text-red-800"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="group flex items-center gap-1 cursor-pointer hover:bg-gray-50 rounded px-1 py-1"
+        onClick={() => startEditing(type, id, field, value)}
+      >
+        <span className={className}>{displayValue || value || placeholder}</span>
+        <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 text-gray-400" />
+      </div>
+    );
+  };
 
   // Load goals only (lightweight query)
   const { data: goals = [], isLoading } = useQuery<Goal[]>({
@@ -401,22 +642,88 @@ export default function DatabaseOptimizedPage() {
                     {expandedProjects.has(project.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
                   <FolderOpen className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium">{project.title}</span>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <EditableField
+                      type="projects"
+                      id={project.id}
+                      field="title"
+                      value={project.title}
+                      className="font-medium"
+                      placeholder="Project title"
+                    />
+                  </div>
                 </div>
               </TableCell>
               <TableCell>
                 <Badge variant="secondary">Project</Badge>
               </TableCell>
-              <TableCell className="hidden sm:table-cell">{project.status || "Active"}</TableCell>
-              <TableCell className="hidden md:table-cell">{project.priority || "Medium"}</TableCell>
+              <TableCell className="hidden sm:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="projects"
+                    id={project.id}
+                    field="status"
+                    value={project.status || "Active"}
+                    fieldType="select"
+                    options={["pending", "in_progress", "completed", "on_hold"]}
+                    placeholder="Status"
+                  />
+                </div>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="projects"
+                    id={project.id}
+                    field="priority"
+                    value={project.priority || "Medium"}
+                    fieldType="select"
+                    options={["low", "medium", "high", "urgent"]}
+                    placeholder="Priority"
+                  />
+                </div>
+              </TableCell>
               <TableCell className="hidden xl:table-cell text-center">
-                {project.estimatedDays ? `${project.estimatedDays}d` : "-"}
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="projects"
+                    id={project.id}
+                    field="estimatedDays"
+                    value={project.estimatedDays}
+                    displayValue={project.estimatedDays ? `${project.estimatedDays}d` : "-"}
+                    fieldType="number"
+                    placeholder="Days"
+                  />
+                </div>
               </TableCell>
               <TableCell>
                 <Progress value={parseFloat(project.percentComplete || "0")} className="w-20" />
               </TableCell>
-              <TableCell className="hidden lg:table-cell">{project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}</TableCell>
-              <TableCell className="hidden lg:table-cell">{project.assignedTo || "Unassigned"}</TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="projects"
+                    id={project.id}
+                    field="deadline"
+                    value={project.deadline ? project.deadline.split('T')[0] : ""}
+                    displayValue={project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}
+                    fieldType="date"
+                    placeholder="Set deadline"
+                  />
+                </div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="projects"
+                    id={project.id}
+                    field="assignedTo"
+                    value={project.assignedTo || ""}
+                    displayValue={project.assignedTo || "Unassigned"}
+                    placeholder="Assign to"
+                  />
+                </div>
+              </TableCell>
               <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <Checkbox
@@ -496,22 +803,88 @@ export default function DatabaseOptimizedPage() {
                     {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
                   <CheckSquare className="h-4 w-4 text-green-600" />
-                  <span className="font-medium">{task.title}</span>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <EditableField
+                      type="tasks"
+                      id={task.id}
+                      field="title"
+                      value={task.title}
+                      className="font-medium"
+                      placeholder="Task title"
+                    />
+                  </div>
                 </div>
               </TableCell>
               <TableCell>
                 <Badge variant="outline">Task</Badge>
               </TableCell>
-              <TableCell className="hidden sm:table-cell">{task.status || "Active"}</TableCell>
-              <TableCell className="hidden md:table-cell">{task.priority || "Medium"}</TableCell>
+              <TableCell className="hidden sm:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="tasks"
+                    id={task.id}
+                    field="status"
+                    value={task.status || "Active"}
+                    fieldType="select"
+                    options={["pending", "in_progress", "completed", "on_hold"]}
+                    placeholder="Status"
+                  />
+                </div>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="tasks"
+                    id={task.id}
+                    field="priority"
+                    value={task.priority || "Medium"}
+                    fieldType="select"
+                    options={["low", "medium", "high", "urgent"]}
+                    placeholder="Priority"
+                  />
+                </div>
+              </TableCell>
               <TableCell className="hidden xl:table-cell text-center">
-                {task.estimatedDays ? `${task.estimatedDays}d` : "-"}
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="tasks"
+                    id={task.id}
+                    field="estimatedDays"
+                    value={task.estimatedDays}
+                    displayValue={task.estimatedDays ? `${task.estimatedDays}d` : "-"}
+                    fieldType="number"
+                    placeholder="Days"
+                  />
+                </div>
               </TableCell>
               <TableCell>
                 <Progress value={parseFloat(task.percentComplete || "0")} className="w-20" />
               </TableCell>
-              <TableCell className="hidden lg:table-cell">{task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}</TableCell>
-              <TableCell className="hidden lg:table-cell">{task.assignedTo || "Unassigned"}</TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="tasks"
+                    id={task.id}
+                    field="deadline"
+                    value={task.deadline ? task.deadline.split('T')[0] : ""}
+                    displayValue={task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}
+                    fieldType="date"
+                    placeholder="Set deadline"
+                  />
+                </div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="tasks"
+                    id={task.id}
+                    field="assignedTo"
+                    value={task.assignedTo || ""}
+                    displayValue={task.assignedTo || "Unassigned"}
+                    placeholder="Assign to"
+                  />
+                </div>
+              </TableCell>
               <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <Checkbox
@@ -577,24 +950,90 @@ export default function DatabaseOptimizedPage() {
             <TableCell className="pl-24">
               <div className="flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-yellow-600" />
-                <span>{subtask.title}</span>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <EditableField
+                    type="subtasks"
+                    id={subtask.id}
+                    field="title"
+                    value={subtask.title}
+                    className="font-medium text-sm"
+                    placeholder="Subtask title"
+                  />
+                </div>
               </div>
             </TableCell>
             <TableCell>
               <Badge variant="outline" className="text-xs">Subtask</Badge>
             </TableCell>
-            <TableCell className="hidden sm:table-cell">{subtask.status || "Active"}</TableCell>
-            <TableCell className="hidden md:table-cell">{subtask.priority || "Medium"}</TableCell>
+            <TableCell className="hidden sm:table-cell">
+              <div onClick={(e) => e.stopPropagation()}>
+                <EditableField
+                  type="subtasks"
+                  id={subtask.id}
+                  field="status"
+                  value={subtask.status || "Active"}
+                  fieldType="select"
+                  options={["pending", "in_progress", "completed", "on_hold"]}
+                  placeholder="Status"
+                />
+              </div>
+            </TableCell>
+            <TableCell className="hidden md:table-cell">
+              <div onClick={(e) => e.stopPropagation()}>
+                <EditableField
+                  type="subtasks"
+                  id={subtask.id}
+                  field="priority"
+                  value={subtask.priority || "Medium"}
+                  fieldType="select"
+                  options={["low", "medium", "high", "urgent"]}
+                  placeholder="Priority"
+                />
+              </div>
+            </TableCell>
             <TableCell className="hidden xl:table-cell text-center">
-              {subtask.estimatedDays ? `${subtask.estimatedDays}d` : "-"}
+              <div onClick={(e) => e.stopPropagation()}>
+                <EditableField
+                  type="subtasks"
+                  id={subtask.id}
+                  field="estimatedDays"
+                  value={subtask.estimatedDays}
+                  displayValue={subtask.estimatedDays ? `${subtask.estimatedDays}d` : "-"}
+                  fieldType="number"
+                  placeholder="Days"
+                />
+              </div>
             </TableCell>
             <TableCell>
               <div className="w-20 text-sm">
                 {subtask.status === "completed" ? "✓ Complete" : "In Progress"}
               </div>
             </TableCell>
-            <TableCell className="hidden lg:table-cell">{subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}</TableCell>
-            <TableCell className="hidden lg:table-cell">{subtask.assignedTo || "Unassigned"}</TableCell>
+            <TableCell className="hidden lg:table-cell">
+              <div onClick={(e) => e.stopPropagation()}>
+                <EditableField
+                  type="subtasks"
+                  id={subtask.id}
+                  field="deadline"
+                  value={subtask.deadline ? subtask.deadline.split('T')[0] : ""}
+                  displayValue={subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}
+                  fieldType="date"
+                  placeholder="Set deadline"
+                />
+              </div>
+            </TableCell>
+            <TableCell className="hidden lg:table-cell">
+              <div onClick={(e) => e.stopPropagation()}>
+                <EditableField
+                  type="subtasks"
+                  id={subtask.id}
+                  field="assignedTo"
+                  value={subtask.assignedTo || ""}
+                  displayValue={subtask.assignedTo || "Unassigned"}
+                  placeholder="Assign to"
+                />
+              </div>
+            </TableCell>
             <TableCell>
               <div onClick={(e) => e.stopPropagation()}>
                 <Checkbox
@@ -686,22 +1125,88 @@ export default function DatabaseOptimizedPage() {
                             {expandedGoals.has(goal.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </button>
                           <Target className="h-4 w-4 text-purple-600" />
-                          <span className="font-medium">{goal.title}</span>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <EditableField
+                              type="goals"
+                              id={goal.id}
+                              field="title"
+                              value={goal.title}
+                              className="font-medium"
+                              placeholder="Goal title"
+                            />
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge>Goal</Badge>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">{goal.status || "Active"}</TableCell>
-                      <TableCell className="hidden md:table-cell">{goal.priority || "Medium"}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <EditableField
+                            type="goals"
+                            id={goal.id}
+                            field="status"
+                            value={goal.status || "Active"}
+                            fieldType="select"
+                            options={["pending", "in_progress", "completed", "on_hold"]}
+                            placeholder="Status"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <EditableField
+                            type="goals"
+                            id={goal.id}
+                            field="priority"
+                            value={goal.priority || "Medium"}
+                            fieldType="select"
+                            options={["low", "medium", "high", "urgent"]}
+                            placeholder="Priority"
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell className="hidden xl:table-cell text-center">
-                        {goal.estimatedDays ? `${goal.estimatedDays}d` : "-"}
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <EditableField
+                            type="goals"
+                            id={goal.id}
+                            field="estimatedDays"
+                            value={goal.estimatedDays}
+                            displayValue={goal.estimatedDays ? `${goal.estimatedDays}d` : "-"}
+                            fieldType="number"
+                            placeholder="Days"
+                          />
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Progress value={parseFloat(goal.percentComplete || "0")} className="w-20" />
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">{goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{goal.assignedTo || "Unassigned"}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <EditableField
+                            type="goals"
+                            id={goal.id}
+                            field="deadline"
+                            value={goal.deadline ? goal.deadline.split('T')[0] : ""}
+                            displayValue={goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}
+                            fieldType="date"
+                            placeholder="Set deadline"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <EditableField
+                            type="goals"
+                            id={goal.id}
+                            field="assignedTo"
+                            value={goal.assignedTo || ""}
+                            displayValue={goal.assignedTo || "Unassigned"}
+                            placeholder="Assign to"
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div onClick={(e) => e.stopPropagation()}>
                           <Checkbox
