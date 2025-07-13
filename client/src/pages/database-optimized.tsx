@@ -411,6 +411,13 @@ function DatabaseOptimizedPage() {
     refetchOnWindowFocus: false,
   });
 
+  // Load all tasks for dependency management
+  const { data: allTasks = [] } = useQuery<Task[]>({
+    queryKey: ["/api/tasks/all"],
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+
   // Toggle functions with simplified event handling
   const toggleGoalExpansion = (goalId: number) => {
     const newExpanded = new Set(expandedGoals);
@@ -861,11 +868,7 @@ function DatabaseOptimizedPage() {
       staleTime: 1000 * 60 * 2,
     });
 
-    // Fetch all tasks for dependency lookups
-    const { data: allTasks = [] } = useQuery<Task[]>({
-      queryKey: ['/api/tasks/all'],
-      staleTime: 1000 * 60 * 2,
-    });
+
 
     // Sort tasks by deadline (earliest first, then null deadlines)
     const sortedTasks = [...tasks].sort((a, b) => {
