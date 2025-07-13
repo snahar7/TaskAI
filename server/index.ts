@@ -37,6 +37,11 @@ const requirePassword = (req: Request, res: Response, next: NextFunction) => {
     return next();
   }
 
+  // Allow static assets (CSS, JS) to be served without password protection
+  if (req.path.startsWith('/assets/')) {
+    return next();
+  }
+
   // Check if user is authenticated in session
   if (req.session?.authenticated) {
     return next();
@@ -50,7 +55,8 @@ const requirePassword = (req: Request, res: Response, next: NextFunction) => {
     });
   }
 
-  // For frontend routes, let them through so React can handle the password modal
+  // For all other routes (including index.html), redirect to password page
+  // We'll serve the main HTML file which will handle the password modal
   next();
 };
 

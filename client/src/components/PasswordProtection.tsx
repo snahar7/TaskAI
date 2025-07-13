@@ -24,22 +24,76 @@ export default function PasswordProtection({ children }: PasswordProtectionProps
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
 
-  // Check if user is authenticated
-  const { data: auth, isLoading } = useQuery<AuthResponse>({
+  // Check authentication status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // First try localStorage (fallback for production)
+        const localAuth = localStorage.getItem('taflo-stealth-auth');
+        if (localAuth === 'authenticated') {
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Try server-side check if available
+        const response = await fetch('/api/stealth/check');
+        if (response.ok) {
+          const data = await response.json();
+          setIsAuthenticated(data.authenticated);
+        } else {
+          // Server not accessible, rely on localStorage
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        // Server not accessible, rely on localStorage
+        setIsAuthenticated(false);
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, []);
+
+  // Check if user is authenticated via API (if server is available)
+  const { data: auth } = useQuery<AuthResponse>({
     queryKey: ['/api/stealth/check'],
     retry: false,
+    enabled: false, // We'll handle this manually
   });
 
   // Login mutation
   const loginMutation = useMutation<LoginResponse, Error, { password: string }>({
     mutationFn: async ({ password }) => {
-      const response = await apiRequest('POST', '/api/stealth/login', { password });
-      return response.json();
+      // Hardcoded password check for production fallback
+      const EXPECTED_PASSWORD = 'taflo2025';
+      
+      if (password === EXPECTED_PASSWORD) {
+        // Store in localStorage as fallback
+        localStorage.setItem('taflo-stealth-auth', 'authenticated');
+        return { success: true, message: 'Access granted' };
+      }
+      
+      // Try server if available
+      try {
+        const response = await apiRequest('POST', '/api/stealth/login', { password });
+        const data = await response.json();
+        if (data.success) {
+          localStorage.setItem('taflo-stealth-auth', 'authenticated');
+        }
+        return data;
+      } catch (error) {
+        // Server not available, password was wrong
+        throw new Error('Invalid password. Please try again.');
+      }
     },
     onSuccess: (data) => {
       if (data.success) {
+        setIsAuthenticated(true);
         queryClient.invalidateQueries({ queryKey: ['/api/stealth/check'] });
         setError('');
         setPassword('');
@@ -76,7 +130,7 @@ export default function PasswordProtection({ children }: PasswordProtectionProps
   }
 
   // If authenticated, show the main app
-  if (auth?.authenticated) {
+  if (isAuthenticated || auth?.authenticated) {
     return <>{children}</>;
   }
 
