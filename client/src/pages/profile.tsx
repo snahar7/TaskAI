@@ -70,8 +70,11 @@ export function ProfilePage() {
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Image upload triggered', event.target.files);
     const file = event.target.files?.[0];
     if (file) {
+      console.log('File selected:', file.name, file.size, file.type);
+      
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
@@ -95,6 +98,7 @@ export function ProfilePage() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
+        console.log('Image read successfully, length:', result.length);
         setFormData(prev => ({
           ...prev,
           profilePicture: result
@@ -105,7 +109,8 @@ export function ProfilePage() {
           description: "Click 'Save Changes' to update your profile.",
         });
       };
-      reader.onerror = () => {
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
         toast({
           title: "Upload failed",
           description: "Failed to read the image file. Please try again.",
@@ -113,6 +118,8 @@ export function ProfilePage() {
         });
       };
       reader.readAsDataURL(file);
+    } else {
+      console.log('No file selected');
     }
   };
 
@@ -160,12 +167,6 @@ export function ProfilePage() {
                     <p className="text-sm font-medium text-slate-900">Profile Picture</p>
                     <p className="text-sm text-slate-500 mb-2">Upload a new profile picture</p>
                     <div>
-                      <label htmlFor="profile-upload">
-                        <Button variant="outline" size="sm" className="cursor-pointer" type="button">
-                          <Camera className="w-4 h-4 mr-2" />
-                          Upload Photo
-                        </Button>
-                      </label>
                       <input
                         id="profile-upload"
                         type="file"
@@ -173,6 +174,16 @@ export function ProfilePage() {
                         className="hidden"
                         onChange={handleImageUpload}
                       />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        type="button"
+                        onClick={() => document.getElementById('profile-upload')?.click()}
+                        className="cursor-pointer"
+                      >
+                        <Camera className="w-4 h-4 mr-2" />
+                        Upload Photo
+                      </Button>
                       <p className="text-xs text-slate-400 mt-1">JPG, PNG, GIF up to 5MB</p>
                     </div>
                   </div>
