@@ -189,10 +189,39 @@ export default function DashboardPage() {
       const response = await apiRequest("PATCH", `/api/${type}s/${id}/edit`, { [field]: value });
       return await response.json();
     },
-    onSuccess: () => {
+    onMutate: async ({ field, value }) => {
+      // Optimistic update - immediately update the task detail modal
+      if (taskDetailModal.task) {
+        setTaskDetailModal(prev => ({
+          ...prev,
+          task: {
+            ...prev.task,
+            [field]: value
+          }
+        }));
+      }
+      
+      // Return the previous state for rollback if needed
+      return { previousTask: taskDetailModal.task };
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate all relevant queries to refresh data across the app
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      
       setEditingField(null);
+      setEditValue("");
+    },
+    onError: (error, variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousTask) {
+        setTaskDetailModal(prev => ({
+          ...prev,
+          task: context.previousTask
+        }));
+      }
     },
   });
 
