@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Express } from "express";
 import { createServer, type Server } from "node:http";
-import { storage } from "./storage-enhanced";
+import { storage } from "./storage";
 import { gptAgent, type AIBreakdown } from "../src/services/gptAgent";
 import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema } from "@shared/schema";
 import { z } from "zod";
@@ -756,6 +756,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = parseInt(req.params.teamId);
       console.log('Route: Getting team members for teamId:', teamId);
+      console.log('Route: Storage instance type:', storage.constructor.name);
+      
+      // Check if storage function exists
+      if (typeof storage.getTeamMembers !== 'function') {
+        console.error('Route: getTeamMembers is not a function!');
+        return res.status(500).json({ error: 'Storage function not available' });
+      }
+      
       const teamMembers = await storage.getTeamMembers(teamId);
       console.log('Route: Received team members:', teamMembers.length, teamMembers);
       res.json(teamMembers);

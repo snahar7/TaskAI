@@ -258,40 +258,7 @@ export default function DatabasePage() {
     },
   });
 
-  const completionMutation = useMutation({
-    mutationFn: async ({ type, id, completed }: { type: string; id: number; completed: boolean }) => {
-      const endpoint = type === "goal" ? `/api/goals/${id}/approve` :
-                      type === "project" ? `/api/projects/${id}/approve` :
-                      type === "task" ? `/api/tasks/${id}/complete` :
-                      `/api/subtasks/${id}/complete`;
-      
-      const body = type === "goal" || type === "project" ? { approved: completed } : { completed };
-      
-      const response = await fetch(endpoint, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to update ${type}: ${response.statusText}`);
-      }
-      
-      return response.json();
-    },
-    onMutate: async ({ type, id, completed }) => {
-      // Cancel outgoing queries to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ["/api/goals"] });
-      
-      // Get previous data for rollback
-      const previousGoals = queryClient.getQueryData(["/api/goals"]);
-      
-      // Optimistically update the UI with cascading completion logic
-      queryClient.setQueryData(["/api/goals"], (old: any) => {
-        if (!old) return old;
-        
-        const markAllChildrenComplete = (item: any, itemType: string, shouldComplete: boolean) => {
-          const updated = { ...item };
+
           
           if (shouldComplete) {
             // Mark current item as complete
