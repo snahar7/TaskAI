@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Home from "@/pages/home-simple";
 import Database from "@/pages/database-optimized";
 import Dashboard from "@/pages/dashboard";
+import { ProfilePage } from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/database" component={Database} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
