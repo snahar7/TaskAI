@@ -697,7 +697,7 @@ export default function DashboardPage() {
                       Urgent + Important
                     </h3>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {stats?.todayTasks
+                      {dashboardStats?.todayTasks
                         ?.filter((task: any) => {
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
@@ -725,7 +725,7 @@ export default function DashboardPage() {
                       Important but Not Urgent
                     </h3>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {stats?.todayTasks
+                      {dashboardStats?.todayTasks
                         ?.filter((task: any) => {
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
@@ -753,7 +753,7 @@ export default function DashboardPage() {
                       Urgent but Not Important
                     </h3>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {stats?.todayTasks
+                      {dashboardStats?.todayTasks
                         ?.filter((task: any) => {
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
@@ -781,7 +781,7 @@ export default function DashboardPage() {
                       Neither Urgent nor Important
                     </h3>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {stats?.todayTasks
+                      {dashboardStats?.todayTasks
                         ?.filter((task: any) => {
                           const today = new Date().toISOString().split('T')[0];
                           const deadline = task.deadline?.split('T')[0];
