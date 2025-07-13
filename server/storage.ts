@@ -380,16 +380,37 @@ export class MemStorage implements IStorage {
     this.pendingBreakdowns.delete(id);
   }
 
-  // Delete methods for MemStorage
+  // Delete methods for MemStorage with cascading
   async deleteGoal(id: number): Promise<void> {
+    // Delete all projects and their children first
+    const projectsToDelete = Array.from(this.projects.values()).filter(p => p.goalId === id);
+    for (const project of projectsToDelete) {
+      await this.deleteProject(project.id);
+    }
+    
+    // Then delete the goal
     this.goals.delete(id);
   }
 
   async deleteProject(id: number): Promise<void> {
+    // Delete all tasks and their children first
+    const tasksToDelete = Array.from(this.tasks.values()).filter(t => t.projectId === id);
+    for (const task of tasksToDelete) {
+      await this.deleteTask(task.id);
+    }
+    
+    // Then delete the project
     this.projects.delete(id);
   }
 
   async deleteTask(id: number): Promise<void> {
+    // Delete all subtasks first
+    const subtasksToDelete = Array.from(this.subtasks.values()).filter(s => s.taskId === id);
+    for (const subtask of subtasksToDelete) {
+      await this.deleteSubtask(subtask.id);
+    }
+    
+    // Then delete the task
     this.tasks.delete(id);
   }
 
@@ -713,6 +734,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteGoal(id: number): Promise<void> {
+    // First delete all projects and their children
+    const projectsToDelete = await this.getProjectsByGoalId(id);
+    for (const project of projectsToDelete) {
+      await this.deleteProject(project.id);
+    }
+    
+    // Then delete the goal
     await db.delete(goals).where(eq(goals.id, id));
   }
 
@@ -754,6 +782,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProject(id: number): Promise<void> {
+    // First delete all tasks and their children
+    const tasksToDelete = await this.getTasksByProjectId(id);
+    for (const task of tasksToDelete) {
+      await this.deleteTask(task.id);
+    }
+    
+    // Then delete the project
     await db.delete(projects).where(eq(projects.id, id));
   }
 
@@ -795,6 +830,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTask(id: number): Promise<void> {
+    // First delete all subtasks
+    const subtasksToDelete = await this.getSubtasksByTaskId(id);
+    for (const subtask of subtasksToDelete) {
+      await this.deleteSubtask(subtask.id);
+    }
+    
+    // Then delete the task
     await db.delete(tasks).where(eq(tasks.id, id));
   }
 
