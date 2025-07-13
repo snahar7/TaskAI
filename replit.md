@@ -92,25 +92,37 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- July 13, 2025: **Intelligent Deadline/Estimated Days Synchronization Implementation**
-  - **Smart Timeline Calculator**: Created comprehensive timeline calculation service with business day calculations
-    - Automatic deadline calculation when estimated days are edited
-    - Automatic estimated days calculation when deadlines are edited  
-    - Business day logic (excludes weekends) for realistic timeline estimates
-    - Cascading timeline updates through entire hierarchy (subtask → task → project → goal)
-  - **Bidirectional Synchronization**: Complete two-way sync between deadlines and estimated days
-    - Edit estimated days → system calculates optimal deadline based on business days from today
-    - Edit deadline → system calculates required estimated days based on business days between now and deadline
-    - Immediate real-time updates with database persistence and UI refresh
-  - **Hierarchy-Aware Recalculation**: Intelligent cascade logic maintains timeline consistency
-    - Subtask changes trigger parent task timeline updates
-    - Task changes trigger parent project timeline updates  
-    - Project changes trigger parent goal timeline updates
-    - Dependency-aware scheduling for optimal project planning
-  - **Enhanced Edit API**: Integrated smart recalculation with inline editing system
-    - All edit operations trigger appropriate timeline calculations
-    - Seamless user experience - edit any field and related timelines auto-update
-    - Business logic handles Date object conversions for database compatibility
+- July 13, 2025: **Task Dependency Management System Implementation**
+  - **Database Schema Enhancement**: Added dependencies JSON field to tasks table for storing task relationships
+    - Tasks can now have dependencies array containing IDs of prerequisite tasks
+    - Database migration completed to support dependency tracking
+    - Dependency relationships enable proper project sequencing
+  - **Smart Timeline Calculator Enhancement**: Updated timeline calculation to handle task dependencies
+    - When a task deadline changes, all dependent tasks automatically update their timelines
+    - Dependent tasks start 1 business day after prerequisite task completion
+    - Recursive dependency updates cascade through entire dependency chain
+    - Independent tasks remain isolated when edited (for team assignment flexibility)
+  - **Dependency-Aware Cascade Logic**: Intelligent timeline propagation based on task relationships
+    - Tasks with dependencies: editing prerequisite task updates all dependent task deadlines
+    - Independent tasks: editing only affects that specific task (perfect for parallel team work)
+    - Business day calculations maintain realistic project scheduling
+    - Preserves user-set deadlines while updating dependent task timelines
+  - **Enhanced Storage Interface**: Added getAllTasks method for dependency relationship queries
+    - Storage layer supports comprehensive task dependency lookups
+    - Efficient querying of task relationships across projects
+    - Prepared for AI breakdown engine dependency analysis
+
+- July 13, 2025: **Critical Date Calculation Bug Fix and Date-Based Sorting Implementation**
+  - **Date Preservation Fix**: Resolved cascade recalculation overwriting user-set deadlines
+    - User-edited deadlines now preserve exact input values (7/27/2025 saves as 7/27/2025, not auto-calculated)
+    - Smart timeline preservation only calculates complementary fields (estimated days from deadline)
+    - Cascade updates disabled when users explicitly set deadlines to prevent overwrites
+  - **Complete Date-Based Sorting**: Implemented chronological organization across entire database hierarchy
+    - Goals sorted by deadline (earliest first, then items without deadlines)
+    - Projects within goals sorted by deadline chronologically
+    - Tasks within projects sorted by deadline chronologically
+    - Subtasks within tasks sorted by deadline chronologically
+    - Optimal project management view with clear timeline visibility
 
 - July 13, 2025: **Timeline Page Removal and Code Cleanup**
   - **Removed Timeline Page**: Eliminated standalone timeline page since automatic timeline generation is now integrated into goal creation

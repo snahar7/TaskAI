@@ -636,6 +636,10 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
     return await this.db.select().from(tasks).where(eq(tasks.projectId, projectId));
   }
 
+  async getAllTasks(): Promise<Task[]> {
+    return await this.db.select().from(tasks);
+  }
+
   async getTask(id: number): Promise<Task | undefined> {
     const [task] = await this.db.select().from(tasks).where(eq(tasks.id, id));
     return task || undefined;

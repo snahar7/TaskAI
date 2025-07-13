@@ -232,6 +232,9 @@ class TimelineCalculator {
         const newDeadline = new Date(deadlineStr + 'T00:00:00.000Z');
         await storage.updateTask(id, { deadline: newDeadline });
         
+        // Update dependent tasks when this task's timeline changes
+        await this.updateDependentTasks(id, this.calculateDeadlineFromEstimatedDays(Number(value)));
+        
         // Recalculate parent project timeline
         await this.recalculateProjectTimeline(task.projectId);
         
@@ -247,9 +250,10 @@ class TimelineCalculator {
         console.log(`User set deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
         await storage.updateTask(id, { estimatedDays: newEstimatedDays });
         
-        // DON'T recalculate parent timelines when user explicitly sets a deadline
-        // This prevents overwriting the user's chosen deadline
-        console.log('Skipping cascade recalculation to preserve user-set deadline');
+        // Update dependent tasks when this task's timeline changes
+        await this.updateDependentTasks(id, value);
+        
+        console.log('Updated dependent tasks based on new deadline');
       }
       
     } else if (type === "subtasks") {
@@ -327,6 +331,48 @@ class TimelineCalculator {
         await storage.updateGoal(id, { estimatedDays: newEstimatedDays });
         // Don't cascade when user explicitly sets deadline
       }
+    }
+  }
+
+  // Update dependent tasks when a task's timeline changes
+  async updateDependentTasks(taskId: number, newDeadline: string | Date): Promise<void> {
+    console.log(`Updating dependent tasks for task ${taskId} with new deadline ${newDeadline}`);
+    
+    // Find all tasks that depend on this task
+    const allTasks = await storage.getAllTasks();
+    const dependentTasks = allTasks.filter(task => 
+      task.dependencies && 
+      Array.isArray(task.dependencies) && 
+      task.dependencies.includes(taskId)
+    );
+    
+    if (dependentTasks.length === 0) {
+      console.log('No dependent tasks found');
+      return;
+    }
+    
+    const newDeadlineDate = new Date(newDeadline);
+    
+    for (const dependentTask of dependentTasks) {
+      console.log(`Updating dependent task ${dependentTask.id}: ${dependentTask.title}`);
+      
+      // Calculate new start date for dependent task (1 business day after dependency completion)
+      const newStartDate = this.addBusinessDays(newDeadlineDate, 1);
+      
+      // Calculate new deadline based on dependent task's estimated days
+      const estimatedDays = dependentTask.estimatedDays || 1;
+      const newDependentDeadline = this.addBusinessDays(newStartDate, estimatedDays - 1);
+      
+      // Update the dependent task
+      await storage.updateTask(dependentTask.id, {
+        startDate: newStartDate,
+        deadline: newDependentDeadline
+      });
+      
+      console.log(`Updated task ${dependentTask.id} deadline to ${newDependentDeadline.toISOString().split('T')[0]}`);
+      
+      // Recursively update tasks that depend on this dependent task
+      await this.updateDependentTasks(dependentTask.id, newDependentDeadline);
     }
   }
 }

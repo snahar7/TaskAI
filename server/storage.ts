@@ -37,6 +37,11 @@ export interface IStorage {
   // Tasks
   createTask(task: InsertTask): Promise<Task>;
   getTasksByProjectId(projectId: number): Promise<Task[]>;
+  getAllTasks(): Promise<Task[]>;
+  // Add getAllTasks method to MemStorage implementation
+  getAllTasks(): Promise<Task[]> {
+    return Promise.resolve(Array.from(this.tasks.values()));
+  }
   getTask(id: number): Promise<Task | undefined>;
   getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined>;
   updateTaskCompletion(id: number, completed: boolean): Promise<void>;

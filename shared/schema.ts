@@ -104,6 +104,7 @@ export const tasks = pgTable("tasks", {
   estimatedDays: integer("estimated_days"), // New field for day-based estimation
   startDate: timestamp("start_date"), // New field for start date
   customFields: json("custom_fields"),
+  dependencies: json("dependencies").$type<number[]>().default([]), // Task dependencies - array of task IDs
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   approved: boolean("approved").default(false).notNull(),
