@@ -126,10 +126,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: breakdown.goal.title || breakdown.goal.name,
         description: breakdown.goal.description || null,
         estimatedDuration: breakdown.goal.estimatedDuration || null,
-        targetDate: breakdown.goal.targetDate || null,
+        targetDate: breakdown.goal.targetDate || breakdown.goal.dueDate || null,
         priority: breakdown.goal.priority || breakdown.goal.urgency || "medium",
         status: "pending",
         timeEstimate: breakdown.goal.timeEstimate?.toString() || null,
+        estimatedDays: breakdown.goal.estimatedDays || null,
+        startDate: breakdown.goal.startDate ? new Date(breakdown.goal.startDate) : null,
+        deadline: breakdown.goal.dueDate ? new Date(breakdown.goal.dueDate) : null,
         approved: true
       });
       
@@ -145,8 +148,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "pending",
           timeEstimate: aiProject.timeEstimate?.toString() || null,
           estimatedDuration: aiProject.estimatedDuration || null,
-          targetDate: aiProject.targetDate || null,
+          targetDate: aiProject.targetDate || aiProject.dueDate || null,
           urgency: aiProject.urgency || "medium",
+          estimatedDays: aiProject.estimatedDays || null,
+          startDate: aiProject.startDate ? new Date(aiProject.startDate) : null,
+          deadline: aiProject.dueDate ? new Date(aiProject.dueDate) : null,
           approved: true
         });
         
@@ -160,7 +166,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: aiTask.description || null,
             timeEstimate: aiTask.estimatedHours ? Math.round(aiTask.estimatedHours * 60) : null, // Convert hours to minutes
             estimatedHours: aiTask.estimatedHours || null, // Store decimal hours in the decimal field
+            estimatedDays: aiTask.estimatedDays || null,
+            startDate: aiTask.startDate ? new Date(aiTask.startDate) : null,
             deadline: aiTask.dueDate ? new Date(aiTask.dueDate) : null,
+            dueDate: aiTask.dueDate || null,
             priority: aiTask.priority || aiTask.urgency || "medium",
             status: "pending",
             completed: false,
@@ -178,7 +187,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               description: aiSubtask.description || null,
               timeEstimate: aiSubtask.estimatedHours ? Math.round(aiSubtask.estimatedHours * 60) : null, // Convert hours to minutes
               estimatedHours: aiSubtask.estimatedHours || null, // Store decimal hours in the decimal field
+              estimatedDays: aiSubtask.estimatedDays || null,
+              startDate: aiSubtask.startDate ? new Date(aiSubtask.startDate) : null,
               deadline: aiSubtask.dueDate ? new Date(aiSubtask.dueDate) : null,
+              dueDate: aiSubtask.dueDate || null,
               priority: aiSubtask.priority || aiSubtask.urgency || "medium",
               status: "pending",
               completed: false,
