@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +8,59 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Camera, Mail, Calendar, Shield, Copy, Users, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from "@shared/schema";
+
+// Team Members List Component
+function TeamMembersList({ teamId }: { teamId: number }) {
+  const { data: teamMembers = [], isLoading } = useQuery<User[]>({
+    queryKey: ["/api/users/team", teamId],
+    enabled: !!teamId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        <Label>Team Members</Label>
+        <div className="text-sm text-slate-500">Loading team members...</div>
+      </div>
+    );
+  }
+
+  if (!teamMembers.length) {
+    return (
+      <div className="space-y-2">
+        <Label>Team Members</Label>
+        <div className="text-sm text-slate-500">No team members yet. Share your invite link to add members!</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label>Team Members ({teamMembers.length})</Label>
+      <div className="space-y-2">
+        {teamMembers.map((member) => (
+          <div key={member.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
+            <UserAvatar
+              user={member}
+              size="sm"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-medium">{member.displayName}</p>
+              <p className="text-xs text-slate-500">{member.email}</p>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              {member.provider === 'google' ? 'Google' : 'Email'}
+            </Badge>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function ProfilePage() {
   const { user, firebaseUser, logout } = useAuth();
@@ -295,6 +347,9 @@ export function ProfilePage() {
                     Anyone who signs up using this link will automatically join your team and can be assigned tasks.
                   </p>
                 </div>
+
+                {/* Team Members List */}
+                <TeamMembersList teamId={user.teamId} />
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <div className="flex items-start gap-2">

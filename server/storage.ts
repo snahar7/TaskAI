@@ -169,6 +169,16 @@ export class MemStorage implements IStorage {
     }
   }
 
+  async updateGoal(id: number, updates: Partial<Goal>): Promise<Goal | undefined> {
+    const goal = this.goals.get(id);
+    if (goal) {
+      const updatedGoal = { ...goal, ...updates };
+      this.goals.set(id, updatedGoal);
+      return updatedGoal;
+    }
+    return undefined;
+  }
+
   // Projects
   async createProject(insertProject: InsertProject): Promise<Project> {
     const id = this.currentProjectId++;
@@ -214,6 +224,16 @@ export class MemStorage implements IStorage {
     if (project) {
       this.projects.set(id, { ...project, approved });
     }
+  }
+
+  async updateProject(id: number, updates: Partial<Project>): Promise<Project | undefined> {
+    const project = this.projects.get(id);
+    if (project) {
+      const updatedProject = { ...project, ...updates };
+      this.projects.set(id, updatedProject);
+      return updatedProject;
+    }
+    return undefined;
   }
 
   // Tasks
@@ -269,6 +289,16 @@ export class MemStorage implements IStorage {
     }
   }
 
+  async updateTask(id: number, updates: Partial<Task>): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (task) {
+      const updatedTask = { ...task, ...updates };
+      this.tasks.set(id, updatedTask);
+      return updatedTask;
+    }
+    return undefined;
+  }
+
   // Subtasks
   async createSubtask(insertSubtask: InsertSubtask): Promise<Subtask> {
     const id = this.currentSubtaskId++;
@@ -310,6 +340,16 @@ export class MemStorage implements IStorage {
     if (subtask) {
       this.subtasks.set(id, { ...subtask, approved });
     }
+  }
+
+  async updateSubtask(id: number, updates: Partial<Subtask>): Promise<Subtask | undefined> {
+    const subtask = this.subtasks.get(id);
+    if (subtask) {
+      const updatedSubtask = { ...subtask, ...updates };
+      this.subtasks.set(id, updatedSubtask);
+      return updatedSubtask;
+    }
+    return undefined;
   }
 
   // Pending breakdowns
@@ -368,15 +408,6 @@ export class DatabaseStorage implements IStorage {
     await db.update(users).set(updates).where(eq(users.id, id));
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
-  }
 
   // Goals
   async createGoal(insertGoal: InsertGoal): Promise<Goal> {
@@ -820,6 +851,26 @@ export class DatabaseStorage implements IStorage {
       console.error("Error joining team:", error);
       return { success: false, message: "Failed to join team" };
     }
+  }
+  // Update methods for DatabaseStorage
+  async updateGoal(id: number, updates: Partial<Goal>): Promise<Goal | undefined> {
+    const [updated] = await db.update(goals).set(updates).where(eq(goals.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async updateProject(id: number, updates: Partial<Project>): Promise<Project | undefined> {
+    const [updated] = await db.update(projects).set(updates).where(eq(projects.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async updateTask(id: number, updates: Partial<Task>): Promise<Task | undefined> {
+    const [updated] = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async updateSubtask(id: number, updates: Partial<Subtask>): Promise<Subtask | undefined> {
+    const [updated] = await db.update(subtasks).set(updates).where(eq(subtasks.id, id)).returning();
+    return updated || undefined;
   }
 }
 
