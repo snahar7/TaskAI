@@ -19,7 +19,7 @@ export function UserProfile() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   
   // Debug logging
-  console.log('UserProfile render - user:', user, 'loading:', loading);
+  // console.log('UserProfile render - user:', user, 'loading:', loading);
 
   const handleLogout = async () => {
     try {

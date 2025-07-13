@@ -36,12 +36,30 @@ export function ProfilePage() {
 
   const handleSave = async () => {
     try {
-      // Here you would update the user profile via API
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          displayName: formData.displayName,
+          profilePicture: formData.profilePicture
+        }),
       });
-      setIsEditing(false);
+
+      if (response.ok) {
+        toast({
+          title: "Profile updated",
+          description: "Your profile has been successfully updated.",
+        });
+        setIsEditing(false);
+        // Trigger auth context refresh
+        window.location.reload();
+      } else {
+        throw new Error('Failed to update profile');
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -54,13 +72,45 @@ export function ProfilePage() {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // In a real app, you'd upload to a storage service
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 5MB.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file (JPG, PNG, GIF).",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
+        const result = e.target?.result as string;
         setFormData(prev => ({
           ...prev,
-          profilePicture: e.target?.result as string
+          profilePicture: result
         }));
+        
+        toast({
+          title: "Image uploaded",
+          description: "Click 'Save Changes' to update your profile.",
+        });
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Upload failed",
+          description: "Failed to read the image file. Please try again.",
+          variant: "destructive"
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -109,19 +159,22 @@ export function ProfilePage() {
                   <div>
                     <p className="text-sm font-medium text-slate-900">Profile Picture</p>
                     <p className="text-sm text-slate-500 mb-2">Upload a new profile picture</p>
-                    <label htmlFor="profile-upload">
-                      <Button variant="outline" size="sm" className="cursor-pointer">
-                        <Camera className="w-4 h-4 mr-2" />
-                        Upload Photo
-                      </Button>
+                    <div>
+                      <label htmlFor="profile-upload">
+                        <Button variant="outline" size="sm" className="cursor-pointer" type="button">
+                          <Camera className="w-4 h-4 mr-2" />
+                          Upload Photo
+                        </Button>
+                      </label>
                       <input
                         id="profile-upload"
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/jpg,image/png,image/gif"
                         className="hidden"
                         onChange={handleImageUpload}
                       />
-                    </label>
+                      <p className="text-xs text-slate-400 mt-1">JPG, PNG, GIF up to 5MB</p>
+                    </div>
                   </div>
                 </div>
 

@@ -706,6 +706,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User profile update endpoint
+  app.patch("/api/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      
+      // Validate the updates
+      const allowedFields = ['firstName', 'lastName', 'displayName', 'profilePicture'];
+      const filteredUpdates = Object.keys(updates)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj: any, key) => {
+          obj[key] = updates[key];
+          return obj;
+        }, {});
+
+      const updatedUser = await storage.updateUser(id, filteredUpdates);
+      res.json({ user: updatedUser });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Break down task/project/subtask further with AI
   app.post("/api/:type/:id/breakdown", async (req: Request, res: Response, next: NextFunction) => {
     try {

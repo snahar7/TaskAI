@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           if (response.ok) {
             const userData = await response.json();
-            console.log('User sync successful:', userData.user);
+            // console.log('User sync successful:', userData.user);
             setUser(userData.user);
           } else {
             console.error('User sync failed:', response.status, response.statusText);
