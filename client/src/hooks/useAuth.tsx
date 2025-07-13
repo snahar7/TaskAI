@@ -3,6 +3,7 @@ import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { User } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
+import { displayDomainInfo } from '@/utils/domain';
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Display domain info for Firebase configuration
+    displayDomainInfo();
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseUser(firebaseUser);
       
