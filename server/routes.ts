@@ -469,24 +469,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Editing ${type} ${id} with updates:`, updates);
       
+      // Import timeline calculator for smart recalculation
+      const { timelineCalculator } = await import("./services/timelineCalculator");
+      
+      // Check if we need smart timeline recalculation
+      const needsTimelineRecalc = Object.keys(updates).some(key => 
+        key === 'estimatedDays' || key === 'deadline'
+      );
+      
+      // Convert date strings to Date objects for database compatibility
+      const processedUpdates = { ...updates };
+      if (processedUpdates.deadline && typeof processedUpdates.deadline === 'string') {
+        processedUpdates.deadline = new Date(processedUpdates.deadline + 'T00:00:00.000Z');
+      }
+      
       // Update the appropriate entity based on type
       let updatedItem;
       
       if (type === "goals") {
-        updatedItem = await storage.updateGoal(id, updates);
+        updatedItem = await storage.updateGoal(id, processedUpdates);
       } else if (type === "projects") {
-        updatedItem = await storage.updateProject(id, updates);
+        updatedItem = await storage.updateProject(id, processedUpdates);
       } else if (type === "tasks") {
-        updatedItem = await storage.updateTask(id, updates);
+        updatedItem = await storage.updateTask(id, processedUpdates);
       } else if (type === "subtasks") {
-        updatedItem = await storage.updateSubtask(id, updates);
+        updatedItem = await storage.updateSubtask(id, processedUpdates);
       } else {
         return res.status(400).json({ error: `Invalid type: ${type}` });
       }
       
+      // Perform smart timeline recalculation if needed
+      if (needsTimelineRecalc) {
+        for (const [field, value] of Object.entries(updates)) {
+          if (field === 'estimatedDays' || field === 'deadline') {
+            // For deadline field, pass the original string value, not the processed Date object
+            const recalcValue = field === 'deadline' ? value : value;
+            await timelineCalculator.smartRecalculate(type, id, field, recalcValue);
+          }
+        }
+      }
+      
       res.json({ 
         message: `${type} updated successfully`, 
-        item: updatedItem 
+        item: updatedItem,
+        timelineRecalculated: needsTimelineRecalc
       });
     } catch (error) {
       console.error(`Error updating ${req.params.type} ${req.params.id}:`, error);

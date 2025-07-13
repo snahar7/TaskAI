@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import type { Goal, Project, Task, Subtask } from "@shared/schema";
 
-export default function DatabaseOptimizedPage() {
+function DatabaseOptimizedPage() {
   const queryClient = useQueryClient();
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
@@ -1346,3 +1346,5 @@ export default function DatabaseOptimizedPage() {
     </div>
   );
 }
+
+export default DatabaseOptimizedPage;

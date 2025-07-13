@@ -92,6 +92,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 13, 2025: **Intelligent Deadline/Estimated Days Synchronization Implementation**
+  - **Smart Timeline Calculator**: Created comprehensive timeline calculation service with business day calculations
+    - Automatic deadline calculation when estimated days are edited
+    - Automatic estimated days calculation when deadlines are edited  
+    - Business day logic (excludes weekends) for realistic timeline estimates
+    - Cascading timeline updates through entire hierarchy (subtask → task → project → goal)
+  - **Bidirectional Synchronization**: Complete two-way sync between deadlines and estimated days
+    - Edit estimated days → system calculates optimal deadline based on business days from today
+    - Edit deadline → system calculates required estimated days based on business days between now and deadline
+    - Immediate real-time updates with database persistence and UI refresh
+  - **Hierarchy-Aware Recalculation**: Intelligent cascade logic maintains timeline consistency
+    - Subtask changes trigger parent task timeline updates
+    - Task changes trigger parent project timeline updates  
+    - Project changes trigger parent goal timeline updates
+    - Dependency-aware scheduling for optimal project planning
+  - **Enhanced Edit API**: Integrated smart recalculation with inline editing system
+    - All edit operations trigger appropriate timeline calculations
+    - Seamless user experience - edit any field and related timelines auto-update
+    - Business logic handles Date object conversions for database compatibility
+
 - July 13, 2025: **Timeline Page Removal and Code Cleanup**
   - **Removed Timeline Page**: Eliminated standalone timeline page since automatic timeline generation is now integrated into goal creation
     - Removed `/timeline` route from navigation and routing system
