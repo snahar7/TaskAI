@@ -470,6 +470,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get individual task with related information
+  app.get("/api/tasks/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const task = await storage.getTask(id);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
+      // Get related project and goal information
+      let enrichedTask = { ...task };
+      
+      if (task.projectId) {
+        const project = await storage.getProject(task.projectId);
+        if (project) {
+          enrichedTask.project = project;
+          
+          if (project.goalId) {
+            const goal = await storage.getGoal(project.goalId);
+            if (goal) {
+              enrichedTask.goal = goal;
+            }
+          }
+        }
+      }
+      
+      res.json(enrichedTask);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get goal with full hierarchy
   app.get("/api/goals/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +52,7 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(true);
@@ -242,14 +244,9 @@ export default function DashboardPage() {
     },
   });
 
-  // Function to open task detail modal
+  // Function to navigate to task detail page
   const openTaskDetail = (item: any) => {
-    const isSubtask = item.task !== undefined;
-    setTaskDetailModal({
-      isOpen: true,
-      task: item,
-      isSubtask
-    });
+    navigate(`/task/${item.id}`);
   };
 
   // Function to handle inline editing
