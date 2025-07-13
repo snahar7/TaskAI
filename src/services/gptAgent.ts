@@ -566,7 +566,7 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
     const targetCount = options?.targetSubItems || 4;
     
     const prompt = `
-You are an expert project manager. Break down this ${itemType} into ${targetCount} specific, actionable sub-items.
+You are an expert project manager. Break down this ${itemType} into ${targetCount} specific, actionable sub-items with realistic day estimates and sequential deadlines.
 
 ${itemType.toUpperCase()}: "${itemData.title}"
 Description: ${itemData.description || 'Not provided'}
@@ -579,10 +579,15 @@ ${focusText}
 Guidelines:
 - Create ${targetCount} specific, actionable sub-items
 - Each sub-item should be completable in 15 minutes to 2 hours
-- Include realistic time estimates and due dates  
+- Include realistic time estimates in hours and calculate estimatedDays (6 working hours per day, round up)
+- Schedule items sequentially starting from today (2025-07-13), skipping weekends
 - Make each sub-item clear and specific
 - Consider dependencies and logical order
 - Add helpful implementation details
+- Ensure sequential start/due dates for proper scheduling
+- IMPORTANT: Always calculate and include estimatedDays and both startDate and dueDate fields
+- Use business days only (Monday-Friday) for scheduling
+- First item starts today, subsequent items start after previous item ends
 
 Return JSON in this exact format:
 {
@@ -592,12 +597,14 @@ Return JSON in this exact format:
       "description": "Clear description with implementation details",
       "urgency": "Low|Medium|High", 
       "estimatedHours": 0.5,
-      "dueDate": "YYYY-MM-DD"
+      "estimatedDays": 1,
+      "startDate": "2025-07-13",
+      "dueDate": "2025-07-13"
     }
   ],
   "analysis": {
     "complexity": "Assessment of breakdown complexity",
-    "reasoning": "Why this breakdown approach was chosen",
+    "reasoning": "Why this breakdown approach was chosen with scheduling logic",
     "suggestions": ["Additional tip 1", "Additional tip 2"]
   }
 }`;
@@ -632,7 +639,10 @@ Return JSON in this exact format:
         cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
       
-      const breakdown = JSON.parse(cleanContent);
+      let breakdown = JSON.parse(cleanContent);
+      
+      // Apply day-based scheduling with business day logic
+      breakdown = this.applySequentialScheduling(breakdown);
       
       console.log(`✅ Successfully generated breakdown for ${itemType}: ${breakdown.subItems.length} sub-items`);
       return breakdown;
@@ -640,6 +650,67 @@ Return JSON in this exact format:
       console.error(`Error breaking down ${itemType}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Apply sequential scheduling with business day logic for breakdown items
+   */
+  private applySequentialScheduling(breakdown: any): any {
+    const addBusinessDays = (date: Date, days: number): Date => {
+      let result = new Date(date);
+      let daysAdded = 0;
+      
+      while (daysAdded < days) {
+        result.setDate(result.getDate() + 1);
+        // Skip weekends (Saturday = 6, Sunday = 0)
+        if (result.getDay() !== 0 && result.getDay() !== 6) {
+          daysAdded++;
+        }
+      }
+      return result;
+    };
+
+    const estimateRealisticDays = (hours: number): number => {
+      // Assume 6 productive hours per day
+      return Math.max(1, Math.ceil(hours / 6));
+    };
+
+    let currentDate = new Date();
+    
+    // Process each sub-item sequentially
+    if (breakdown.subItems) {
+      breakdown.subItems.forEach((item: any, index: number) => {
+        // Calculate estimated days if not provided
+        if (!item.estimatedDays && item.estimatedHours) {
+          item.estimatedDays = estimateRealisticDays(item.estimatedHours);
+        }
+        
+        // Ensure estimated days is at least 1
+        if (!item.estimatedDays || item.estimatedDays < 1) {
+          item.estimatedDays = 1;
+        }
+        
+        // Set start date - always populate this field
+        item.startDate = currentDate.toISOString().split('T')[0];
+        
+        // Calculate end date
+        const endDate = addBusinessDays(currentDate, item.estimatedDays);
+        item.dueDate = endDate.toISOString().split('T')[0];
+        
+        console.log(`📅 Scheduled item ${index + 1}: "${item.title}" from ${item.startDate} to ${item.dueDate} (${item.estimatedDays}d)`);
+        
+        // Move current date forward for next item (start next business day)
+        currentDate = new Date(endDate);
+        currentDate.setDate(currentDate.getDate() + 1);
+        
+        // Skip weekend if we land on one
+        while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      });
+    }
+    
+    return breakdown;
   }
 
   /**

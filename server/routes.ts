@@ -753,6 +753,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: subItem.description,
             timeEstimate: subItem.estimatedHours ? Math.round(subItem.estimatedHours * 60) : null,
             estimatedHours: subItem.estimatedHours || null,
+            estimatedDays: subItem.estimatedDays || null,
+            startDate: subItem.startDate ? new Date(subItem.startDate) : null,
             deadline: subItem.dueDate ? new Date(subItem.dueDate) : null,
             priority: subItem.urgency || "medium",
             status: "pending",
@@ -771,6 +773,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: subItem.description,
             timeEstimate: subItem.estimatedHours ? Math.round(subItem.estimatedHours * 60) : null,
             estimatedHours: subItem.estimatedHours || null,
+            estimatedDays: subItem.estimatedDays || null,
+            startDate: subItem.startDate ? new Date(subItem.startDate) : null,
             deadline: subItem.dueDate ? new Date(subItem.dueDate) : null,
             priority: subItem.urgency || "medium",
             status: "pending",
@@ -782,6 +786,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         return res.status(400).json({ error: "Cannot break down subtasks further. Subtasks are the lowest level." });
       }
+
+      // After creating sub-items, check if we need to adjust subsequent deadlines
+      await adjustDependentDeadlines(itemType, itemId, createdItems);
 
       res.json({
         message: `Successfully created ${createdItems.length} ${itemType === 'tasks' ? 'subtasks' : 'tasks'}`,
@@ -922,6 +929,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next(error);
     }
   });
+
+  // Helper function to adjust deadlines of dependent items
+  async function adjustDependentDeadlines(itemType: string, itemId: number, newItems: any[]) {
+    try {
+      console.log(`🔄 Adjusting dependent deadlines after breakdown of ${itemType} ${itemId}`);
+      
+      if (itemType === 'tasks') {
+        // Get the task and its project to find subsequent tasks
+        const task = await storage.getTask(itemId);
+        if (!task || !task.projectId) return;
+        
+        // Get all tasks in the same project
+        const allTasks = await storage.getTasksByProjectId(task.projectId);
+        
+        // Find tasks that come after this one (by ID or deadline)
+        const currentTaskIndex = allTasks.findIndex(t => t.id === itemId);
+        const subsequentTasks = allTasks.slice(currentTaskIndex + 1);
+        
+        // If new subtasks extend the parent task deadline, shift subsequent tasks
+        if (newItems.length > 0) {
+          const lastSubtaskDeadline = new Date(Math.max(...newItems.map(item => new Date(item.deadline || item.dueDate).getTime())));
+          
+          // Update parent task deadline to match last subtask
+          await storage.updateTask(itemId, { 
+            deadline: lastSubtaskDeadline,
+            estimatedDays: newItems.reduce((sum, item) => sum + (item.estimatedDays || 0), 0)
+          });
+          
+          // Calculate business days shift needed
+          const addBusinessDays = (date: Date, days: number): Date => {
+            let result = new Date(date);
+            let daysAdded = 0;
+            while (daysAdded < days) {
+              result.setDate(result.getDate() + 1);
+              if (result.getDay() !== 0 && result.getDay() !== 6) {
+                daysAdded++;
+              }
+            }
+            return result;
+          };
+          
+          // Shift subsequent tasks to start after the last subtask
+          let currentDate = new Date(lastSubtaskDeadline);
+          currentDate.setDate(currentDate.getDate() + 1); // Start next day
+          
+          for (const subsequentTask of subsequentTasks) {
+            if (subsequentTask.deadline && new Date(subsequentTask.deadline) <= lastSubtaskDeadline) {
+              const taskDays = subsequentTask.estimatedDays || 3; // Default to 3 days if not set
+              const newStartDate = new Date(currentDate);
+              const newDeadline = addBusinessDays(currentDate, taskDays);
+              
+              console.log(`📅 Shifting task "${subsequentTask.title}" to start ${newStartDate.toISOString().split('T')[0]} and end ${newDeadline.toISOString().split('T')[0]}`);
+              
+              await storage.updateTask(subsequentTask.id, {
+                startDate: newStartDate,
+                deadline: newDeadline
+              });
+              
+              currentDate = new Date(newDeadline);
+              currentDate.setDate(currentDate.getDate() + 1);
+            }
+          }
+        }
+      } else if (itemType === 'projects') {
+        // Similar logic for project-level adjustments
+        const project = await storage.getProject(itemId);
+        if (!project || !project.goalId) return;
+        
+        const allProjects = await storage.getProjectsByGoalId(project.goalId);
+        const currentProjectIndex = allProjects.findIndex(p => p.id === itemId);
+        const subsequentProjects = allProjects.slice(currentProjectIndex + 1);
+        
+        if (newItems.length > 0) {
+          const lastTaskDeadline = new Date(Math.max(...newItems.map(item => new Date(item.deadline || item.dueDate).getTime())));
+          
+          // Update parent project deadline
+          await storage.updateProject(itemId, { 
+            deadline: lastTaskDeadline,
+            estimatedDays: newItems.reduce((sum, item) => sum + (item.estimatedDays || 0), 0)
+          });
+          
+          // Shift subsequent projects
+          let currentDate = new Date(lastTaskDeadline);
+          currentDate.setDate(currentDate.getDate() + 1);
+          
+          for (const subsequentProject of subsequentProjects) {
+            if (subsequentProject.deadline && new Date(subsequentProject.deadline) <= lastTaskDeadline) {
+              const projectDays = subsequentProject.estimatedDays || 14; // Default to 14 days
+              const addBusinessDays = (date: Date, days: number): Date => {
+                let result = new Date(date);
+                let daysAdded = 0;
+                while (daysAdded < days) {
+                  result.setDate(result.getDate() + 1);
+                  if (result.getDay() !== 0 && result.getDay() !== 6) {
+                    daysAdded++;
+                  }
+                }
+                return result;
+              };
+              
+              const newDeadline = addBusinessDays(currentDate, projectDays);
+              
+              console.log(`📅 Shifting project "${subsequentProject.title}" to end ${newDeadline.toISOString().split('T')[0]}`);
+              
+              await storage.updateProject(subsequentProject.id, {
+                startDate: new Date(currentDate),
+                deadline: newDeadline
+              });
+              
+              currentDate = new Date(newDeadline);
+              currentDate.setDate(currentDate.getDate() + 1);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error adjusting dependent deadlines:', error);
+      // Don't throw error - this is a helpful feature but shouldn't break the main flow
+    }
+  }
 
   return httpServer;
 }
