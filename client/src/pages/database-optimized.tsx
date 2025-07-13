@@ -86,6 +86,19 @@ function DatabaseOptimizedPage() {
     isLoading: false
   });
 
+  // Dependency management state
+  const [dependencyDialog, setDependencyDialog] = useState<{
+    isOpen: boolean;
+    taskId: number | null;
+    currentDependencies: number[];
+    selectedDependencies: Set<number>;
+  }>({
+    isOpen: false,
+    taskId: null,
+    currentDependencies: [],
+    selectedDependencies: new Set()
+  });
+
   // Break down mutation for getting AI breakdown
   const breakdownMutation = useMutation({
     mutationFn: async ({ type, id }: { type: 'task' | 'project'; id: number }) => {
@@ -191,6 +204,63 @@ function DatabaseOptimizedPage() {
       cancelEditing(type, id, field);
     }
   });
+
+  // Dependency update mutation
+  const updateDependencyMutation = useMutation({
+    mutationFn: async ({ taskId, dependencies }: { taskId: number; dependencies: number[] }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, { dependencies });
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Close dialog
+      setDependencyDialog({
+        isOpen: false,
+        taskId: null,
+        currentDependencies: [],
+        selectedDependencies: new Set()
+      });
+      
+      // Invalidate task cache and all tasks cache
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          typeof query.queryKey[0] === "string" &&
+          (query.queryKey[0].startsWith("/api/projects/") && query.queryKey[0].includes("/tasks")) ||
+          query.queryKey[0] === "/api/tasks/all"
+      });
+    }
+  });
+
+  // Functions for dependency management
+  const openDependencyDialog = (taskId: number, currentDependencies: number[]) => {
+    setDependencyDialog({
+      isOpen: true,
+      taskId,
+      currentDependencies,
+      selectedDependencies: new Set(currentDependencies)
+    });
+  };
+
+  const toggleDependency = (depTaskId: number) => {
+    setDependencyDialog(prev => {
+      const newSelected = new Set(prev.selectedDependencies);
+      if (newSelected.has(depTaskId)) {
+        newSelected.delete(depTaskId);
+      } else {
+        newSelected.add(depTaskId);
+      }
+      return { ...prev, selectedDependencies: newSelected };
+    });
+  };
+
+  const saveDependencies = () => {
+    if (dependencyDialog.taskId) {
+      updateDependencyMutation.mutate({
+        taskId: dependencyDialog.taskId,
+        dependencies: Array.from(dependencyDialog.selectedDependencies)
+      });
+    }
+  };
 
   // Editable field component
   const EditableField = ({ 
@@ -628,7 +698,7 @@ function DatabaseOptimizedPage() {
     });
 
     if (!isExpanded) return null;
-    if (projectsLoading) return <TableRow><TableCell colSpan={10} className="text-center">Loading projects...</TableCell></TableRow>;
+    if (projectsLoading) return <TableRow><TableCell colSpan={11} className="text-center">Loading projects...</TableCell></TableRow>;
 
     return (
       <>
@@ -691,6 +761,9 @@ function DatabaseOptimizedPage() {
                     placeholder="Priority"
                   />
                 </div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <span className="text-gray-400 text-sm">-</span>
               </TableCell>
               <TableCell className="hidden xl:table-cell text-center">
                 <div onClick={(e) => e.stopPropagation()}>
@@ -803,7 +876,7 @@ function DatabaseOptimizedPage() {
     });
 
     if (!isExpanded) return null;
-    if (tasksLoading) return <TableRow><TableCell colSpan={10} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
+    if (tasksLoading) return <TableRow><TableCell colSpan={11} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
 
     return (
       <>
@@ -826,28 +899,6 @@ function DatabaseOptimizedPage() {
                     {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
                   <CheckSquare className="h-4 w-4 text-green-600" />
-                  {task.dependencies && Array.isArray(task.dependencies) && task.dependencies.length > 0 && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link2 className="h-4 w-4 text-blue-500 cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs">
-                          <div className="text-sm">
-                            <p className="font-medium mb-1">Depends on:</p>
-                            {task.dependencies.map((depId, index) => {
-                              const dependentTask = allTasks.find(t => t.id === depId);
-                              return dependentTask ? (
-                                <p key={index} className="text-xs">• {dependentTask.title}</p>
-                              ) : (
-                                <p key={index} className="text-xs">• Task ID {depId}</p>
-                              );
-                            })}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
                   <div onClick={(e) => e.stopPropagation()}>
                     <EditableField
                       type="tasks"
@@ -887,6 +938,33 @@ function DatabaseOptimizedPage() {
                     options={["low", "medium", "high", "urgent"]}
                     placeholder="Priority"
                   />
+                </div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div onClick={(e) => e.stopPropagation()}>
+                  {task.dependencies && Array.isArray(task.dependencies) && task.dependencies.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {task.dependencies.map((depId, index) => {
+                        const dependentTask = allTasks.find(t => t.id === depId);
+                        return (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {dependentTask ? dependentTask.title.substring(0, 15) + (dependentTask.title.length > 15 ? '...' : '') : `Task ${depId}`}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 text-sm">None</span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openDependencyDialog(task.id, task.dependencies || [])}
+                    className="mt-1 h-6 text-xs px-2 text-blue-600 hover:text-blue-800"
+                  >
+                    <Edit2 className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
                 </div>
               </TableCell>
               <TableCell className="hidden xl:table-cell text-center">
@@ -1150,6 +1228,7 @@ function DatabaseOptimizedPage() {
                   <TableHead className="min-w-[80px] text-xs sm:text-sm">Type</TableHead>
                   <TableHead className="min-w-[90px] text-xs sm:text-sm hidden sm:table-cell">Status</TableHead>
                   <TableHead className="min-w-[90px] text-xs sm:text-sm hidden md:table-cell">Priority</TableHead>
+                  <TableHead className="min-w-[120px] text-xs sm:text-sm hidden lg:table-cell">Dependencies</TableHead>
                   <TableHead className="min-w-[80px] text-xs sm:text-sm hidden xl:table-cell">Days</TableHead>
                   <TableHead className="min-w-[100px] text-xs sm:text-sm">Progress</TableHead>
                   <TableHead className="min-w-[100px] text-xs sm:text-sm hidden lg:table-cell">Deadline</TableHead>
@@ -1226,6 +1305,9 @@ function DatabaseOptimizedPage() {
                             placeholder="Priority"
                           />
                         </div>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <span className="text-gray-400 text-sm">-</span>
                       </TableCell>
                       <TableCell className="hidden xl:table-cell text-center">
                         <div onClick={(e) => e.stopPropagation()}>
@@ -1404,8 +1486,141 @@ function DatabaseOptimizedPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {/* Dependency Management Dialog */}
+      <Dialog open={dependencyDialog.isOpen} onOpenChange={(open) => 
+        !open && setDependencyDialog({ isOpen: false, taskId: null, currentDependencies: [], selectedDependencies: new Set() })
+      }>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-blue-600" />
+              Edit Task Dependencies
+            </DialogTitle>
+            <DialogDescription>
+              Select which tasks this task depends on. Dependencies will affect timeline calculations and task scheduling.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Current Dependencies Summary */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">
+                Current Dependencies ({dependencyDialog.selectedDependencies.size})
+              </h4>
+              {dependencyDialog.selectedDependencies.size > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {Array.from(dependencyDialog.selectedDependencies).map(depId => {
+                    const task = allTasks.find(t => t.id === depId);
+                    return (
+                      <Badge key={depId} variant="secondary" className="text-xs">
+                        {task ? task.title : `Task ${depId}`}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-blue-700 text-sm">No dependencies selected</p>
+              )}
+            </div>
+
+            {/* Available Tasks by Project */}
+            <div className="space-y-4">
+              <h4 className="font-medium">Available Tasks</h4>
+              {/* Group tasks by project for better organization */}
+              {goals.map(goal => (
+                <div key={goal.id} className="space-y-2">
+                  <h5 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    {goal.title}
+                  </h5>
+                  {/* Get projects for this goal and map tasks */}
+                  {(() => {
+                    const projectsQuery = queryClient.getQueryData([`/api/goals/${goal.id}/projects`]) as Project[] || [];
+                    return projectsQuery.map(project => {
+                      const tasksQuery = queryClient.getQueryData([`/api/projects/${project.id}/tasks`]) as Task[] || [];
+                      const availableTasks = tasksQuery.filter(task => 
+                        task.id !== dependencyDialog.taskId && // Can't depend on itself
+                        !wouldCreateCycle(dependencyDialog.taskId!, task.id, allTasks) // Prevent cycles
+                      );
+                      
+                      if (availableTasks.length === 0) return null;
+                      
+                      return (
+                        <div key={project.id} className="ml-4 space-y-1">
+                          <h6 className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                            <FolderOpen className="h-3 w-3" />
+                            {project.title}
+                          </h6>
+                          <div className="ml-4 space-y-1">
+                            {availableTasks.map(task => (
+                              <div key={task.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                                <Checkbox
+                                  checked={dependencyDialog.selectedDependencies.has(task.id)}
+                                  onCheckedChange={() => toggleDependency(task.id)}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <CheckSquare className="h-3 w-3 text-green-600 flex-shrink-0" />
+                                    <span className="text-sm truncate">{task.title}</span>
+                                  </div>
+                                  {task.deadline && (
+                                    <span className="text-xs text-gray-500">
+                                      Due: {format(new Date(task.deadline), "MMM dd")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => setDependencyDialog({ isOpen: false, taskId: null, currentDependencies: [], selectedDependencies: new Set() })}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={saveDependencies}
+              disabled={updateDependencyMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {updateDependencyMutation.isPending ? 'Saving...' : 'Save Dependencies'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+// Helper function to prevent circular dependencies
+function wouldCreateCycle(taskId: number, potentialDepId: number, allTasks: Task[]): boolean {
+  // Simple cycle detection - check if potentialDep already depends on taskId
+  const visited = new Set<number>();
+  
+  function hasPath(from: number, to: number): boolean {
+    if (from === to) return true;
+    if (visited.has(from)) return false;
+    visited.add(from);
+    
+    const task = allTasks.find(t => t.id === from);
+    if (!task?.dependencies) return false;
+    
+    return task.dependencies.some((depId: number) => hasPath(depId, to));
+  }
+  
+  return hasPath(potentialDepId, taskId);
 }
 
 export default DatabaseOptimizedPage;
