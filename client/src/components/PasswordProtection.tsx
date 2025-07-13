@@ -31,28 +31,39 @@ export default function PasswordProtection({ children }: PasswordProtectionProps
   // Check authentication status on mount
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('🔒 PasswordProtection: Checking authentication status...');
+      
       try {
         // First try localStorage (fallback for production)
         const localAuth = localStorage.getItem('taflo-stealth-auth');
+        console.log('🔒 LocalStorage auth status:', localAuth);
+        
         if (localAuth === 'authenticated') {
+          console.log('✅ User authenticated via localStorage');
           setIsAuthenticated(true);
           setIsLoading(false);
           return;
         }
 
         // Try server-side check if available
+        console.log('🔗 Trying server auth check...');
         const response = await fetch('/api/stealth/check');
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Server auth response:', data);
           setIsAuthenticated(data.authenticated);
         } else {
           // Server not accessible, rely on localStorage
+          console.log('❌ Server not accessible, defaulting to unauthenticated');
           setIsAuthenticated(false);
         }
       } catch (error) {
         // Server not accessible, rely on localStorage
+        console.log('❌ Server auth failed:', error);
         setIsAuthenticated(false);
       }
+      
+      console.log('🔒 Auth check complete, showing password screen if needed');
       setIsLoading(false);
     };
 
