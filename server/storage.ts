@@ -34,6 +34,7 @@ export interface IStorage {
   getGoal(id: number): Promise<Goal | undefined>;
   getGoalWithProjects(id: number): Promise<GoalWithProjects | undefined>;
   updateGoalApproval(id: number, approved: boolean): Promise<void>;
+  deleteGoal(id: number): Promise<void>;
   
   // Projects
   createProject(project: InsertProject): Promise<Project>;
@@ -41,6 +42,7 @@ export interface IStorage {
   getProject(id: number): Promise<Project | undefined>;
   getProjectWithTasks(id: number): Promise<ProjectWithTasks | undefined>;
   updateProjectApproval(id: number, approved: boolean): Promise<void>;
+  deleteProject(id: number): Promise<void>;
   
   // Tasks
   createTask(task: InsertTask): Promise<Task>;
@@ -50,6 +52,7 @@ export interface IStorage {
   getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined>;
   updateTaskCompletion(id: number, completed: boolean): Promise<void>;
   updateTaskApproval(id: number, approved: boolean): Promise<void>;
+  deleteTask(id: number): Promise<void>;
   
   // Subtasks
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
@@ -57,6 +60,7 @@ export interface IStorage {
   getSubtask(id: number): Promise<Subtask | undefined>;
   updateSubtaskCompletion(id: number, completed: boolean): Promise<void>;
   updateSubtaskApproval(id: number, approved: boolean): Promise<void>;
+  deleteSubtask(id: number): Promise<void>;
   
   // Pending breakdowns
   createPendingBreakdown(breakdown: InsertPendingBreakdown): Promise<PendingBreakdown>;
@@ -375,6 +379,23 @@ export class MemStorage implements IStorage {
   async deletePendingBreakdown(id: number): Promise<void> {
     this.pendingBreakdowns.delete(id);
   }
+
+  // Delete methods for MemStorage
+  async deleteGoal(id: number): Promise<void> {
+    this.goals.delete(id);
+  }
+
+  async deleteProject(id: number): Promise<void> {
+    this.projects.delete(id);
+  }
+
+  async deleteTask(id: number): Promise<void> {
+    this.tasks.delete(id);
+  }
+
+  async deleteSubtask(id: number): Promise<void> {
+    this.subtasks.delete(id);
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -691,6 +712,10 @@ export class DatabaseStorage implements IStorage {
     await db.update(goals).set({ approved }).where(eq(goals.id, id));
   }
 
+  async deleteGoal(id: number): Promise<void> {
+    await db.delete(goals).where(eq(goals.id, id));
+  }
+
   // Projects
   async createProject(insertProject: InsertProject): Promise<Project> {
     const [project] = await db.insert(projects).values(insertProject).returning();
@@ -726,6 +751,10 @@ export class DatabaseStorage implements IStorage {
 
   async updateProjectApproval(id: number, approved: boolean): Promise<void> {
     await db.update(projects).set({ approved }).where(eq(projects.id, id));
+  }
+
+  async deleteProject(id: number): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
   }
 
   // Tasks
@@ -765,6 +794,10 @@ export class DatabaseStorage implements IStorage {
     await db.update(tasks).set({ approved }).where(eq(tasks.id, id));
   }
 
+  async deleteTask(id: number): Promise<void> {
+    await db.delete(tasks).where(eq(tasks.id, id));
+  }
+
   // Subtasks
   async createSubtask(insertSubtask: InsertSubtask): Promise<Subtask> {
     const [subtask] = await db.insert(subtasks).values(insertSubtask).returning();
@@ -789,6 +822,10 @@ export class DatabaseStorage implements IStorage {
 
   async updateSubtaskApproval(id: number, approved: boolean): Promise<void> {
     await db.update(subtasks).set({ approved }).where(eq(subtasks.id, id));
+  }
+
+  async deleteSubtask(id: number): Promise<void> {
+    await db.delete(subtasks).where(eq(subtasks.id, id));
   }
 
   // Pending breakdowns
