@@ -52,10 +52,37 @@ export default function DashboardPage() {
   });
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [dependencyDialog, setDependencyDialog] = useState({
+    isOpen: false,
+    taskId: null as number | null,
+    currentDependencies: [] as number[],
+    selectedDependencies: new Set<number>()
+  });
+  const [rescheduleDialog, setRescheduleDialog] = useState({
+    isOpen: false,
+    taskId: null as number | null,
+    currentDate: ""
+  });
+  const [breakdownDialog, setBreakdownDialog] = useState({
+    isOpen: false,
+    item: null as any,
+    type: "",
+    breakdown: null as any
+  });
 
   // Fetch dashboard stats with real data
   const { data: dashboardStats, isLoading } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
+  });
+
+  // Fetch all tasks for dependency management
+  const { data: allTasks = [] } = useQuery({
+    queryKey: ["/api/tasks/all"],
+  });
+
+  // Fetch goals for dependency and breakdown management
+  const { data: goals = [] } = useQuery({
+    queryKey: ["/api/goals"],
   });
 
   // Extract data from dashboard stats
@@ -65,17 +92,18 @@ export default function DashboardPage() {
   const behindSchedule = dashboardStats?.behindSchedule || [];
   const metrics = dashboardStats?.metrics || {};
   const counts = dashboardStats?.counts || {};
-  const goals = dashboardStats?.goals || [];
+  const dashboardGoals = dashboardStats?.goals || [];
 
   // Completion mutation
   const completeMutation = useMutation({
     mutationFn: async ({ type, id }: { type: string; id: number }) => {
-      const response = await apiRequest("PATCH", `/api/${type}s/${id}/complete`, {});
+      const response = await apiRequest("PATCH", `/api/${type}s/${id}/complete`, { completed: true });
       return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setTaskDetailModal({ isOpen: false, task: null, isSubtask: false });
     },
   });
 
@@ -122,6 +150,155 @@ export default function DashboardPage() {
   const cancelEdit = () => {
     setEditingField(null);
     setEditValue("");
+  };
+
+  // Dependency management mutations and functions
+  const updateDependencyMutation = useMutation({
+    mutationFn: async ({ taskId, dependencies }: { taskId: number; dependencies: number[] }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, { dependencies });
+      return await response.json();
+    },
+    onSuccess: () => {
+      setDependencyDialog({
+        isOpen: false,
+        taskId: null,
+        currentDependencies: [],
+        selectedDependencies: new Set()
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
+    }
+  });
+
+  const openDependencyDialog = (taskId: number, currentDependencies: number[]) => {
+    setDependencyDialog({
+      isOpen: true,
+      taskId,
+      currentDependencies,
+      selectedDependencies: new Set(currentDependencies)
+    });
+  };
+
+  const toggleDependency = (depTaskId: number) => {
+    setDependencyDialog(prev => {
+      const newSelected = new Set(prev.selectedDependencies);
+      if (newSelected.has(depTaskId)) {
+        newSelected.delete(depTaskId);
+      } else {
+        newSelected.add(depTaskId);
+      }
+      return { ...prev, selectedDependencies: newSelected };
+    });
+  };
+
+  const saveDependencies = () => {
+    if (dependencyDialog.taskId) {
+      updateDependencyMutation.mutate({
+        taskId: dependencyDialog.taskId,
+        dependencies: Array.from(dependencyDialog.selectedDependencies)
+      });
+    }
+  };
+
+  // Reschedule functionality
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ taskId, newDate }: { taskId: number; newDate: string }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, { deadline: newDate });
+      return await response.json();
+    },
+    onSuccess: () => {
+      setRescheduleDialog({ isOpen: false, taskId: null, currentDate: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+    }
+  });
+
+  const openRescheduleDialog = (taskId: number, currentDate: string) => {
+    setRescheduleDialog({
+      isOpen: true,
+      taskId,
+      currentDate: currentDate ? currentDate.split('T')[0] : ""
+    });
+  };
+
+  const saveReschedule = () => {
+    if (rescheduleDialog.taskId && rescheduleDialog.currentDate) {
+      rescheduleMutation.mutate({
+        taskId: rescheduleDialog.taskId,
+        newDate: rescheduleDialog.currentDate
+      });
+    }
+  };
+
+  // Breakdown functionality
+  const breakdownMutation = useMutation({
+    mutationFn: async ({ type, id, prompt }: { type: string; id: number; prompt: string }) => {
+      const response = await apiRequest("POST", `/api/${type}/${id}/breakdown`, { prompt });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setBreakdownDialog(prev => ({ ...prev, breakdown: data }));
+    },
+  });
+
+  const applyBreakdownMutation = useMutation({
+    mutationFn: async ({ type, id, breakdown }: { type: string; id: number; breakdown: any }) => {
+      const response = await apiRequest("POST", `/api/${type}/${id}/apply-breakdown`, { breakdown });
+      return await response.json();
+    },
+    onSuccess: () => {
+      setBreakdownDialog({ isOpen: false, item: null, type: "", breakdown: null });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+    },
+  });
+
+  const openBreakdownDialog = (item: any, type: string) => {
+    setBreakdownDialog({
+      isOpen: true,
+      item,
+      type,
+      breakdown: null
+    });
+  };
+
+  const handleBreakdown = () => {
+    if (!breakdownDialog.item) return;
+    
+    const prompt = `Break down this ${breakdownDialog.type}: "${breakdownDialog.item.title}"`;
+    breakdownMutation.mutate({
+      type: breakdownDialog.type,
+      id: breakdownDialog.item.id,
+      prompt
+    });
+  };
+
+  const applyBreakdown = () => {
+    if (!breakdownDialog.breakdown || !breakdownDialog.item) return;
+    
+    applyBreakdownMutation.mutate({
+      type: breakdownDialog.type,
+      id: breakdownDialog.item.id,
+      breakdown: breakdownDialog.breakdown
+    });
+  };
+
+  // Helper function to prevent circular dependencies
+  const wouldCreateCycle = (taskId: number, potentialDepId: number, allTasks: any[]): boolean => {
+    const visited = new Set<number>();
+    
+    function hasPath(from: number, to: number): boolean {
+      if (from === to) return true;
+      if (visited.has(from)) return false;
+      visited.add(from);
+      
+      const task = allTasks.find(t => t.id === from);
+      if (!task?.dependencies) return false;
+      
+      return task.dependencies.some((depId: number) => hasPath(depId, to));
+    }
+    
+    return hasPath(potentialDepId, taskId);
   };
 
   const today = new Date().toISOString().split('T')[0];
@@ -522,7 +699,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             
             {/* Goal Progress Rings */}
-            {(goals as any[]).map((goal: any) => (
+            {(dashboardGoals as any[]).map((goal: any) => (
               <Card key={goal.id} className="cursor-pointer hover:shadow-md transition-shadow">
                 <CardHeader>
                   <CardTitle className="text-lg">{goal.title}</CardTitle>
@@ -646,15 +823,46 @@ export default function DashboardPage() {
                     )}
                     
                     <div className="flex items-center gap-2 mt-2">
-                      <Badge className={`${
-                        taskDetailModal.task.priority === "urgent" ? "bg-red-100 text-red-800 border-red-200" :
-                        taskDetailModal.task.priority === "high" ? "bg-orange-100 text-orange-800 border-orange-200" :
-                        taskDetailModal.task.priority === "medium" ? "bg-blue-100 text-blue-800 border-blue-200" :
-                        "bg-gray-100 text-gray-800 border-gray-200"
-                      }`}>
-                        <Flag className="h-3 w-3 mr-1" />
-                        {taskDetailModal.task.priority || "Medium"} Priority
-                      </Badge>
+                      {editingField === "priority" ? (
+                        <div className="flex items-center gap-2">
+                          <Select value={editValue} onValueChange={setEditValue}>
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="urgent">🔴 Urgent</SelectItem>
+                              <SelectItem value="high">🟠 High</SelectItem>
+                              <SelectItem value="medium">🔵 Medium</SelectItem>
+                              <SelectItem value="low">⚪ Low</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button size="sm" onClick={saveEdit}>
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={cancelEdit}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Badge 
+                          className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
+                            taskDetailModal.task.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
+                            taskDetailModal.task.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
+                            taskDetailModal.task.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
+                            "bg-gray-500 hover:bg-gray-600"
+                          }`}
+                          onClick={() => startEditing("priority", taskDetailModal.task.priority)}
+                        >
+                          <Flag className="h-3 w-3 mr-1" />
+                          {
+                            taskDetailModal.task.priority === "urgent" ? "🔴 URGENT" :
+                            taskDetailModal.task.priority === "high" ? "🟠 HIGH" :
+                            taskDetailModal.task.priority === "medium" ? "🔵 MEDIUM" :
+                            "⚪ LOW"
+                          } PRIORITY
+                          <Edit2 className="h-3 w-3 ml-1" />
+                        </Badge>
+                      )}
                       <Badge variant="outline">
                         {taskDetailModal.isSubtask ? "Subtask" : "Task"}
                       </Badge>
@@ -851,37 +1059,60 @@ export default function DashboardPage() {
                     <Link2 className="h-4 w-4" />
                     Dependencies
                   </label>
-                  <div className="text-sm p-3 rounded border bg-gray-50">
+                  <div 
+                    className="text-sm p-3 rounded border bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => openDependencyDialog(taskDetailModal.task.id, taskDetailModal.task.dependencies || [])}
+                  >
                     {taskDetailModal.task.dependencies && taskDetailModal.task.dependencies.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {taskDetailModal.task.dependencies.map((depId: number, index: number) => (
-                          <Badge key={depId} variant="secondary" className="text-xs">
-                            Task {depId}
-                          </Badge>
-                        ))}
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap gap-1">
+                          {taskDetailModal.task.dependencies.map((depId: number) => {
+                            const depTask = allTasks.find((t: any) => t.id === depId);
+                            return (
+                              <Badge key={depId} variant="secondary" className="text-xs">
+                                {depTask ? depTask.title : `Task ${depId}`}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                        <Edit2 className="h-4 w-4 text-muted-foreground" />
                       </div>
                     ) : (
-                      <span className="text-muted-foreground italic">No dependencies</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground italic">Click to add dependencies</span>
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="flex justify-between items-center pt-4 border-t">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button 
                       variant="outline"
                       onClick={() => completeMutation.mutate({ 
                         type: taskDetailModal.isSubtask ? 'subtask' : 'task', 
                         id: taskDetailModal.task.id 
                       })}
+                      disabled={completeMutation.isPending}
                     >
                       <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Mark Complete
+                      {completeMutation.isPending ? "Completing..." : "Mark Complete"}
                     </Button>
-                    <Button variant="outline">
+                    <Button 
+                      variant="outline"
+                      onClick={() => openRescheduleDialog(taskDetailModal.task.id, taskDetailModal.task.deadline)}
+                    >
                       <Calendar className="h-4 w-4 mr-2" />
                       Reschedule
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => openBreakdownDialog(taskDetailModal.task, taskDetailModal.isSubtask ? "subtask" : "task")}
+                    >
+                      <Zap className="h-4 w-4 mr-2" />
+                      Break Down Further
                     </Button>
                   </div>
                   <Button 
@@ -894,6 +1125,213 @@ export default function DashboardPage() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dependency Management Dialog */}
+      <Dialog open={dependencyDialog.isOpen} onOpenChange={(open) => 
+        !open && setDependencyDialog({ isOpen: false, taskId: null, currentDependencies: [], selectedDependencies: new Set() })
+      }>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-blue-600" />
+              Edit Task Dependencies
+            </DialogTitle>
+            <DialogDescription>
+              Select which tasks this task depends on. Dependencies will affect timeline calculations and task scheduling.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Current Dependencies Summary */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">
+                Current Dependencies ({dependencyDialog.selectedDependencies.size})
+              </h4>
+              {dependencyDialog.selectedDependencies.size > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {Array.from(dependencyDialog.selectedDependencies).map(depId => {
+                    const task = allTasks.find((t: any) => t.id === depId);
+                    return (
+                      <Badge key={depId} variant="secondary" className="text-xs">
+                        {task ? task.title : `Task ${depId}`}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-blue-700 text-sm">No dependencies selected</p>
+              )}
+            </div>
+
+            {/* Available Tasks */}
+            <div className="space-y-4">
+              <h4 className="font-medium">Available Tasks</h4>
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {allTasks
+                  .filter((task: any) => 
+                    task.id !== dependencyDialog.taskId && // Can't depend on itself
+                    !wouldCreateCycle(dependencyDialog.taskId!, task.id, allTasks) // Prevent cycles
+                  )
+                  .map((task: any) => (
+                    <div key={task.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                      <input
+                        type="checkbox"
+                        checked={dependencyDialog.selectedDependencies.has(task.id)}
+                        onChange={() => toggleDependency(task.id)}
+                        className="rounded"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />
+                          <span className="text-sm truncate">{task.title}</span>
+                        </div>
+                        {task.deadline && (
+                          <span className="text-xs text-gray-500">
+                            Due: {format(new Date(task.deadline), "MMM dd")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={() => setDependencyDialog({ isOpen: false, taskId: null, currentDependencies: [], selectedDependencies: new Set() })}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={saveDependencies}
+                disabled={updateDependencyMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {updateDependencyMutation.isPending ? 'Saving...' : 'Save Dependencies'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialog.isOpen} onOpenChange={(open) => 
+        !open && setRescheduleDialog({ isOpen: false, taskId: null, currentDate: "" })
+      }>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              Reschedule Task
+            </DialogTitle>
+            <DialogDescription>
+              Select a new deadline. Dependencies will be automatically updated.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Deadline</label>
+              <Input
+                type="date"
+                value={rescheduleDialog.currentDate}
+                onChange={(e) => setRescheduleDialog(prev => ({ ...prev, currentDate: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={() => setRescheduleDialog({ isOpen: false, taskId: null, currentDate: "" })}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={saveReschedule}
+                disabled={rescheduleMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {rescheduleMutation.isPending ? 'Rescheduling...' : 'Reschedule'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Breakdown Dialog */}
+      <Dialog open={breakdownDialog.isOpen} onOpenChange={(open) => 
+        !open && setBreakdownDialog({ isOpen: false, item: null, type: "", breakdown: null })
+      }>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-blue-600" />
+              Break Down Further
+            </DialogTitle>
+            <DialogDescription>
+              AI will analyze and break down this {breakdownDialog.type} into smaller, actionable items.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {breakdownDialog.item && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">{breakdownDialog.item.title}</h4>
+                {breakdownDialog.item.description && (
+                  <p className="text-sm text-gray-600">{breakdownDialog.item.description}</p>
+                )}
+              </div>
+            )}
+
+            {!breakdownDialog.breakdown ? (
+              <div className="text-center py-8">
+                <Button 
+                  onClick={handleBreakdown}
+                  disabled={breakdownMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {breakdownMutation.isPending ? (
+                    <>
+                      <Zap className="h-4 w-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Generate Breakdown
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h4 className="font-medium">AI Generated Breakdown:</h4>
+                <div className="bg-white border rounded-lg p-4 max-h-60 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(breakdownDialog.breakdown, null, 2)}</pre>
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setBreakdownDialog({ isOpen: false, item: null, type: "", breakdown: null })}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={applyBreakdown}
+                    disabled={applyBreakdownMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {applyBreakdownMutation.isPending ? 'Applying...' : 'Apply Breakdown'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
