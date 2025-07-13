@@ -110,6 +110,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { pendingId, approved, editedBreakdown } = req.body;
       
+      // Get current user ID from middleware
+      const currentUserId = getCurrentUserId(req);
+      
       const pendingBreakdown = await storage.getPendingBreakdown(pendingId);
       if (!pendingBreakdown) {
         return res.status(404).json({ error: "Pending breakdown not found" });
@@ -126,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Breakdown structure:", JSON.stringify(breakdown, null, 2));
       
-      // Create the goal (targetDate is text field in goals table)
+      // Create the goal (targetDate is text field in goals table) with user assignment
       const goal = await storage.createGoal({
         title: breakdown.goal.title || breakdown.goal.name,
         name: breakdown.goal.title || breakdown.goal.name,
@@ -139,7 +142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         estimatedDays: breakdown.goal.estimatedDays || null,
         startDate: breakdown.goal.startDate ? new Date(breakdown.goal.startDate) : null,
         deadline: breakdown.goal.dueDate ? new Date(breakdown.goal.dueDate) : null,
-        approved: true
+        approved: true,
+        assignedTo: currentUserId
       });
       
       // Create projects under the goal
@@ -159,7 +163,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedDays: aiProject.estimatedDays || null,
           startDate: aiProject.startDate ? new Date(aiProject.startDate) : null,
           deadline: aiProject.dueDate ? new Date(aiProject.dueDate) : null,
-          approved: true
+          approved: true,
+          assignedTo: currentUserId
         });
         
         // Create tasks under each project
@@ -179,7 +184,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             priority: aiTask.priority || aiTask.urgency || "medium",
             status: "pending",
             completed: false,
-            approved: true
+            approved: true,
+            assignedTo: currentUserId
           });
           
           // Create subtasks under each task
@@ -200,7 +206,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               priority: aiSubtask.priority || aiSubtask.urgency || "medium",
               status: "pending",
               completed: false,
-              approved: true
+              approved: true,
+              assignedTo: currentUserId
             });
             createdSubtasks.push(subtask);
           }
