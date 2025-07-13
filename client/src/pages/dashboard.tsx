@@ -3,9 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   CalendarDays, 
   CheckCircle2, 
@@ -16,9 +20,19 @@ import {
   Search,
   Filter,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Edit2,
+  Save,
+  X,
+  User,
+  Calendar,
+  Flag,
+  Link2,
+  FileText,
+  ChevronRight
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { format } from "date-fns";
 
 interface DashboardStats {
   todayTasks: any[];
@@ -31,6 +45,13 @@ interface DashboardStats {
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
+  const [taskDetailModal, setTaskDetailModal] = useState({
+    isOpen: false,
+    task: null as any,
+    isSubtask: false
+  });
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   // Fetch dashboard stats with real data
   const { data: dashboardStats, isLoading } = useQuery<any>({
@@ -54,8 +75,54 @@ export default function DashboardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
   });
+
+  // Edit mutation for task details
+  const editTaskMutation = useMutation({
+    mutationFn: async ({ type, id, field, value }: { type: string; id: number; field: string; value: any }) => {
+      const response = await apiRequest("PATCH", `/api/${type}s/${id}/edit`, { [field]: value });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      setEditingField(null);
+    },
+  });
+
+  // Function to open task detail modal
+  const openTaskDetail = (item: any) => {
+    const isSubtask = item.task !== undefined;
+    setTaskDetailModal({
+      isOpen: true,
+      task: item,
+      isSubtask
+    });
+  };
+
+  // Function to handle inline editing
+  const startEditing = (field: string, currentValue: any) => {
+    setEditingField(field);
+    setEditValue(currentValue || "");
+  };
+
+  const saveEdit = () => {
+    if (!editingField || !taskDetailModal.task) return;
+    
+    editTaskMutation.mutate({
+      type: taskDetailModal.isSubtask ? "subtask" : "task",
+      id: taskDetailModal.task.id,
+      field: editingField,
+      value: editValue
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingField(null);
+    setEditValue("");
+  };
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -109,7 +176,11 @@ export default function DashboardPage() {
                       }[item.priority] || "bg-blue-500";
                       
                       return (
-                        <div key={`${isSubtask ? 'subtask' : 'task'}-${item.id}`} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <div 
+                          key={`${isSubtask ? 'subtask' : 'task'}-${item.id}`} 
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => openTaskDetail(item)}
+                        >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className={`w-2 h-2 rounded-full ${priorityColor}`} />
                             <div className="min-w-0 flex-1">
@@ -126,18 +197,23 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            className="h-10 w-10 p-0 sm:h-8 sm:w-auto sm:px-3 shrink-0"
-                            onClick={() => completeMutation.mutate({ 
-                              type: isSubtask ? 'subtask' : 'task', 
-                              id: item.id 
-                            })}
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span className="sr-only sm:not-sr-only sm:ml-2">Done</span>
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                completeMutation.mutate({ 
+                                  type: isSubtask ? 'subtask' : 'task', 
+                                  id: item.id 
+                                });
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
                         </div>
                       );
                     })
@@ -515,6 +591,311 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Task Detail Modal */}
+      <Dialog open={taskDetailModal.isOpen} onOpenChange={(open) => {
+        if (!open) {
+          setTaskDetailModal({ isOpen: false, task: null, isSubtask: false });
+          setEditingField(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {taskDetailModal.task && (
+            <>
+              <DialogHeader className="space-y-4">
+                {/* Hierarchy Breadcrumb */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Target className="h-4 w-4" />
+                  <span>{taskDetailModal.task.goal?.title || "No Goal"}</span>
+                  <ChevronRight className="h-3 w-3" />
+                  <span>{taskDetailModal.task.project?.title || "No Project"}</span>
+                  {taskDetailModal.isSubtask && (
+                    <>
+                      <ChevronRight className="h-3 w-3" />
+                      <span>{taskDetailModal.task.task?.title || "Parent Task"}</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Task Title and Priority */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    {editingField === "title" ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="text-xl font-semibold"
+                          autoFocus
+                        />
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <DialogTitle 
+                        className="text-xl font-semibold cursor-pointer hover:bg-gray-50 p-2 rounded flex items-center gap-2"
+                        onClick={() => startEditing("title", taskDetailModal.task.title)}
+                      >
+                        <span className="truncate">{taskDetailModal.task.title}</span>
+                        <Edit2 className="h-4 w-4 text-muted-foreground" />
+                      </DialogTitle>
+                    )}
+                    
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge className={`${
+                        taskDetailModal.task.priority === "urgent" ? "bg-red-100 text-red-800 border-red-200" :
+                        taskDetailModal.task.priority === "high" ? "bg-orange-100 text-orange-800 border-orange-200" :
+                        taskDetailModal.task.priority === "medium" ? "bg-blue-100 text-blue-800 border-blue-200" :
+                        "bg-gray-100 text-gray-800 border-gray-200"
+                      }`}>
+                        <Flag className="h-3 w-3 mr-1" />
+                        {taskDetailModal.task.priority || "Medium"} Priority
+                      </Badge>
+                      <Badge variant="outline">
+                        {taskDetailModal.isSubtask ? "Subtask" : "Task"}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {/* Assigned User Avatar */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-sm font-medium">Assigned to</p>
+                      {editingField === "assignedTo" ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            placeholder="Assign to someone"
+                            className="w-32"
+                          />
+                          <Button size="sm" onClick={saveEdit}>
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={cancelEdit}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <p 
+                          className="text-sm text-muted-foreground cursor-pointer hover:bg-gray-50 p-1 rounded"
+                          onClick={() => startEditing("assignedTo", taskDetailModal.task.assignedTo)}
+                        >
+                          {taskDetailModal.task.assignedTo || "Unassigned"}
+                        </p>
+                      )}
+                    </div>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src="" />
+                      <AvatarFallback className="bg-blue-100 text-blue-600">
+                        {taskDetailModal.task.assignedTo ? 
+                          taskDetailModal.task.assignedTo.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) :
+                          <User className="h-5 w-5" />
+                        }
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6 mt-6">
+                {/* Key Details Row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Deadline */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Deadline
+                    </label>
+                    {editingField === "deadline" ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                        />
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p 
+                        className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
+                        onClick={() => startEditing("deadline", taskDetailModal.task.deadline ? taskDetailModal.task.deadline.split('T')[0] : "")}
+                      >
+                        {taskDetailModal.task.deadline ? 
+                          format(new Date(taskDetailModal.task.deadline), "MMM dd, yyyy") : 
+                          "No deadline set"
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Estimated Hours */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Estimated Hours
+                    </label>
+                    {editingField === "estimatedHours" ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          placeholder="Hours"
+                        />
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p 
+                        className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
+                        onClick={() => startEditing("estimatedHours", taskDetailModal.task.estimatedHours)}
+                      >
+                        {taskDetailModal.task.estimatedHours ? `${taskDetailModal.task.estimatedHours} hours` : "Not estimated"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Target className="h-4 w-4" />
+                      Status
+                    </label>
+                    {editingField === "status" ? (
+                      <div className="flex items-center gap-2">
+                        <Select value={editValue} onValueChange={setEditValue}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="on_hold">On Hold</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p 
+                        className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border capitalize"
+                        onClick={() => startEditing("status", taskDetailModal.task.status)}
+                      >
+                        {taskDetailModal.task.status || "Pending"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Description
+                  </label>
+                  {editingField === "description" ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        placeholder="Describe this task..."
+                        rows={4}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-4 w-4" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-4 w-4" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="text-sm cursor-pointer hover:bg-gray-50 p-3 rounded border min-h-[80px] flex items-start"
+                      onClick={() => startEditing("description", taskDetailModal.task.description)}
+                    >
+                      {taskDetailModal.task.description ? (
+                        <p className="whitespace-pre-wrap">{taskDetailModal.task.description}</p>
+                      ) : (
+                        <span className="text-muted-foreground italic">Click to add description...</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Dependencies */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Dependencies
+                  </label>
+                  <div className="text-sm p-3 rounded border bg-gray-50">
+                    {taskDetailModal.task.dependencies && taskDetailModal.task.dependencies.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {taskDetailModal.task.dependencies.map((depId: number, index: number) => (
+                          <Badge key={depId} variant="secondary" className="text-xs">
+                            Task {depId}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground italic">No dependencies</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-between items-center pt-4 border-t">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => completeMutation.mutate({ 
+                        type: taskDetailModal.isSubtask ? 'subtask' : 'task', 
+                        id: taskDetailModal.task.id 
+                      })}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Mark Complete
+                    </Button>
+                    <Button variant="outline">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Reschedule
+                    </Button>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setTaskDetailModal({ isOpen: false, task: null, isSubtask: false })}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
