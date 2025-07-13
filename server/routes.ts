@@ -234,8 +234,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all goals (lightweight - no nested data)
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const goals = await storage.getAllGoals();
-      res.json(goals);
+      const userId = getCurrentUserId(req);
+      const showMyTasksOnly = req.query.assignedToMe === 'true';
+      
+      if (showMyTasksOnly && userId) {
+        // Filter goals that have at least one item assigned to the current user
+        const allGoals = await storage.getAllGoals();
+        const userGoals = [];
+        
+        for (const goal of allGoals) {
+          // Check if goal is assigned to user
+          if (goal.assignedTo === userId) {
+            userGoals.push(goal);
+            continue;
+          }
+          
+          // Check if any projects in this goal are assigned to user
+          const projects = await storage.getProjectsByGoalId(goal.id);
+          const hasUserProject = projects.some(p => p.assignedTo === userId);
+          if (hasUserProject) {
+            userGoals.push(goal);
+            continue;
+          }
+          
+          // Check if any tasks in this goal are assigned to user
+          for (const project of projects) {
+            const tasks = await storage.getTasksByProjectId(project.id);
+            const hasUserTask = tasks.some(t => t.assignedTo === userId);
+            if (hasUserTask) {
+              userGoals.push(goal);
+              break;
+            }
+          }
+        }
+        
+        res.json(userGoals);
+      } else {
+        const goals = await storage.getAllGoals();
+        res.json(goals);
+      }
     } catch (error) {
       next(error);
     }
@@ -245,8 +282,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/goals/:goalId/projects", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const goalId = parseInt(req.params.goalId);
+      const userId = getCurrentUserId(req);
+      const showMyTasksOnly = req.query.assignedToMe === 'true';
+      
       const projects = await storage.getProjectsByGoalId(goalId);
-      res.json(projects);
+      
+      if (showMyTasksOnly && userId) {
+        // Filter projects that are assigned to user or have tasks assigned to user
+        const userProjects = [];
+        
+        for (const project of projects) {
+          if (project.assignedTo === userId) {
+            userProjects.push(project);
+            continue;
+          }
+          
+          // Check if any tasks in this project are assigned to user
+          const tasks = await storage.getTasksByProjectId(project.id);
+          const hasUserTask = tasks.some(t => t.assignedTo === userId);
+          if (hasUserTask) {
+            userProjects.push(project);
+          }
+        }
+        
+        res.json(userProjects);
+      } else {
+        res.json(projects);
+      }
     } catch (error) {
       next(error);
     }
@@ -266,8 +328,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/projects/:projectId/tasks", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      const userId = getCurrentUserId(req);
+      const showMyTasksOnly = req.query.assignedToMe === 'true';
+      
       const tasks = await storage.getTasksByProjectId(projectId);
-      res.json(tasks);
+      
+      if (showMyTasksOnly && userId) {
+        // Filter tasks assigned to current user
+        const userTasks = tasks.filter(task => task.assignedTo === userId);
+        res.json(userTasks);
+      } else {
+        res.json(tasks);
+      }
     } catch (error) {
       next(error);
     }
@@ -277,8 +349,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tasks/:taskId/subtasks", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const taskId = parseInt(req.params.taskId);
+      const userId = getCurrentUserId(req);
+      const showMyTasksOnly = req.query.assignedToMe === 'true';
+      
       const subtasks = await storage.getSubtasksByTaskId(taskId);
-      res.json(subtasks);
+      
+      if (showMyTasksOnly && userId) {
+        // Filter subtasks assigned to current user
+        const userSubtasks = subtasks.filter(subtask => subtask.assignedTo === userId);
+        res.json(userSubtasks);
+      } else {
+        res.json(subtasks);
+      }
     } catch (error) {
       next(error);
     }
@@ -953,6 +1035,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
+      const userId = getCurrentUserId(req);
+      const showMyTasksOnly = req.query.assignedToMe === 'true';
       
       // Get all goals, projects, tasks, and subtasks
       const allGoals = await storage.getAllGoals();
@@ -971,6 +1055,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const task of tasks) {
             const taskWithContext = { ...task, project, goal };
             allTasks.push(taskWithContext);
+            
+            // Apply user filtering if requested
+            if (showMyTasksOnly && userId && task.assignedTo !== userId) {
+              // Skip this task if filtering and not assigned to current user
+              continue;
+            }
             
             // Check if task is in today's focus (today is between start date and deadline)
             const taskDeadline = task.deadline ? new Date(task.deadline) : null;
@@ -992,6 +1082,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Get subtasks for this task
             const subtasks = await storage.getSubtasksByTaskId(task.id);
             for (const subtask of subtasks) {
+              // Apply user filtering if requested
+              if (showMyTasksOnly && userId && subtask.assignedTo !== userId) {
+                // Skip this subtask if filtering and not assigned to current user
+                continue;
+              }
+              
               const subtaskWithContext = { ...subtask, task, project, goal };
               allSubtasks.push(subtaskWithContext);
               

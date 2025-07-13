@@ -16,12 +16,17 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Goal, Project, Task, Subtask } from "@shared/schema";
 import { UserAvatar } from "@/components/UserAvatar";
 import { TeamAssignmentDropdown } from "@/components/TeamAssignmentDropdown";
+import { useAuth } from "@/hooks/useAuth";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 function DatabaseOptimizedPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
+  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
   
   // Editing state management
   const [editingItems, setEditingItems] = useState<{
@@ -408,7 +413,8 @@ function DatabaseOptimizedPage() {
 
   // Load goals only (lightweight query)
   const { data: goals = [], isLoading } = useQuery<Goal[]>({
-    queryKey: ["/api/goals"],
+    queryKey: ["/api/goals", { assignedToMe: showMyTasksOnly }],
+    queryFn: () => fetch(`/api/goals?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
@@ -693,7 +699,8 @@ function DatabaseOptimizedPage() {
   // Progressive loading components
   const ProjectRow = ({ goalId, isExpanded }: { goalId: number; isExpanded: boolean }) => {
     const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
-      queryKey: [`/api/goals/${goalId}/projects`],
+      queryKey: [`/api/goals/${goalId}/projects`, { assignedToMe: showMyTasksOnly }],
+      queryFn: () => fetch(`/api/goals/${goalId}/projects?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
       enabled: isExpanded,
       staleTime: 1000 * 60 * 2,
     });
@@ -862,7 +869,8 @@ function DatabaseOptimizedPage() {
 
   const TaskRow = ({ projectId, isExpanded }: { projectId: number; isExpanded: boolean }) => {
     const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
-      queryKey: [`/api/projects/${projectId}/tasks`],
+      queryKey: [`/api/projects/${projectId}/tasks`, { assignedToMe: showMyTasksOnly }],
+      queryFn: () => fetch(`/api/projects/${projectId}/tasks?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
       enabled: isExpanded,
       staleTime: 1000 * 60 * 2,
     });
@@ -1057,7 +1065,8 @@ function DatabaseOptimizedPage() {
 
   const SubtaskRow = ({ taskId, isExpanded }: { taskId: number; isExpanded: boolean }) => {
     const { data: subtasks = [], isLoading: subtasksLoading } = useQuery<Subtask[]>({
-      queryKey: [`/api/tasks/${taskId}/subtasks`],
+      queryKey: [`/api/tasks/${taskId}/subtasks`, { assignedToMe: showMyTasksOnly }],
+      queryFn: () => fetch(`/api/tasks/${taskId}/subtasks?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
       enabled: isExpanded,
       staleTime: 1000 * 60 * 2,
     });
@@ -1207,8 +1216,26 @@ function DatabaseOptimizedPage() {
     <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Task Database - Optimized</h1>
-          <p className="text-sm sm:text-base text-gray-600">Hierarchical view with progressive loading for better performance</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Task Database - Optimized</h1>
+              <p className="text-sm sm:text-base text-gray-600">Hierarchical view with progressive loading for better performance</p>
+            </div>
+            
+            {/* Filter Toggle */}
+            {user && (
+              <div className="flex items-center space-x-2 bg-white p-3 rounded-lg border">
+                <Switch
+                  id="my-tasks-filter"
+                  checked={showMyTasksOnly}
+                  onCheckedChange={setShowMyTasksOnly}
+                />
+                <Label htmlFor="my-tasks-filter" className="text-sm font-medium">
+                  Show only my tasks
+                </Label>
+              </div>
+            )}
+          </div>
         </div>
 
         {goals.length === 0 ? (

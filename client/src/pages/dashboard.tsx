@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,8 +49,10 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
+  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
   const [taskDetailModal, setTaskDetailModal] = useState({
     isOpen: false,
     task: null as any,
@@ -75,12 +80,14 @@ export default function DashboardPage() {
 
   // Fetch dashboard stats with real data
   const { data: dashboardStats, isLoading } = useQuery<any>({
-    queryKey: ["/api/dashboard/stats"],
+    queryKey: ["/api/dashboard/stats", { assignedToMe: showMyTasksOnly }],
+    queryFn: () => fetch(`/api/dashboard/stats?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
   });
 
   // Fetch all tasks for dependency management
   const { data: allTasks = [] } = useQuery({
-    queryKey: ["/api/tasks/all"],
+    queryKey: ["/api/tasks/all", { assignedToMe: showMyTasksOnly }],
+    queryFn: () => fetch(`/api/tasks/all?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
   });
 
   // Fetch goals for dependency and breakdown management
@@ -347,8 +354,26 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto p-3 sm:p-6 max-w-7xl">
       <div className="mb-4 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">Your productivity command center</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Your productivity command center</p>
+          </div>
+          
+          {/* Filter Toggle */}
+          {user && (
+            <div className="flex items-center space-x-2 bg-white p-3 rounded-lg border shadow-sm">
+              <Switch
+                id="my-tasks-filter-dashboard"
+                checked={showMyTasksOnly}
+                onCheckedChange={setShowMyTasksOnly}
+              />
+              <Label htmlFor="my-tasks-filter-dashboard" className="text-sm font-medium">
+                Show only my tasks
+              </Label>
+            </div>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="action" className="space-y-4 sm:space-y-6">
