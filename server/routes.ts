@@ -755,9 +755,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/team/:teamId", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const teamId = parseInt(req.params.teamId);
+      console.log('Route: Getting team members for teamId:', teamId);
       const teamMembers = await storage.getTeamMembers(teamId);
+      console.log('Route: Received team members:', teamMembers.length, teamMembers);
       res.json(teamMembers);
     } catch (error) {
+      console.error('Error getting team members:', error);
       next(error);
     }
   });

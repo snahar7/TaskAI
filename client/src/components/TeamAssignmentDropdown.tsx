@@ -27,7 +27,7 @@ export function TeamAssignmentDropdown({
   const { data: teamMembers = [], isLoading } = useQuery<User[]>({
     queryKey: [`/api/users/team/${user?.teamId}`],
     enabled: !!user?.teamId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 30, // 30 seconds for testing
   });
 
   // Update assignment mutation
@@ -58,6 +58,8 @@ export function TeamAssignmentDropdown({
   if (isLoading) {
     return <div className="text-xs text-slate-500">Loading...</div>;
   }
+
+  console.log('Team members for user', user?.id, 'team', user?.teamId, ':', teamMembers);
 
   // If clicking to show dropdown
   if (isOpen) {

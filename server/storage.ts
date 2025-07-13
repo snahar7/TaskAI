@@ -12,7 +12,7 @@ import {
   type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -338,10 +338,34 @@ export class MemStorage implements IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Users
+  
+  // Users - implements IStorage interface
   async getUser(id: number): Promise<User | undefined> {
+    return this.getUserById(id);
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<InsertUser>): Promise<void> {
+    await db.update(users).set(updates).where(eq(users.id, id));
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -757,7 +781,20 @@ export class DatabaseStorage implements IStorage {
 
   // Teams
   async getTeamMembers(teamId: number): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.teamId, teamId));
+    console.log('STORAGE: Getting team members for teamId:', teamId);
+    try {
+      // Try raw SQL to debug
+      const rawMembers = await db.execute(sql`SELECT * FROM users WHERE team_id = ${teamId}`);
+      console.log('STORAGE: Raw SQL result:', rawMembers.rows);
+      
+      // Also try Drizzle query
+      const members = await db.select().from(users).where(eq(users.teamId, teamId));
+      console.log('STORAGE: Drizzle result:', members.length, members.map(m => ({ id: m.id, email: m.email, teamId: m.teamId })));
+      return members;
+    } catch (error) {
+      console.error('STORAGE: Error in getTeamMembers:', error);
+      throw error;
+    }
   }
 
   async getUserByInviteCode(inviteCode: string): Promise<User | undefined> {

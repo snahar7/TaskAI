@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Express } from "express";
 import bcrypt from "bcrypt";
-import { storage } from "./storage-enhanced";
+import { storage } from "./storage";
 import { emailSignupSchema, emailLoginSchema, googleAuthSchema } from "@shared/schema";
 import { z } from "zod";
 
