@@ -618,12 +618,20 @@ function DatabaseOptimizedPage() {
       staleTime: 1000 * 60 * 2,
     });
 
+    // Sort projects by deadline (earliest first, then null deadlines)
+    const sortedProjects = [...projects].sort((a, b) => {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
+
     if (!isExpanded) return null;
     if (projectsLoading) return <TableRow><TableCell colSpan={10} className="text-center">Loading projects...</TableCell></TableRow>;
 
     return (
       <>
-        {projects.map((project) => (
+        {sortedProjects.map((project) => (
           <React.Fragment key={project.id}>
             <TableRow 
               className="bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
@@ -779,12 +787,20 @@ function DatabaseOptimizedPage() {
       staleTime: 1000 * 60 * 2,
     });
 
+    // Sort tasks by deadline (earliest first, then null deadlines)
+    const sortedTasks = [...tasks].sort((a, b) => {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
+
     if (!isExpanded) return null;
     if (tasksLoading) return <TableRow><TableCell colSpan={10} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
 
     return (
       <>
-        {tasks.map((task) => (
+        {sortedTasks.map((task) => (
           <React.Fragment key={task.id}>
             <TableRow 
               className="bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
@@ -940,12 +956,20 @@ function DatabaseOptimizedPage() {
       staleTime: 1000 * 60 * 2,
     });
 
+    // Sort subtasks by deadline (earliest first, then null deadlines)
+    const sortedSubtasks = [...subtasks].sort((a, b) => {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
+
     if (!isExpanded) return null;
     if (subtasksLoading) return <TableRow><TableCell colSpan={10} className="text-center pl-24">Loading subtasks...</TableCell></TableRow>;
 
     return (
       <>
-        {subtasks.map((subtask) => (
+        {sortedSubtasks.map((subtask) => (
           <TableRow key={subtask.id} className="bg-yellow-50">
             <TableCell className="pl-24">
               <div className="flex items-center gap-2">
@@ -1106,7 +1130,15 @@ function DatabaseOptimizedPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {goals.map((goal) => (
+                {goals
+                  .sort((a, b) => {
+                    // Sort goals by deadline (earliest first, then null deadlines)
+                    if (!a.deadline && !b.deadline) return 0;
+                    if (!a.deadline) return 1;
+                    if (!b.deadline) return -1;
+                    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+                  })
+                  .map((goal) => (
                   <React.Fragment key={goal.id}>
                     <TableRow 
                       className="bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors"

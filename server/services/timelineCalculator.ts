@@ -52,7 +52,10 @@ class TimelineCalculator {
   // Calculate estimated days from deadline (business days from now to deadline)
   calculateEstimatedDaysFromDeadline(deadline: string | Date): number {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for proper comparison
+    
     const deadlineDate = this.toDate(deadline);
+    deadlineDate.setHours(0, 0, 0, 0); // Set to start of day for proper comparison
     
     if (deadlineDate <= today) {
       return 1; // Minimum 1 day for overdue/today items
@@ -64,6 +67,7 @@ class TimelineCalculator {
   // Calculate deadline from estimated days (add business days to today)
   calculateDeadlineFromEstimatedDays(estimatedDays: number): string {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start from beginning of today
     const deadline = this.addBusinessDays(today, estimatedDays);
     return deadline.toISOString().split('T')[0]; // Return YYYY-MM-DD format
   }
@@ -211,6 +215,12 @@ class TimelineCalculator {
   // Smart recalculation when a field is edited
   async smartRecalculate(type: string, id: number, field: string, value: any): Promise<void> {
     console.log(`Smart recalculating ${type} ${id} field ${field} with value:`, value);
+    
+    // Debug the date calculation for deadline edits
+    if (field === 'deadline') {
+      const estimatedDays = this.calculateEstimatedDaysFromDeadline(value);
+      console.log(`Calculated ${estimatedDays} business days for deadline ${value}`);
+    }
 
     if (type === "tasks") {
       const task = await storage.getTask(id);
@@ -234,14 +244,12 @@ class TimelineCalculator {
       } else if (field === "deadline") {
         // When deadline changes, recalculate estimated days
         const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(value);
+        console.log(`User set deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
         await storage.updateTask(id, { estimatedDays: newEstimatedDays });
         
-        // Recalculate parent timelines
-        await this.recalculateProjectTimeline(task.projectId);
-        const project = await storage.getProject(task.projectId);
-        if (project) {
-          await this.recalculateGoalTimeline(project.goalId);
-        }
+        // DON'T recalculate parent timelines when user explicitly sets a deadline
+        // This prevents overwriting the user's chosen deadline
+        console.log('Skipping cascade recalculation to preserve user-set deadline');
       }
       
     } else if (type === "subtasks") {
@@ -255,7 +263,9 @@ class TimelineCalculator {
         
       } else if (field === "deadline") {
         const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(value);
+        console.log(`User set subtask deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
         await storage.updateSubtask(id, { estimatedDays: newEstimatedDays });
+        // Don't cascade when user explicitly sets deadline
       }
 
       // Recalculate parent task timeline
@@ -295,11 +305,15 @@ class TimelineCalculator {
         
       } else if (field === "deadline") {
         const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(value);
+        console.log(`User set project deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
         await storage.updateProject(id, { estimatedDays: newEstimatedDays });
+        // Don't cascade when user explicitly sets deadline
       }
 
-      // Recalculate goal timeline
-      await this.recalculateGoalTimeline(project.goalId);
+      // Only recalculate goal timeline when estimated days change (not deadline)
+      if (field === "estimatedDays") {
+        await this.recalculateGoalTimeline(project.goalId);
+      }
       
     } else if (type === "goals") {
       if (field === "estimatedDays") {
@@ -309,7 +323,9 @@ class TimelineCalculator {
         
       } else if (field === "deadline") {
         const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(value);
+        console.log(`User set goal deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
         await storage.updateGoal(id, { estimatedDays: newEstimatedDays });
+        // Don't cascade when user explicitly sets deadline
       }
     }
   }
