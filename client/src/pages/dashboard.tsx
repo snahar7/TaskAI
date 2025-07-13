@@ -352,10 +352,8 @@ export default function DashboardPage() {
       </div>
 
       <Tabs defaultValue="action" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+        <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger value="action" className="text-xs sm:text-sm py-2 sm:py-3">Action Center</TabsTrigger>
-          <TabsTrigger value="search" className="text-xs sm:text-sm py-2 sm:py-3">Smart Filters</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs sm:text-sm py-2 sm:py-3">Analytics</TabsTrigger>
           <TabsTrigger value="goals" className="text-xs sm:text-sm py-2 sm:py-3">Goal Overview</TabsTrigger>
         </TabsList>
 
@@ -504,183 +502,7 @@ export default function DashboardPage() {
             </Card>
 
             {/* Priority Matrix */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Priority Matrix
-                </CardTitle>
-                <CardDescription>Eisenhower Matrix (Urgent vs Important)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2 h-64">
-                  <div className="border rounded p-2 bg-red-50">
-                    <h4 className="text-xs font-medium text-red-800 mb-2">Urgent + Important</h4>
-                    <div className="space-y-1">
-                      <div className="text-xs p-1 bg-white rounded">Crisis Task</div>
-                    </div>
-                  </div>
-                  <div className="border rounded p-2 bg-blue-50">
-                    <h4 className="text-xs font-medium text-blue-800 mb-2">Important + Not Urgent</h4>
-                    <div className="space-y-1">
-                      <div className="text-xs p-1 bg-white rounded">Strategic Work</div>
-                    </div>
-                  </div>
-                  <div className="border rounded p-2 bg-orange-50">
-                    <h4 className="text-xs font-medium text-orange-800 mb-2">Urgent + Not Important</h4>
-                    <div className="space-y-1">
-                      <div className="text-xs p-1 bg-white rounded">Interruption</div>
-                    </div>
-                  </div>
-                  <div className="border rounded p-2 bg-gray-50">
-                    <h4 className="text-xs font-medium text-gray-800 mb-2">Neither</h4>
-                    <div className="space-y-1">
-                      <div className="text-xs p-1 bg-white rounded">Time Waster</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Add Floating Button */}
-          <div className="fixed bottom-6 right-6">
-            <Button size="lg" className="rounded-full shadow-lg">
-              <Plus className="h-5 w-5" />
-              Quick Add
-            </Button>
-          </div>
-        </TabsContent>
-
-        {/* Smart Filters & Search Dashboard */}
-        <TabsContent value="search" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Global Search */}
-            <Card className="lg:col-span-3">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  Global Search
-                </CardTitle>
-                <CardDescription>Search across all goals, projects, tasks, and subtasks</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="Search everything..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button>
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Intelligent Filters */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
-                  Smart Filters
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {[
-                    { name: "Behind Schedule", count: counts.behindSchedule || 0, color: "destructive" },
-                    { name: "Quick Wins (<1h)", count: counts.quickWins || 0, color: "secondary" },
-                    { name: "Overdue Items", count: counts.overdueTasks || 0, color: "outline" },
-                    { name: "Today's Tasks", count: counts.todayTasks || 0, color: "default" }
-                  ].map((filter) => (
-                    <Button 
-                      key={filter.name}
-                      variant={filter.color as any}
-                      className="w-full justify-between"
-                      onClick={() => setSelectedFilter(filter.name)}
-                    >
-                      {filter.name}
-                      <Badge variant="secondary">{filter.count}</Badge>
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Saved Views */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Saved Views</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {[
-                    "This Week's Priorities",
-                    "Team Tasks",
-                    "Personal Goals",
-                    "High Impact Work"
-                  ].map((view) => (
-                    <Button key={view} variant="ghost" className="w-full justify-start">
-                      {view}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Filter Results */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Results</CardTitle>
-                <CardDescription>Showing items for: {selectedFilter}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="p-3 border rounded-lg">
-                      <p className="font-medium">Filtered Item {i}</p>
-                      <p className="text-sm text-muted-foreground">Matches current filter criteria</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Analytics & Insights Dashboard */}
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-            
-            {/* Key Metrics */}
-            {[
-              { title: "Tasks Completed Today", value: metrics.tasksCompletedToday || 0, change: "+12%", icon: CheckCircle2 },
-              { title: "Average Completion Time", value: `${metrics.avgCompletionTime || 0}h`, change: "-5%", icon: Clock },
-              { title: "Goals On Track", value: `${metrics.goalsOnTrackPercent || 0}%`, change: "+3%", icon: Target },
-              { title: "Productivity Score", value: metrics.productivityScore || 0, change: "+8%", icon: TrendingUp }
-            ].map((metric) => (
-              <Card key={metric.title}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
-                  <metric.icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metric.value}</div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className={metric.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}>
-                      {metric.change}
-                    </span>
-                    {" "}from last week
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Priority Matrix - Eisenhower Matrix */}
-            <Card className="col-span-4">
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
@@ -816,46 +638,20 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Time Analysis */}
-            <Card className="col-span-2">
-              <CardHeader>
-                <CardTitle>Time Analysis</CardTitle>
-                <CardDescription>Where your time is being spent</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { goal: "Write Novel", estimated: 120, actual: 95, progress: 79 },
-                    { goal: "Clean House", estimated: 8, actual: 12, progress: 150 },
-                    { goal: "Learn Programming", estimated: 40, actual: 35, progress: 88 }
-                  ].map((item) => (
-                    <div key={item.goal} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">{item.goal}</span>
-                        <span className="text-muted-foreground">{item.actual}h / {item.estimated}h</span>
-                      </div>
-                      <Progress value={item.progress} className="h-2" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Completion Patterns Heatmap */}
-            <Card className="col-span-2">
-              <CardHeader>
-                <CardTitle>Completion Patterns</CardTitle>
-                <CardDescription>Heatmap of your most productive times</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-32 flex items-center justify-center border rounded">
-                  <p className="text-muted-foreground">Productivity heatmap placeholder</p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Quick Add Floating Button */}
+          <div className="fixed bottom-6 right-6">
+            <Button size="lg" className="rounded-full shadow-lg">
+              <Plus className="h-5 w-5" />
+              Quick Add
+            </Button>
           </div>
         </TabsContent>
+
+
+
+
 
         {/* Goal-Centric Overview Dashboard */}
         <TabsContent value="goals" className="space-y-6">
