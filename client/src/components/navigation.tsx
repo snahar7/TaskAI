@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Database, CheckSquare, BarChart3, Clock, Menu, X } from "lucide-react";
+import { Home, Database, CheckSquare, BarChart3, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -18,7 +18,6 @@ export function Navigation() {
     { href: "/", label: "Home", icon: Home },
     { href: "/database", label: "Database", icon: Database },
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-    { href: "/timeline", label: "Timeline", icon: Clock },
   ];
 
   const NavButton = ({ href, label, icon: Icon, onClick }: any) => (

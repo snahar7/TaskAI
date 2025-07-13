@@ -92,6 +92,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 13, 2025: **Timeline Page Removal and Code Cleanup**
+  - **Removed Timeline Page**: Eliminated standalone timeline page since automatic timeline generation is now integrated into goal creation
+    - Removed `/timeline` route from navigation and routing system
+    - Deleted `timeline.tsx` page component and related timeline estimation files
+    - Cleaned up timeline-related server routes and API endpoints
+    - Removed timeline schema tables (timeEstimates, estimationHistory, taskDependencies, etc.) as they're no longer needed
+  - **Streamlined Architecture**: Simplified application structure by removing redundant timeline functionality
+    - Timeline generation now happens automatically during goal breakdown process
+    - Users get immediate timeline preview after goal creation without needing separate page
+    - Maintained automatic timeline generation capability in GPT Agent service
+  - **Navigation Cleanup**: Updated navigation to reflect simplified 3-page structure (Home, Database, Dashboard)
+    - Removed Timeline icon and navigation item from both desktop and mobile navigation
+    - Cleaner, more focused navigation experience for users
+
 - July 9, 2025: **Complete Automatic Timeline Generation Implementation**
   - **Enhanced Home Page**: Added target completion date field with mobile-optimized form components
     - Optional target date input with calendar picker and validation
@@ -111,7 +125,6 @@ Preferred communication style: Simple, everyday language.
   - **User Experience**: Seamless workflow from goal input to complete scheduled breakdown
     - Users can input goal + target date → get instant breakdown with deadlines
     - Timeline preview shown immediately after successful goal creation
-    - Manual timeline refinement still available via Timeline tab
 
 - July 9, 2025: **Complete Mobile Optimization Implementation**
   - **Responsive Navigation**: Implemented dual navigation system with hamburger menu for mobile and bottom navigation bar
