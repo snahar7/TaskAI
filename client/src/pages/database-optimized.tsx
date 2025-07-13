@@ -19,8 +19,17 @@ import { TeamAssignmentDropdown } from "@/components/TeamAssignmentDropdown";
 import { useAuth } from "@/hooks/useAuth";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { AuthGuard } from "@/components/AuthGuard";
 
-function DatabaseOptimizedPage() {
+export default function DatabaseOptimizedPage() {
+  return (
+    <AuthGuard>
+      <DatabaseContent />
+    </AuthGuard>
+  );
+}
+
+function DatabaseContent() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
@@ -1643,4 +1652,3 @@ function wouldCreateCycle(taskId: number, potentialDepId: number, allTasks: Task
   return hasPath(potentialDepId, taskId);
 }
 
-export default DatabaseOptimizedPage;

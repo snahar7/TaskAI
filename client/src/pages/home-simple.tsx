@@ -10,8 +10,17 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { MobileInput, MobileButton, MobileFormField } from "@/components/mobile-form";
+import { AuthGuard } from "@/components/AuthGuard";
 
 export default function HomePage() {
+  return (
+    <AuthGuard>
+      <HomeContent />
+    </AuthGuard>
+  );
+}
+
+function HomeContent() {
   const [goalInput, setGoalInput] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);

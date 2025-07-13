@@ -41,6 +41,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AuthGuard } from "@/components/AuthGuard";
 
 interface DashboardStats {
   todayTasks: any[];
@@ -51,6 +52,14 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  return (
+    <AuthGuard>
+      <DashboardContent />
+    </AuthGuard>
+  );
+}
+
+function DashboardContent() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
