@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { UserAvatar } from "@/components/UserAvatar";
 
 interface DashboardStats {
   todayTasks: any[];
@@ -57,6 +58,13 @@ export default function DashboardPage() {
     isOpen: false,
     task: null as any,
     isSubtask: false
+  });
+
+  // Query to get user info for the assigned user in the task detail modal
+  const { data: assignedUser } = useQuery({
+    queryKey: [`/api/users/${taskDetailModal.task?.assignedTo}`],
+    enabled: !!taskDetailModal.task?.assignedTo,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -877,19 +885,21 @@ export default function DashboardPage() {
                           className="text-sm text-muted-foreground cursor-pointer hover:bg-gray-50 p-1 rounded"
                           onClick={() => startEditing("assignedTo", taskDetailModal.task.assignedTo)}
                         >
-                          {taskDetailModal.task.assignedTo || "Unassigned"}
+                          {taskDetailModal.task.assignedTo ? 
+                            (assignedUser ? assignedUser.displayName || `${assignedUser.firstName} ${assignedUser.lastName}` : `User ID: ${taskDetailModal.task.assignedTo}`) 
+                            : "Unassigned"}
                         </p>
                       )}
                     </div>
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="" />
-                      <AvatarFallback className="bg-blue-100 text-blue-600">
-                        {taskDetailModal.task.assignedTo ? 
-                          taskDetailModal.task.assignedTo.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) :
+                    {taskDetailModal.task.assignedTo ? (
+                      <UserAvatar userId={taskDetailModal.task.assignedTo} size="md" />
+                    ) : (
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-gray-100 text-gray-500">
                           <User className="h-5 w-5" />
-                        }
-                      </AvatarFallback>
-                    </Avatar>
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
                 </div>
               </DialogHeader>
