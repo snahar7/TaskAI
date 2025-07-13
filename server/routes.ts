@@ -14,23 +14,32 @@ function getCurrentUserId(req: Request): number | null {
 
 // Cascade assignment down the hierarchy
 async function cascadeAssignment(type: string, id: number, assignedTo: number | null) {
-  console.log(`Cascading assignment for ${type} ${id} to user ${assignedTo}`);
+  console.log(`🔄 CASCADING assignment for ${type} ${id} to user ${assignedTo}`);
   
   try {
     if (type === "goals") {
       // Cascade to all projects in this goal
       const projects = await storage.getProjectsByGoalId(id);
+      console.log(`  Found ${projects.length} projects to cascade to`);
+      
       for (const project of projects) {
+        console.log(`    Updating project ${project.id} (${project.title}) → user ${assignedTo}`);
         await storage.updateProject(project.id, { assignedTo });
         
         // Cascade to all tasks in this project
         const tasks = await storage.getTasksByProjectId(project.id);
+        console.log(`    Found ${tasks.length} tasks in project ${project.id}`);
+        
         for (const task of tasks) {
+          console.log(`      Updating task ${task.id} (${task.title}) → user ${assignedTo}`);
           await storage.updateTask(task.id, { assignedTo });
           
           // Cascade to all subtasks in this task
           const subtasks = await storage.getSubtasksByTaskId(task.id);
+          console.log(`      Found ${subtasks.length} subtasks in task ${task.id}`);
+          
           for (const subtask of subtasks) {
+            console.log(`        Updating subtask ${subtask.id} (${subtask.title}) → user ${assignedTo}`);
             await storage.updateSubtask(subtask.id, { assignedTo });
           }
         }
@@ -38,26 +47,35 @@ async function cascadeAssignment(type: string, id: number, assignedTo: number | 
     } else if (type === "projects") {
       // Cascade to all tasks in this project
       const tasks = await storage.getTasksByProjectId(id);
+      console.log(`  Found ${tasks.length} tasks to cascade to`);
+      
       for (const task of tasks) {
+        console.log(`    Updating task ${task.id} (${task.title}) → user ${assignedTo}`);
         await storage.updateTask(task.id, { assignedTo });
         
         // Cascade to all subtasks in this task
         const subtasks = await storage.getSubtasksByTaskId(task.id);
+        console.log(`    Found ${subtasks.length} subtasks in task ${task.id}`);
+        
         for (const subtask of subtasks) {
+          console.log(`      Updating subtask ${subtask.id} (${subtask.title}) → user ${assignedTo}`);
           await storage.updateSubtask(subtask.id, { assignedTo });
         }
       }
     } else if (type === "tasks") {
       // Cascade to all subtasks in this task
       const subtasks = await storage.getSubtasksByTaskId(id);
+      console.log(`  Found ${subtasks.length} subtasks to cascade to`);
+      
       for (const subtask of subtasks) {
+        console.log(`    Updating subtask ${subtask.id} (${subtask.title}) → user ${assignedTo}`);
         await storage.updateSubtask(subtask.id, { assignedTo });
       }
     }
     
-    console.log(`Successfully cascaded assignment for ${type} ${id}`);
+    console.log(`✅ Successfully cascaded assignment for ${type} ${id}`);
   } catch (error) {
-    console.error(`Error cascading assignment for ${type} ${id}:`, error);
+    console.error(`❌ Error cascading assignment for ${type} ${id}:`, error);
     // Don't throw error to avoid breaking the main update operation
   }
 }
@@ -629,6 +647,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates = req.body;
       
       console.log(`Editing ${type} ${id} with updates:`, updates);
+      
+      // Check if this is an assignment update
+      if (updates.assignedTo !== undefined) {
+        console.log(`Assignment update detected: ${type} ${id} → user ${updates.assignedTo}`);
+      }
       
       // Import timeline calculator for smart recalculation
       const { timelineCalculator } = await import("./services/timelineCalculator");
