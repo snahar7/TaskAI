@@ -74,9 +74,13 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       toast({ title: "Welcome!", description: "You've been signed in with Google." });
       onOpenChange(false);
     } catch (error: any) {
+      let errorMessage = "Please try again.";
+      if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = "Domain not authorized. Please use email/password signup for now.";
+      }
       toast({
         title: "Google sign-in failed",
-        description: error.message || "Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
