@@ -237,14 +237,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getCurrentUserId(req);
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
+      console.log("Goals filtering - userId:", userId, "showMyTasksOnly:", showMyTasksOnly);
+      
       if (showMyTasksOnly && userId) {
         // Filter goals that have at least one item assigned to the current user
         const allGoals = await storage.getAllGoals();
+        console.log("All goals:", allGoals.length, allGoals.map(g => ({ id: g.id, title: g.title, assignedTo: g.assignedTo })));
         const userGoals = [];
         
         for (const goal of allGoals) {
           // Check if goal is assigned to user
+          console.log("Checking goal", goal.id, "assignedTo:", goal.assignedTo, "vs userId:", userId);
           if (goal.assignedTo === userId) {
+            console.log("Goal", goal.id, "is directly assigned to user", userId);
             userGoals.push(goal);
             continue;
           }
@@ -268,6 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        console.log("Final userGoals result:", userGoals.length, userGoals.map(g => ({ id: g.id, title: g.title })));
         res.json(userGoals);
       } else {
         const goals = await storage.getAllGoals();

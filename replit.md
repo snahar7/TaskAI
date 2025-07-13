@@ -92,6 +92,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 13, 2025: **Complete User-Specific Task Filtering System Implementation**
+  - **Enhanced Database and Dashboard Pages**: Added "Show only my tasks" toggle switches with default enabled state
+    - Toggle filters appear in top-right corner of both Database and Dashboard pages
+    - Users can view all tasks (team collaboration) or filter to only see tasks assigned to them
+    - Default state shows only user's assigned tasks for focused productivity
+  - **Comprehensive Backend Filtering**: Updated all API endpoints to support assignedToMe query parameter
+    - Goals endpoint: Filters goals directly assigned to user or containing user's projects/tasks
+    - Projects endpoint: Filters projects assigned to user or containing user's tasks
+    - Tasks and Subtasks endpoints: Filters by direct user assignment
+    - Dashboard stats endpoint: Provides filtered metrics for user-specific productivity tracking
+  - **Hierarchical Filtering Logic**: Smart filtering across all hierarchy levels
+    - Goals shown if goal assigned to user OR any nested project/task assigned to user
+    - Projects shown if project assigned to user OR any nested task assigned to user
+    - Tasks and subtasks filtered by direct assignment to authenticated user
+    - Maintains proper parent-child relationships while filtering content
+  - **Enhanced User Experience**: Seamless filtering with real-time updates
+    - Toggle switches immediately refresh all displayed content
+    - Consistent filtering behavior across Database table view and Dashboard cards
+    - Team collaboration preserved when filtering is disabled
+    - Debug logging added for troubleshooting assignment-related issues
+
 - July 13, 2025: **Complete User Authentication System Implementation**
   - **Firebase Authentication Integration**: Full email/password and Google OAuth signup/signin functionality
     - Professional login/signup modal with clean UI similar to modern tools

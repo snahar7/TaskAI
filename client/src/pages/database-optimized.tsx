@@ -26,7 +26,7 @@ function DatabaseOptimizedPage() {
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
-  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
+  const [showMyTasksOnly, setShowMyTasksOnly] = useState(true);
   
   // Editing state management
   const [editingItems, setEditingItems] = useState<{

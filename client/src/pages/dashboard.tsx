@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
-  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
+  const [showMyTasksOnly, setShowMyTasksOnly] = useState(true);
   const [taskDetailModal, setTaskDetailModal] = useState({
     isOpen: false,
     task: null as any,
