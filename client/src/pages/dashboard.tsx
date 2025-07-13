@@ -95,6 +95,80 @@ export default function DashboardPage() {
   const counts = dashboardStats?.counts || {};
   const dashboardGoals = dashboardStats?.goals || [];
 
+
+
+  // Break down mutation for getting AI breakdown
+  const breakdownMutation = useMutation({
+    mutationFn: async ({ type, id }: { type: 'task' | 'subtask'; id: number }) => {
+      const endpoint = type === 'subtask' ? `/api/tasks/${id}/breakdown` : `/api/tasks/${id}/breakdown`;
+      const response = await apiRequest("POST", endpoint, {});
+      return await response.json();
+    },
+    onSuccess: (data: any) => {
+      console.log('Raw API response:', data);
+      console.log('Extracted breakdown:', data.breakdown);
+      setBreakdownDialog(prev => ({
+        ...prev,
+        breakdown: data.breakdown,
+      }));
+    },
+    onError: (error) => {
+      console.error('Breakdown error:', error);
+      setBreakdownDialog(prev => ({ ...prev, breakdown: null }));
+    },
+  });
+
+  // Apply breakdown mutation for creating sub-items
+  const applyBreakdownMutation = useMutation({
+    mutationFn: async ({ type, id, breakdown }: { type: 'task' | 'subtask'; id: number; breakdown: any }) => {
+      const endpoint = `/api/tasks/${id}/apply-breakdown`;
+      const response = await apiRequest("POST", endpoint, { subItems: breakdown });
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      
+      // Close dialog
+      setBreakdownDialog({ isOpen: false, item: null, type: "", breakdown: null });
+    },
+    onError: (error) => {
+      console.error('Apply breakdown error:', error);
+    },
+  });
+
+  // Update dependency mutation
+  const updateDependencyMutation = useMutation({
+    mutationFn: async ({ taskId, dependencies }: { taskId: number; dependencies: number[] }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, { 
+        dependencies 
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setDependencyDialog({ isOpen: false, taskId: null, currentDependencies: [], selectedDependencies: new Set() });
+    },
+  });
+
+  // Reschedule mutation
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ taskId, deadline }: { taskId: number; deadline: string }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, { 
+        deadline 
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setRescheduleDialog({ isOpen: false, taskId: null, currentDate: "" });
+    },
+  });
+
   // Completion mutation
   const completeMutation = useMutation({
     mutationFn: async ({ type, id }: { type: string; id: number }) => {
@@ -104,6 +178,7 @@ export default function DashboardPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
       setTaskDetailModal({ isOpen: false, task: null, isSubtask: false });
     },
   });
@@ -153,24 +228,7 @@ export default function DashboardPage() {
     setEditValue("");
   };
 
-  // Dependency management mutations and functions
-  const updateDependencyMutation = useMutation({
-    mutationFn: async ({ taskId, dependencies }: { taskId: number; dependencies: number[] }) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, { dependencies });
-      return await response.json();
-    },
-    onSuccess: () => {
-      setDependencyDialog({
-        isOpen: false,
-        taskId: null,
-        currentDependencies: [],
-        selectedDependencies: new Set()
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
-    }
-  });
-
+  // Dialog handlers
   const openDependencyDialog = (taskId: number, currentDependencies: number[]) => {
     setDependencyDialog({
       isOpen: true,
@@ -180,79 +238,13 @@ export default function DashboardPage() {
     });
   };
 
-  const toggleDependency = (depTaskId: number) => {
-    setDependencyDialog(prev => {
-      const newSelected = new Set(prev.selectedDependencies);
-      if (newSelected.has(depTaskId)) {
-        newSelected.delete(depTaskId);
-      } else {
-        newSelected.add(depTaskId);
-      }
-      return { ...prev, selectedDependencies: newSelected };
-    });
-  };
-
-  const saveDependencies = () => {
-    if (dependencyDialog.taskId) {
-      updateDependencyMutation.mutate({
-        taskId: dependencyDialog.taskId,
-        dependencies: Array.from(dependencyDialog.selectedDependencies)
-      });
-    }
-  };
-
-  // Reschedule functionality
-  const rescheduleMutation = useMutation({
-    mutationFn: async ({ taskId, newDate }: { taskId: number; newDate: string }) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, { deadline: newDate });
-      return await response.json();
-    },
-    onSuccess: () => {
-      setRescheduleDialog({ isOpen: false, taskId: null, currentDate: "" });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-    }
-  });
-
   const openRescheduleDialog = (taskId: number, currentDate: string) => {
     setRescheduleDialog({
       isOpen: true,
       taskId,
-      currentDate: currentDate ? currentDate.split('T')[0] : ""
+      currentDate: currentDate ? new Date(currentDate).toISOString().split('T')[0] : ""
     });
   };
-
-  const saveReschedule = () => {
-    if (rescheduleDialog.taskId && rescheduleDialog.currentDate) {
-      rescheduleMutation.mutate({
-        taskId: rescheduleDialog.taskId,
-        newDate: rescheduleDialog.currentDate
-      });
-    }
-  };
-
-  // Breakdown functionality
-  const breakdownMutation = useMutation({
-    mutationFn: async ({ type, id, prompt }: { type: string; id: number; prompt: string }) => {
-      const response = await apiRequest("POST", `/api/${type}/${id}/breakdown`, { prompt });
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      setBreakdownDialog(prev => ({ ...prev, breakdown: data }));
-    },
-  });
-
-  const applyBreakdownMutation = useMutation({
-    mutationFn: async ({ type, id, breakdown }: { type: string; id: number; breakdown: any }) => {
-      const response = await apiRequest("POST", `/api/${type}/${id}/apply-breakdown`, { breakdown });
-      return await response.json();
-    },
-    onSuccess: () => {
-      setBreakdownDialog({ isOpen: false, item: null, type: "", breakdown: null });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-    },
-  });
 
   const openBreakdownDialog = (item: any, type: string) => {
     setBreakdownDialog({
@@ -263,44 +255,61 @@ export default function DashboardPage() {
     });
   };
 
+  // Helper functions for dependency management
+  const toggleDependency = (taskId: number) => {
+    setDependencyDialog(prev => {
+      const newSelected = new Set(prev.selectedDependencies);
+      if (newSelected.has(taskId)) {
+        newSelected.delete(taskId);
+      } else {
+        newSelected.add(taskId);
+      }
+      return { ...prev, selectedDependencies: newSelected };
+    });
+  };
+
+  const saveDependencies = () => {
+    if (!dependencyDialog.taskId) return;
+    updateDependencyMutation.mutate({
+      taskId: dependencyDialog.taskId,
+      dependencies: Array.from(dependencyDialog.selectedDependencies)
+    });
+  };
+
+  const saveReschedule = () => {
+    if (!rescheduleDialog.taskId || !rescheduleDialog.currentDate) return;
+    rescheduleMutation.mutate({
+      taskId: rescheduleDialog.taskId,
+      deadline: rescheduleDialog.currentDate
+    });
+  };
+
   const handleBreakdown = () => {
     if (!breakdownDialog.item) return;
-    
-    const prompt = `Break down this ${breakdownDialog.type}: "${breakdownDialog.item.title}"`;
     breakdownMutation.mutate({
-      type: breakdownDialog.type,
-      id: breakdownDialog.item.id,
-      prompt
+      type: breakdownDialog.type as 'task' | 'subtask',
+      id: breakdownDialog.item.id
     });
   };
 
   const applyBreakdown = () => {
-    if (!breakdownDialog.breakdown || !breakdownDialog.item) return;
-    
+    if (!breakdownDialog.item || !breakdownDialog.breakdown) return;
     applyBreakdownMutation.mutate({
-      type: breakdownDialog.type,
+      type: breakdownDialog.type as 'task' | 'subtask',
       id: breakdownDialog.item.id,
-      breakdown: breakdownDialog.breakdown
+      breakdown: breakdownDialog.breakdown.subItems || breakdownDialog.breakdown
     });
   };
 
-  // Helper function to prevent circular dependencies
-  const wouldCreateCycle = (taskId: number, potentialDepId: number, allTasks: any[]): boolean => {
-    const visited = new Set<number>();
-    
-    function hasPath(from: number, to: number): boolean {
-      if (from === to) return true;
-      if (visited.has(from)) return false;
-      visited.add(from);
-      
-      const task = allTasks.find(t => t.id === from);
-      if (!task?.dependencies) return false;
-      
-      return task.dependencies.some((depId: number) => hasPath(depId, to));
-    }
-    
-    return hasPath(potentialDepId, taskId);
+  // Helper function to check if dependency would create cycle
+  const wouldCreateCycle = (sourceId: number, targetId: number, tasks: any[]): boolean => {
+    // Simplified cycle detection - in real app would do full graph traversal
+    const targetTask = tasks.find(t => t.id === targetId);
+    if (!targetTask?.dependencies) return false;
+    return targetTask.dependencies.includes(sourceId);
   };
+
+
 
   const today = new Date().toISOString().split('T')[0];
 

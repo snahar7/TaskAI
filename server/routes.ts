@@ -882,8 +882,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const taskDeadline = task.deadline ? new Date(task.deadline) : null;
             const taskStartDate = task.startDate ? new Date(task.startDate) : null;
             
-            // Today's focus: tasks where today falls between start date and deadline
-            if (taskDeadline && taskDeadline >= today) {
+            // Today's focus: tasks where today falls between start date and deadline AND not completed
+            if (taskDeadline && taskDeadline >= today && task.status !== "completed" && !task.completed) {
               if (!taskStartDate || taskStartDate <= today) {
                 // Task is active today (started and not yet due)
                 todayTasks.push(taskWithContext);
@@ -905,7 +905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const subtaskDeadline = subtask.deadline ? new Date(subtask.deadline) : null;
               const subtaskStartDate = subtask.startDate ? new Date(subtask.startDate) : null;
               
-              if (subtaskDeadline && subtaskDeadline >= today) {
+              if (subtaskDeadline && subtaskDeadline >= today && subtask.status !== "completed" && !subtask.completed) {
                 if (!subtaskStartDate || subtaskStartDate <= today) {
                   // Subtask is active today
                   todayTasks.push(subtaskWithContext);
