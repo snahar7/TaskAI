@@ -12,6 +12,56 @@ function getCurrentUserId(req: Request): number | null {
   return userId ? parseInt(userId) : null;
 }
 
+// Cascade assignment down the hierarchy
+async function cascadeAssignment(type: string, id: number, assignedTo: number | null) {
+  console.log(`Cascading assignment for ${type} ${id} to user ${assignedTo}`);
+  
+  try {
+    if (type === "goals") {
+      // Cascade to all projects in this goal
+      const projects = await storage.getProjectsByGoalId(id);
+      for (const project of projects) {
+        await storage.updateProject(project.id, { assignedTo });
+        
+        // Cascade to all tasks in this project
+        const tasks = await storage.getTasksByProjectId(project.id);
+        for (const task of tasks) {
+          await storage.updateTask(task.id, { assignedTo });
+          
+          // Cascade to all subtasks in this task
+          const subtasks = await storage.getSubtasksByTaskId(task.id);
+          for (const subtask of subtasks) {
+            await storage.updateSubtask(subtask.id, { assignedTo });
+          }
+        }
+      }
+    } else if (type === "projects") {
+      // Cascade to all tasks in this project
+      const tasks = await storage.getTasksByProjectId(id);
+      for (const task of tasks) {
+        await storage.updateTask(task.id, { assignedTo });
+        
+        // Cascade to all subtasks in this task
+        const subtasks = await storage.getSubtasksByTaskId(task.id);
+        for (const subtask of subtasks) {
+          await storage.updateSubtask(subtask.id, { assignedTo });
+        }
+      }
+    } else if (type === "tasks") {
+      // Cascade to all subtasks in this task
+      const subtasks = await storage.getSubtasksByTaskId(id);
+      for (const subtask of subtasks) {
+        await storage.updateSubtask(subtask.id, { assignedTo });
+      }
+    }
+    
+    console.log(`Successfully cascaded assignment for ${type} ${id}`);
+  } catch (error) {
+    console.error(`Error cascading assignment for ${type} ${id}:`, error);
+    // Don't throw error to avoid breaking the main update operation
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
@@ -599,10 +649,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (type === "goals") {
         updatedItem = await storage.updateGoal(id, processedUpdates);
+        
+        // If assignedTo was updated, cascade to all children
+        if (processedUpdates.assignedTo !== undefined) {
+          await cascadeAssignment(type, id, processedUpdates.assignedTo);
+        }
       } else if (type === "projects") {
         updatedItem = await storage.updateProject(id, processedUpdates);
+        
+        // If assignedTo was updated, cascade to all children
+        if (processedUpdates.assignedTo !== undefined) {
+          await cascadeAssignment(type, id, processedUpdates.assignedTo);
+        }
       } else if (type === "tasks") {
         updatedItem = await storage.updateTask(id, processedUpdates);
+        
+        // If assignedTo was updated, cascade to all children
+        if (processedUpdates.assignedTo !== undefined) {
+          await cascadeAssignment(type, id, processedUpdates.assignedTo);
+        }
       } else if (type === "subtasks") {
         updatedItem = await storage.updateSubtask(id, processedUpdates);
       } else {

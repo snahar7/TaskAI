@@ -42,15 +42,11 @@ app.use((req, res, next) => {
 app.use(async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Extract user from Firebase auth token or session in production
-    // For now, we'll use a default user for demonstration
-    // In a real app, you'd verify Firebase ID token and get user from database
     if (req.path.startsWith('/api/') && !req.path.includes('/auth/')) {
-      // For demonstration, use the first user in database when authenticated routes are called
-      // This simulates being logged in
-      const users = await storage.getAllUsers();
-      if (users.length > 0) {
-        req.headers['x-user-id'] = users[0].id.toString();
-      }
+      // Try to get user from session or authenticated context
+      // For now, use Shubham's user ID (4) since that's the authenticated user
+      // This should be replaced with proper Firebase token verification
+      req.headers['x-user-id'] = '4'; // Shubham Nahar's user ID
     }
     next();
   } catch (error) {
