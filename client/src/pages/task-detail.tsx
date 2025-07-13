@@ -120,6 +120,60 @@ export default function TaskDetailPage() {
     toggleSubtaskMutation.mutate({ subtaskId, completed: !completed });
   };
 
+  // Task completion mutation
+  const completeTaskMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/complete`, { completed: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      alert('Task marked as complete!');
+    },
+    onError: (error) => {
+      console.error('Failed to complete task:', error);
+      alert('Failed to mark task as complete. Please try again.');
+    },
+  });
+
+  // Breakdown mutation 
+  const breakdownMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/tasks/${taskId}/breakdown`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('Breakdown result:', data);
+      if (data.breakdown && data.breakdown.length > 0) {
+        alert(`AI breakdown completed! Generated ${data.breakdown.length} subtasks. Check console for details.`);
+      } else {
+        alert('AI breakdown completed, but no subtasks were generated.');
+      }
+    },
+    onError: (error) => {
+      console.error('Breakdown failed:', error);
+      alert('Failed to break down task. Please try again.');
+    },
+  });
+
+  const handleMarkComplete = () => {
+    if (task && !task.completed) {
+      completeTaskMutation.mutate();
+    }
+  };
+
+  const handleBreakDownTask = () => {
+    breakdownMutation.mutate();
+  };
+
+  const handleAddSubtask = () => {
+    // For now, navigate to home page where they can add items
+    // Later you can implement a direct subtask creation form
+    navigate("/");
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -530,14 +584,27 @@ export default function TaskDetailPage() {
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full">
+                <Button 
+                  className="w-full" 
+                  onClick={handleMarkComplete}
+                  disabled={task?.completed || completeTaskMutation.isPending}
+                >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Mark Complete
+                  {task?.completed ? "Completed" : completeTaskMutation.isPending ? "Marking..." : "Mark Complete"}
                 </Button>
-                <Button variant="outline" className="w-full">
-                  Break Down Task
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleBreakDownTask}
+                  disabled={breakdownMutation.isPending}
+                >
+                  {breakdownMutation.isPending ? "Breaking Down..." : "Break Down Task"}
                 </Button>
-                <Button variant="outline" className="w-full">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleAddSubtask}
+                >
                   Add Subtask
                 </Button>
               </CardContent>
