@@ -21,7 +21,9 @@ import { eq, and, or, sql } from "drizzle-orm";
 export interface IEnhancedStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User>;
   
@@ -246,12 +248,21 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
 
   // Users
   async getUser(id: number): Promise<User | undefined> {
+    return this.getUserById(id);
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
     const [user] = await this.db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await this.db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await this.db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
 

@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Home, Database, CheckSquare, BarChart3, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { UserProfile } from "@/components/auth/UserProfile";
 
 export function Navigation() {
   const [location] = useLocation();
@@ -51,7 +52,7 @@ export function Navigation() {
             </Link>
             
             {/* Desktop Navigation Menu */}
-            <div className="hidden md:flex space-x-1">
+            <div className="hidden md:flex items-center space-x-1">
               {navItems.map(({ href, label, icon: Icon }) => (
                 <Link key={href} href={href}>
                   <Button
@@ -64,6 +65,9 @@ export function Navigation() {
                   </Button>
                 </Link>
               ))}
+              <div className="ml-4">
+                <UserProfile />
+              </div>
             </div>
 
             {/* Mobile Menu Button */}
@@ -94,6 +98,9 @@ export function Navigation() {
                           onClick={() => setIsOpen(false)}
                         />
                       ))}
+                    </div>
+                    <div className="border-t p-4">
+                      <UserProfile />
                     </div>
                   </div>
                 </SheetContent>

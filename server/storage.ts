@@ -17,8 +17,11 @@ import { eq } from "drizzle-orm";
 export interface IStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<InsertUser>): Promise<void>;
   
   // Goals
   createGoal(goal: InsertGoal): Promise<Goal>;
@@ -38,10 +41,6 @@ export interface IStorage {
   createTask(task: InsertTask): Promise<Task>;
   getTasksByProjectId(projectId: number): Promise<Task[]>;
   getAllTasks(): Promise<Task[]>;
-  // Add getAllTasks method to MemStorage implementation
-  getAllTasks(): Promise<Task[]> {
-    return Promise.resolve(Array.from(this.tasks.values()));
-  }
   getTask(id: number): Promise<Task | undefined>;
   getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined>;
   updateTaskCompletion(id: number, completed: boolean): Promise<void>;

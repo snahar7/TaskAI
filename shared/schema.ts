@@ -3,14 +3,20 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-// Users table - enhanced
+// Users table - enhanced with OAuth support
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").unique(),
+  username: text("username").unique(),
+  password: text("password"), // Optional for OAuth users
+  email: text("email").notNull().unique(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  displayName: text("display_name"),
+  profilePicture: text("profile_picture"),
+  googleId: text("google_id").unique(),
+  provider: text("provider").default('email').notNull(), // 'email', 'google'
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -333,13 +339,34 @@ export const subtasksRelations = relations(subtasks, ({ one }) => ({
   }),
 }));
 
-// Insert schemas - updated for new field names
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  email: true,
-  firstName: true,
-  lastName: true,
+// Insert schemas - updated for new field names and OAuth support
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLogin: true,
+});
+
+// Specific schemas for different auth methods
+export const emailSignupSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().min(1, "First name required"),
+  lastName: z.string().min(1, "Last name required"),
+});
+
+export const emailLoginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password required"),
+});
+
+export const googleAuthSchema = z.object({
+  googleId: z.string(),
+  email: z.string().email(),
+  displayName: z.string(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  profilePicture: z.string().optional(),
 });
 
 export const insertGoalSchema = createInsertSchema(goals).omit({
@@ -433,6 +460,11 @@ export type Comment = typeof comments.$inferSelect;
 
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type File = typeof files.$inferSelect;
+
+// Auth-specific types
+export type EmailSignup = z.infer<typeof emailSignupSchema>;
+export type EmailLogin = z.infer<typeof emailLoginSchema>;
+export type GoogleAuth = z.infer<typeof googleAuthSchema>;
 
 // Composite types for full hierarchy with new field names
 export type TaskWithSubtasks = Task & {
