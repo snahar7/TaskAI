@@ -32,15 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         try {
           // Sync with backend to get/create user profile
-          const response = await apiRequest('/api/auth/sync', {
-            method: 'POST',
-            body: JSON.stringify({
-              firebaseId: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              profilePicture: firebaseUser.photoURL,
-              provider: firebaseUser.providerData[0]?.providerId || 'email'
-            })
+          const response = await apiRequest('POST', '/api/auth/sync', {
+            firebaseId: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            profilePicture: firebaseUser.photoURL,
+            provider: firebaseUser.providerData[0]?.providerId || 'email'
           });
           
           if (response.ok) {
@@ -70,15 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const firebaseUser = await signUpWithEmail(email, password);
     
     // Create user profile in backend
-    await apiRequest('/api/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify({
-        firebaseId: firebaseUser.uid,
-        email,
-        firstName,
-        lastName,
-        provider: 'email'
-      })
+    await apiRequest('POST', '/api/auth/signup', {
+      firebaseId: firebaseUser.uid,
+      email,
+      firstName,
+      lastName,
+      provider: 'email'
     });
   };
 

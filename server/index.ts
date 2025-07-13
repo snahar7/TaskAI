@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage-enhanced";
 
 const app = express();
 app.use(express.json());
@@ -35,6 +36,26 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// Auth middleware to extract user from session/cookies
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Extract user from Firebase auth token or session in production
+    // For now, we'll use a default user for demonstration
+    // In a real app, you'd verify Firebase ID token and get user from database
+    if (req.path.startsWith('/api/') && !req.path.includes('/auth/')) {
+      // For demonstration, use the first user in database when authenticated routes are called
+      // This simulates being logged in
+      const users = await storage.getAllUsers();
+      if (users.length > 0) {
+        req.headers['x-user-id'] = users[0].id.toString();
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 (async () => {

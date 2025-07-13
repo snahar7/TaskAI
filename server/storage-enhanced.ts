@@ -266,6 +266,10 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
     return user || undefined;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return await this.db.select().from(users);
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const userData = this.addTimestamps(insertUser);
     const [user] = await this.db

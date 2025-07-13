@@ -6,6 +6,12 @@ import { gptAgent, type AIBreakdown } from "../src/services/gptAgent";
 import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema } from "@shared/schema";
 import { z } from "zod";
 
+// Helper to extract user ID from request headers (set by auth middleware)
+function getCurrentUserId(req: Request): number | null {
+  const userId = req.headers['x-user-id'] as string;
+  return userId ? parseInt(userId) : null;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
@@ -534,6 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/hierarchy/create", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { level, title, description, targetDate, estimatedHours, parentId } = req.body;
+      const userId = getCurrentUserId(req);
 
       if (!title) {
         return res.status(400).json({ error: "Title is required" });
@@ -552,7 +559,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           result = await storage.createGoal({
             ...baseData,
             targetDate: targetDate || null,
-            estimatedDuration: estimatedHours ? `${estimatedHours} hours` : null
+            estimatedDuration: estimatedHours ? `${estimatedHours} hours` : null,
+            assignedTo: userId
           });
           break;
 
@@ -564,7 +572,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...baseData,
             goalId: parentId,
             targetDate: targetDate || null,
-            estimatedDuration: estimatedHours ? `${estimatedHours} hours` : null
+            estimatedDuration: estimatedHours ? `${estimatedHours} hours` : null,
+            assignedTo: userId
           });
           break;
 
@@ -577,7 +586,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             projectId: parentId,
             completed: false,
             dueDate: targetDate || null,
-            estimatedHours: estimatedHours || null
+            estimatedHours: estimatedHours || null,
+            assignedTo: userId
           });
           break;
 
@@ -591,6 +601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             completed: false,
             dueDate: targetDate || null,
             estimatedHours: estimatedHours || null,
+            assignedTo: userId,
             attachments: null
           });
           break;

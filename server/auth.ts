@@ -13,8 +13,8 @@ export function registerAuthRoutes(app: Express) {
       const syncSchema = z.object({
         firebaseId: z.string(),
         email: z.string().email(),
-        displayName: z.string().optional(),
-        profilePicture: z.string().optional(),
+        displayName: z.string().optional().nullable(),
+        profilePicture: z.string().optional().nullable(),
         provider: z.string().default('email'),
       });
 
@@ -25,26 +25,27 @@ export function registerAuthRoutes(app: Express) {
       
       if (!user && provider === 'google') {
         // Create new Google user
-        const names = displayName?.split(' ') || [];
+        const names = (displayName || '').split(' ').filter(Boolean);
         user = await storage.createUser({
           email,
-          displayName,
-          firstName: names[0] || '',
+          displayName: displayName || null,
+          firstName: names[0] || email.split('@')[0],
           lastName: names.slice(1).join(' ') || '',
-          profilePicture,
+          profilePicture: profilePicture || null,
           googleId: firebaseId,
           provider: 'google',
           emailVerified: true,
-          lastLogin: new Date(),
         });
       } else if (user) {
         // Update existing user's last login and any missing fields
-        await storage.updateUser(user.id, {
-          lastLogin: new Date(),
-          ...(provider === 'google' && !user.googleId && { googleId: firebaseId }),
-          ...(profilePicture && !user.profilePicture && { profilePicture }),
-          ...(displayName && !user.displayName && { displayName }),
-        });
+        const updates: any = {};
+        if (provider === 'google' && !user.googleId) updates.googleId = firebaseId;
+        if (profilePicture && !user.profilePicture) updates.profilePicture = profilePicture;
+        if (displayName && !user.displayName) updates.displayName = displayName;
+        
+        if (Object.keys(updates).length > 0) {
+          await storage.updateUser(user.id, updates);
+        }
         user = await storage.getUserById(user.id);
       }
 
@@ -85,7 +86,6 @@ export function registerAuthRoutes(app: Express) {
         displayName: `${firstName} ${lastName}`,
         provider,
         emailVerified: true,
-        lastLogin: new Date(),
       });
 
       res.json({ user });
