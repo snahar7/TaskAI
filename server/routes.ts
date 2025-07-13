@@ -503,6 +503,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Hierarchical endpoints for proper navigation context
+  
+  // Get goal by ID with full hierarchy context
+  app.get("/api/goals/:goalId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const goalId = parseInt(req.params.goalId);
+      const goal = await storage.getGoal(goalId);
+      
+      if (!goal) {
+        return res.status(404).json({ error: "Goal not found" });
+      }
+      
+      res.json(goal);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get project within goal context  
+  app.get("/api/goals/:goalId/projects/:projectId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const goalId = parseInt(req.params.goalId);
+      const projectId = parseInt(req.params.projectId);
+      
+      const goal = await storage.getGoal(goalId);
+      if (!goal) {
+        return res.status(404).json({ error: "Goal not found" });
+      }
+      
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Verify project belongs to the goal
+      if (project.goalId !== goalId) {
+        return res.status(404).json({ error: "Project not found in this goal" });
+      }
+      
+      // Add goal context to project
+      const enrichedProject = { ...project, goal };
+      res.json(enrichedProject);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get task within goal/project context
+  app.get("/api/goals/:goalId/projects/:projectId/tasks/:taskId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const goalId = parseInt(req.params.goalId);
+      const projectId = parseInt(req.params.projectId);
+      const taskId = parseInt(req.params.taskId);
+      
+      const goal = await storage.getGoal(goalId);
+      if (!goal) {
+        return res.status(404).json({ error: "Goal not found" });
+      }
+      
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Verify project belongs to the goal
+      if (project.goalId !== goalId) {
+        return res.status(404).json({ error: "Project not found in this goal" });
+      }
+      
+      const task = await storage.getTask(taskId);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
+      // Verify task belongs to the project
+      if (task.projectId !== projectId) {
+        return res.status(404).json({ error: "Task not found in this project" });
+      }
+      
+      // Add full hierarchy context to task
+      const enrichedTask = { ...task, project, goal };
+      res.json(enrichedTask);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get goal with full hierarchy
   app.get("/api/goals/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1183,7 +1270,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const project of projects) {
           const tasks = await storage.getTasksByProjectId(project.id);
           for (const task of tasks) {
-            const taskWithContext = { ...task, project, goal };
+            const taskWithContext = { 
+              ...task, 
+              project, 
+              goal, 
+              goalId: goal.id, 
+              projectId: project.id 
+            };
             allTasks.push(taskWithContext);
             
             // Apply user filtering if requested
@@ -1218,7 +1311,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 continue;
               }
               
-              const subtaskWithContext = { ...subtask, task, project, goal };
+              const subtaskWithContext = { 
+                ...subtask, 
+                task, 
+                project, 
+                goal, 
+                goalId: goal.id, 
+                projectId: project.id,
+                taskId: task.id 
+              };
               allSubtasks.push(subtaskWithContext);
               
               // Check if subtask is in today's focus

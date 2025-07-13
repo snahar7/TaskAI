@@ -31,16 +31,16 @@ import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 
 export default function TaskDetailPage() {
-  const { taskId } = useParams();
+  const { goalId, projectId, taskId } = useParams();
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  // Fetch task details
+  // Fetch task details with hierarchical context
   const { data: task, isLoading } = useQuery({
-    queryKey: [`/api/tasks/${taskId}`],
-    enabled: !!taskId,
+    queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`],
+    enabled: !!(goalId && projectId && taskId),
   });
 
   // Fetch subtasks for this task
@@ -69,7 +69,7 @@ export default function TaskDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setEditingField(null);
       setEditValue("");
@@ -183,7 +183,7 @@ export default function TaskDetailPage() {
                       variant="ghost" 
                       size="sm" 
                       className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1"
-                      onClick={() => navigate(`/goal/${task.goal.id}`)}
+                      onClick={() => navigate(`/goal/${goalId}`)}
                     >
                       <Target className="h-4 w-4" />
                       <span>{task.goal.title}</span>
@@ -197,7 +197,7 @@ export default function TaskDetailPage() {
                       variant="ghost" 
                       size="sm" 
                       className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1"
-                      onClick={() => navigate(`/project/${task.project.id}`)}
+                      onClick={() => navigate(`/goal/${goalId}/project/${projectId}`)}
                     >
                       <Briefcase className="h-4 w-4" />
                       <span>{task.project.title}</span>

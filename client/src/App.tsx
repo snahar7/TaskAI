@@ -22,7 +22,8 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/task/:taskId" component={TaskDetail} />
       <Route path="/goal/:goalId" component={GoalDetail} />
-      <Route path="/project/:projectId" component={ProjectDetail} />
+      <Route path="/goal/:goalId/project/:projectId" component={ProjectDetail} />
+      <Route path="/goal/:goalId/project/:projectId/task/:taskId" component={TaskDetail} />
       <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>

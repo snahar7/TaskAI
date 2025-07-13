@@ -31,16 +31,16 @@ import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 
 export default function ProjectDetailPage() {
-  const { projectId } = useParams();
+  const { goalId, projectId } = useParams();
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  // Fetch project details
+  // Fetch project details with hierarchical context
   const { data: project, isLoading } = useQuery({
-    queryKey: [`/api/projects/${projectId}`],
-    enabled: !!projectId,
+    queryKey: [`/api/goals/${goalId}/projects/${projectId}`],
+    enabled: !!(goalId && projectId),
   });
 
   // Fetch tasks for this project
@@ -69,7 +69,7 @@ export default function ProjectDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/goals/${goalId}/projects/${projectId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setEditingField(null);
       setEditValue("");
@@ -162,7 +162,7 @@ export default function ProjectDetailPage() {
                       variant="ghost" 
                       size="sm" 
                       className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1"
-                      onClick={() => navigate(`/goal/${project.goal.id}`)}
+                      onClick={() => navigate(`/goal/${goalId}`)}
                     >
                       <Target className="h-4 w-4" />
                       <span>{project.goal.title}</span>
@@ -446,7 +446,7 @@ export default function ProjectDetailPage() {
                       <div 
                         key={task.id}
                         className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/task/${task.id}`)}
+                        onClick={() => navigate(`/goal/${goalId}/project/${projectId}/task/${task.id}`)}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className={`w-2 h-2 rounded-full ${

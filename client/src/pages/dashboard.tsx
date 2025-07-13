@@ -246,7 +246,13 @@ export default function DashboardPage() {
 
   // Function to navigate to task detail page
   const openTaskDetail = (item: any) => {
-    navigate(`/task/${item.id}`);
+    // For hierarchical navigation, we need goal and project context
+    if (item.goalId && item.projectId) {
+      navigate(`/goal/${item.goalId}/project/${item.projectId}/task/${item.id}`);
+    } else {
+      // Fallback to old navigation if hierarchy is missing
+      navigate(`/task/${item.id}`);
+    }
   };
 
   // Function to handle inline editing
