@@ -378,7 +378,7 @@ export default function DatabaseOptimizedPage() {
     });
 
     if (!isExpanded) return null;
-    if (projectsLoading) return <TableRow><TableCell colSpan={8} className="text-center">Loading projects...</TableCell></TableRow>;
+    if (projectsLoading) return <TableRow><TableCell colSpan={10} className="text-center">Loading projects...</TableCell></TableRow>;
 
     return (
       <>
@@ -409,6 +409,9 @@ export default function DatabaseOptimizedPage() {
               </TableCell>
               <TableCell className="hidden sm:table-cell">{project.status || "Active"}</TableCell>
               <TableCell className="hidden md:table-cell">{project.priority || "Medium"}</TableCell>
+              <TableCell className="hidden xl:table-cell text-center">
+                {project.estimatedDays ? `${project.estimatedDays}d` : "-"}
+              </TableCell>
               <TableCell>
                 <Progress value={parseFloat(project.percentComplete || "0")} className="w-20" />
               </TableCell>
@@ -470,7 +473,7 @@ export default function DatabaseOptimizedPage() {
     });
 
     if (!isExpanded) return null;
-    if (tasksLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
+    if (tasksLoading) return <TableRow><TableCell colSpan={10} className="text-center pl-16">Loading tasks...</TableCell></TableRow>;
 
     return (
       <>
@@ -501,6 +504,9 @@ export default function DatabaseOptimizedPage() {
               </TableCell>
               <TableCell className="hidden sm:table-cell">{task.status || "Active"}</TableCell>
               <TableCell className="hidden md:table-cell">{task.priority || "Medium"}</TableCell>
+              <TableCell className="hidden xl:table-cell text-center">
+                {task.estimatedDays ? `${task.estimatedDays}d` : "-"}
+              </TableCell>
               <TableCell>
                 <Progress value={parseFloat(task.percentComplete || "0")} className="w-20" />
               </TableCell>
@@ -562,7 +568,7 @@ export default function DatabaseOptimizedPage() {
     });
 
     if (!isExpanded) return null;
-    if (subtasksLoading) return <TableRow><TableCell colSpan={8} className="text-center pl-24">Loading subtasks...</TableCell></TableRow>;
+    if (subtasksLoading) return <TableRow><TableCell colSpan={10} className="text-center pl-24">Loading subtasks...</TableCell></TableRow>;
 
     return (
       <>
@@ -579,6 +585,9 @@ export default function DatabaseOptimizedPage() {
             </TableCell>
             <TableCell className="hidden sm:table-cell">{subtask.status || "Active"}</TableCell>
             <TableCell className="hidden md:table-cell">{subtask.priority || "Medium"}</TableCell>
+            <TableCell className="hidden xl:table-cell text-center">
+              {subtask.estimatedDays ? `${subtask.estimatedDays}d` : "-"}
+            </TableCell>
             <TableCell>
               <div className="w-20 text-sm">
                 {subtask.status === "completed" ? "✓ Complete" : "In Progress"}
@@ -649,6 +658,7 @@ export default function DatabaseOptimizedPage() {
                   <TableHead className="min-w-[80px] text-xs sm:text-sm">Type</TableHead>
                   <TableHead className="min-w-[90px] text-xs sm:text-sm hidden sm:table-cell">Status</TableHead>
                   <TableHead className="min-w-[90px] text-xs sm:text-sm hidden md:table-cell">Priority</TableHead>
+                  <TableHead className="min-w-[80px] text-xs sm:text-sm hidden xl:table-cell">Days</TableHead>
                   <TableHead className="min-w-[100px] text-xs sm:text-sm">Progress</TableHead>
                   <TableHead className="min-w-[100px] text-xs sm:text-sm hidden lg:table-cell">Deadline</TableHead>
                   <TableHead className="min-w-[100px] text-xs sm:text-sm hidden lg:table-cell">Assigned</TableHead>
@@ -684,6 +694,9 @@ export default function DatabaseOptimizedPage() {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">{goal.status || "Active"}</TableCell>
                       <TableCell className="hidden md:table-cell">{goal.priority || "Medium"}</TableCell>
+                      <TableCell className="hidden xl:table-cell text-center">
+                        {goal.estimatedDays ? `${goal.estimatedDays}d` : "-"}
+                      </TableCell>
                       <TableCell>
                         <Progress value={parseFloat(goal.percentComplete || "0")} className="w-20" />
                       </TableCell>
