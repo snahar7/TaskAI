@@ -872,6 +872,10 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(subtasks).set(updates).where(eq(subtasks.id, id)).returning();
     return updated || undefined;
   }
+
+  async getAllTasks(): Promise<Task[]> {
+    return await db.select().from(tasks);
+  }
 }
 
 export const storage = new DatabaseStorage();

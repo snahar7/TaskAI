@@ -14,10 +14,12 @@ import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
 
 // Team Members List Component
-function TeamMembersList({ teamId }: { teamId: number }) {
+function TeamMembersList({ teamId }: { teamId: number | null | undefined }) {
+  console.log('TeamMembersList teamId:', teamId);
+  
   const { data: teamMembers = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users/team", teamId],
-    enabled: !!teamId,
+    enabled: !!teamId && !isNaN(teamId),
   });
 
   if (isLoading) {
@@ -349,7 +351,7 @@ export function ProfilePage() {
                 </div>
 
                 {/* Team Members List */}
-                <TeamMembersList teamId={user.teamId} />
+                <TeamMembersList teamId={user?.teamId} />
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <div className="flex items-start gap-2">
