@@ -839,7 +839,9 @@ function DatabaseOptimizedPage() {
                               const dependentTask = allTasks.find(t => t.id === depId);
                               return dependentTask ? (
                                 <p key={index} className="text-xs">• {dependentTask.title}</p>
-                              ) : null;
+                              ) : (
+                                <p key={index} className="text-xs">• Task ID {depId}</p>
+                              );
                             })}
                           </div>
                         </TooltipContent>
