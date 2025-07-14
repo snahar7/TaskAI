@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, Database, CheckSquare, BarChart3, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NativeAuthModal } from '@/components/auth/NativeAuthModal';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserProfile } from "@/components/auth/UserProfile";
 
 export function Navigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [showNativeAuth, setShowNativeAuth] = useState(false);
 
   const isActive = (path: string) => {
     if (path === "/" && location === "/") return true;
@@ -65,7 +67,15 @@ export function Navigation() {
                   </Button>
                 </Link>
               ))}
-              <div className="ml-4">
+              <div className="flex items-center space-x-2 ml-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowNativeAuth(true)}
+                  className="text-sm"
+                >
+                  Email Login
+                </Button>
                 <UserProfile />
               </div>
             </div>
@@ -127,6 +137,9 @@ export function Navigation() {
           ))}
         </div>
       </div>
+      
+      {/* Native Auth Modal */}
+      <NativeAuthModal open={showNativeAuth} onOpenChange={setShowNativeAuth} />
     </>
   );
 }
