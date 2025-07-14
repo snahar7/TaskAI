@@ -11,19 +11,31 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
+import { useNativeAuth } from '@/hooks/useNativeAuth';
 import { LogOut, Settings, User } from 'lucide-react';
 import { AuthModal } from './AuthModal';
+import { NativeAuthModal } from './NativeAuthModal';
 
 export function UserProfile() {
-  const { user, logout, loading } = useAuth();
+  const { user: firebaseUser, logout: firebaseLogout, loading: firebaseLoading } = useAuth();
+  const { user: nativeUser, logout: nativeLogout, loading: nativeLoading } = useNativeAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [nativeAuthModalOpen, setNativeAuthModalOpen] = useState(false);
+  
+  // Use either Firebase or native user, preferring native
+  const user = nativeUser || firebaseUser;
+  const loading = nativeLoading || firebaseLoading;
   
   // Debug logging
   // console.log('UserProfile render - user:', user, 'loading:', loading);
 
   const handleLogout = async () => {
     try {
-      await logout();
+      if (nativeUser) {
+        await nativeLogout();
+      } else if (firebaseUser) {
+        await firebaseLogout();
+      }
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -62,15 +74,26 @@ export function UserProfile() {
   if (!user) {
     return (
       <>
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => setAuthModalOpen(true)}
-          className="text-sm font-medium"
-        >
-          Sign in
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setNativeAuthModalOpen(true)}
+            className="text-sm font-medium"
+          >
+            Sign in
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setAuthModalOpen(true)}
+            className="text-sm font-medium"
+          >
+            Google
+          </Button>
+        </div>
         <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+        <NativeAuthModal open={nativeAuthModalOpen} onOpenChange={setNativeAuthModalOpen} />
       </>
     );
   }
@@ -121,6 +144,7 @@ export function UserProfile() {
         </DropdownMenuContent>
       </DropdownMenu>
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+      <NativeAuthModal open={nativeAuthModalOpen} onOpenChange={setNativeAuthModalOpen} />
     </>
   );
 }

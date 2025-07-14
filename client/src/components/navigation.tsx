@@ -67,15 +67,7 @@ export function Navigation() {
                   </Button>
                 </Link>
               ))}
-              <div className="flex items-center space-x-2 ml-4">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowNativeAuth(true)}
-                  className="text-sm"
-                >
-                  Email Login
-                </Button>
+              <div className="ml-4">
                 <UserProfile />
               </div>
             </div>
