@@ -111,7 +111,8 @@ function DashboardContent() {
 
   // Fetch goals for dependency and breakdown management
   const { data: goals = [] } = useQuery({
-    queryKey: ["/api/goals"],
+    queryKey: ["/api/goals", { assignedToMe: showMyTasksOnly }],
+    queryFn: () => fetch(`/api/goals?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
   });
 
   // Extract data from dashboard stats

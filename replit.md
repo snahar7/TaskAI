@@ -92,12 +92,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- July 13, 2025: **Removed Server-Side Password Protection - Single Layer Authentication**
-  - **Removed server-side password middleware**: Eliminated requirePassword middleware and stealth login routes
-  - **Removed PasswordProtection component**: Deleted client-side password protection component and import
-  - **Streamlined authentication**: Now uses only React-based authentication with AuthGuard components
-  - **Simplified user experience**: Users see only Firebase authentication without extra password layer
-  - **Maintained security**: Task data still protected by Firebase authentication and AuthGuard wrapper
+- July 14, 2025: **Fixed Task Filtering and Removed All Password Protection Layers**
+  - **Removed ALL password protection**: Eliminated server middleware, client PasswordProtection component, and StealthMode wrapper
+  - **Fixed task filtering**: Dashboard goals API now correctly passes assignedToMe parameter for proper user filtering
+  - **Default user-only view**: Users now see only their assigned tasks by default on signup (showMyTasksOnly: true)
+  - **Streamlined authentication**: Clean single-layer Firebase authentication without any password prompts
+  - **Enhanced user experience**: New users automatically see filtered view of only their tasks for focused productivity
+  - **Team collaboration preserved**: Users can toggle off filtering to see all team tasks when needed
 
 - July 13, 2025: **Complete Task Detail System with User Assignment and Navigable Breadcrumbs**
   - **Fixed Task Edit Functionality**: Corrected API endpoint from `/api/tasks/:id` to `/api/tasks/:id/edit` - edits now save properly
