@@ -15,14 +15,22 @@ function getCurrentUserId(req: Request): number | null {
 // Helper to get accessible user IDs for a user (themselves + team members)
 async function getAccessibleUserIds(userId: number): Promise<number[]> {
   try {
+    // Validate userId
+    if (!userId || isNaN(userId)) {
+      console.error('Invalid userId passed to getAccessibleUserIds:', userId);
+      return [];
+    }
+    
     // Get current user to find their team
     const currentUser = await storage.getUserById(userId);
     if (!currentUser) {
+      console.log(`User ${userId} not found, returning only self access`);
       return [userId]; // Only user themselves if user not found
     }
     
     // If user has no team, they can only see their own tasks
     if (!currentUser.teamId) {
+      console.log(`User ${userId} has no team, returning only self access`);
       return [userId];
     }
     
@@ -38,8 +46,8 @@ async function getAccessibleUserIds(userId: number): Promise<number[]> {
     console.log(`User ${userId} (team ${currentUser.teamId}) has access to user IDs:`, accessibleIds);
     return accessibleIds;
   } catch (error) {
-    console.error('Error getting accessible user IDs:', error);
-    return [userId]; // Fallback to only user themselves
+    console.error('Error getting accessible user IDs for user', userId, ':', error);
+    return userId && !isNaN(userId) ? [userId] : []; // Fallback to only user themselves if valid, empty array if invalid
   }
 }
 
@@ -1229,7 +1237,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = parseInt(req.params.teamId);
       console.log('Route: Getting team members for teamId:', teamId);
-      console.log('Route: Storage instance type:', storage.constructor.name);
+      
+      // Validate teamId
+      if (isNaN(teamId)) {
+        return res.status(400).json({ error: "Invalid team ID" });
+      }
       
       // Check if storage function exists
       if (typeof storage.getTeamMembers !== 'function') {
