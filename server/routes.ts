@@ -1390,49 +1390,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accessibleUserIds = await getAccessibleUserIds(userId);
       }
       
-      // Get all goals, tasks and subtasks (reverting to working approach)
-      const allGoals = await storage.getAllGoals();
-      const allTasks = [];
-      const allSubtasks = [];
+      // Use optimized database queries instead of N+1 loops
+      const { allTasks, allSubtasks } = await storage.getOptimizedDashboardData(accessibleUserIds || []);
       
-      // Collect all tasks and subtasks with filtering
-      for (const goal of allGoals) {
-        const projects = await storage.getProjectsByGoalId(goal.id);
-        for (const project of projects) {
-          const tasks = await storage.getTasksByProjectId(project.id);
-          for (const task of tasks) {
-            // Apply user filtering if requested
-            if (!showMyTasksOnly || !userId || task.assignedTo === userId || accessibleUserIds.includes(task.assignedTo || 0)) {
-              const taskWithContext = { 
-                ...task, 
-                project, 
-                goal, 
-                goalId: goal.id, 
-                projectId: project.id 
-              };
-              allTasks.push(taskWithContext);
-            }
-            
-            // Get subtasks for this task
-            const subtasks = await storage.getSubtasksByTaskId(task.id);
-            for (const subtask of subtasks) {
-              // Apply user filtering if requested
-              if (!showMyTasksOnly || !userId || subtask.assignedTo === userId || accessibleUserIds.includes(subtask.assignedTo || 0)) {
-                const subtaskWithContext = { 
-                  ...subtask, 
-                  task, 
-                  project, 
-                  goal, 
-                  goalId: goal.id, 
-                  projectId: project.id,
-                  taskId: task.id 
-                };
-                allSubtasks.push(subtaskWithContext);
-              }
-            }
-          }
-        }
-      }
+      // Get goals for overview (simple query)
+      const allGoals = await storage.getAllGoals();
       
       const todayTasks = [];
       const overdueTasks = [];

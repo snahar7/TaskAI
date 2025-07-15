@@ -67,6 +67,12 @@ export interface IStorage {
   getAllPendingBreakdowns(): Promise<PendingBreakdown[]>;
   getPendingBreakdown(id: number): Promise<PendingBreakdown | undefined>;
   deletePendingBreakdown(id: number): Promise<void>;
+  
+  // Optimized data fetching
+  getOptimizedDashboardData(userIds: number[]): Promise<{
+    allTasks: any[];
+    allSubtasks: any[];
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -416,6 +422,21 @@ export class MemStorage implements IStorage {
 
   async deleteSubtask(id: number): Promise<void> {
     this.subtasks.delete(id);
+  }
+
+  async getOptimizedDashboardData(userIds: number[]): Promise<{
+    allTasks: any[];
+    allSubtasks: any[];
+  }> {
+    // Simple implementation for MemStorage (fallback to regular methods)
+    const allTasks = Array.from(this.tasks.values()).filter(task => 
+      userIds.includes(task.assignedTo || 0)
+    );
+    const allSubtasks = Array.from(this.subtasks.values()).filter(subtask => 
+      userIds.includes(subtask.assignedTo || 0)
+    );
+    
+    return { allTasks, allSubtasks };
   }
 }
 
@@ -956,6 +977,197 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tasks);
   }
 
+  // Optimized dashboard data - uses database-level filtering instead of memory filtering
+  async getOptimizedDashboardData(userIds: number[]): Promise<{
+    allTasks: any[];
+    allSubtasks: any[];
+  }> {
+    try {
+      // Get filtered tasks with context in one query
+      const tasksWithContext = await db
+        .select({
+          // Task fields
+          taskId: tasks.id,
+          taskTitle: tasks.title,
+          taskDescription: tasks.description,
+          taskStatus: tasks.status,
+          taskPriority: tasks.priority,
+          taskCompleted: tasks.completed,
+          taskDeadline: tasks.deadline,
+          taskStartDate: tasks.startDate,
+          taskEstimatedHours: tasks.estimatedHours,
+          taskTimeEstimate: tasks.timeEstimate,
+          taskAssignedTo: tasks.assignedTo,
+          taskPercentComplete: tasks.percentComplete,
+          // Project fields
+          projectId: projects.id,
+          projectTitle: projects.title,
+          projectDescription: projects.description,
+          projectStatus: projects.status,
+          projectPriority: projects.priority,
+          projectCompleted: projects.completed,
+          projectDeadline: projects.deadline,
+          projectAssignedTo: projects.assignedTo,
+          // Goal fields
+          goalId: goals.id,
+          goalTitle: goals.title,
+          goalDescription: goals.description,
+          goalStatus: goals.status,
+          goalPriority: goals.priority,
+          goalCompleted: goals.completed,
+          goalDeadline: goals.deadline,
+          goalAssignedTo: goals.assignedTo,
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(goals, eq(projects.goalId, goals.id))
+        .where(sql`${tasks.assignedTo} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`);
+
+      // Get filtered subtasks with context in one query
+      const subtasksWithContext = await db
+        .select({
+          // Subtask fields
+          subtaskId: subtasks.id,
+          subtaskTitle: subtasks.title,
+          subtaskDescription: subtasks.description,
+          subtaskStatus: subtasks.status,
+          subtaskPriority: subtasks.priority,
+          subtaskCompleted: subtasks.completed,
+          subtaskDeadline: subtasks.deadline,
+          subtaskStartDate: subtasks.startDate,
+          subtaskEstimatedHours: subtasks.estimatedHours,
+          subtaskTimeEstimate: subtasks.timeEstimate,
+          subtaskAssignedTo: subtasks.assignedTo,
+          subtaskPercentComplete: subtasks.percentComplete,
+          // Task fields
+          taskId: tasks.id,
+          taskTitle: tasks.title,
+          taskDescription: tasks.description,
+          taskStatus: tasks.status,
+          taskPriority: tasks.priority,
+          taskCompleted: tasks.completed,
+          taskDeadline: tasks.deadline,
+          taskAssignedTo: tasks.assignedTo,
+          // Project fields
+          projectId: projects.id,
+          projectTitle: projects.title,
+          projectDescription: projects.description,
+          projectStatus: projects.status,
+          projectPriority: projects.priority,
+          projectCompleted: projects.completed,
+          projectDeadline: projects.deadline,
+          projectAssignedTo: projects.assignedTo,
+          // Goal fields
+          goalId: goals.id,
+          goalTitle: goals.title,
+          goalDescription: goals.description,
+          goalStatus: goals.status,
+          goalPriority: goals.priority,
+          goalCompleted: goals.completed,
+          goalDeadline: goals.deadline,
+          goalAssignedTo: goals.assignedTo,
+        })
+        .from(subtasks)
+        .innerJoin(tasks, eq(subtasks.taskId, tasks.id))
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(goals, eq(projects.goalId, goals.id))
+        .where(sql`${subtasks.assignedTo} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`);
+
+      // Transform to expected format
+      const transformedTasks = tasksWithContext.map(row => ({
+        id: row.taskId,
+        title: row.taskTitle,
+        description: row.taskDescription,
+        status: row.taskStatus,
+        priority: row.taskPriority,
+        completed: row.taskCompleted,
+        deadline: row.taskDeadline,
+        startDate: row.taskStartDate,
+        estimatedHours: row.taskEstimatedHours,
+        timeEstimate: row.taskTimeEstimate,
+        assignedTo: row.taskAssignedTo,
+        percentComplete: row.taskPercentComplete,
+        goalId: row.goalId,
+        projectId: row.projectId,
+        goal: {
+          id: row.goalId,
+          title: row.goalTitle,
+          description: row.goalDescription,
+          status: row.goalStatus,
+          priority: row.goalPriority,
+          completed: row.goalCompleted,
+          deadline: row.goalDeadline,
+          assignedTo: row.goalAssignedTo,
+        },
+        project: {
+          id: row.projectId,
+          title: row.projectTitle,
+          description: row.projectDescription,
+          status: row.projectStatus,
+          priority: row.projectPriority,
+          completed: row.projectCompleted,
+          deadline: row.projectDeadline,
+          assignedTo: row.projectAssignedTo,
+        }
+      }));
+
+      const transformedSubtasks = subtasksWithContext.map(row => ({
+        id: row.subtaskId,
+        title: row.subtaskTitle,
+        description: row.subtaskDescription,
+        status: row.subtaskStatus,
+        priority: row.subtaskPriority,
+        completed: row.subtaskCompleted,
+        deadline: row.subtaskDeadline,
+        startDate: row.subtaskStartDate,
+        estimatedHours: row.subtaskEstimatedHours,
+        timeEstimate: row.subtaskTimeEstimate,
+        assignedTo: row.subtaskAssignedTo,
+        percentComplete: row.subtaskPercentComplete,
+        goalId: row.goalId,
+        projectId: row.projectId,
+        taskId: row.taskId,
+        goal: {
+          id: row.goalId,
+          title: row.goalTitle,
+          description: row.goalDescription,
+          status: row.goalStatus,
+          priority: row.goalPriority,
+          completed: row.goalCompleted,
+          deadline: row.goalDeadline,
+          assignedTo: row.goalAssignedTo,
+        },
+        project: {
+          id: row.projectId,
+          title: row.projectTitle,
+          description: row.projectDescription,
+          status: row.projectStatus,
+          priority: row.projectPriority,
+          completed: row.projectCompleted,
+          deadline: row.projectDeadline,
+          assignedTo: row.projectAssignedTo,
+        },
+        task: {
+          id: row.taskId,
+          title: row.taskTitle,
+          description: row.taskDescription,
+          status: row.taskStatus,
+          priority: row.taskPriority,
+          completed: row.taskCompleted,
+          deadline: row.taskDeadline,
+          assignedTo: row.taskAssignedTo,
+        }
+      }));
+
+      return {
+        allTasks: transformedTasks,
+        allSubtasks: transformedSubtasks
+      };
+    } catch (error) {
+      console.error('Error in getOptimizedDashboardData:', error);
+      throw error;
+    }
+  }
 
 }
 
