@@ -977,191 +977,102 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tasks);
   }
 
-  // Optimized dashboard data - uses database-level filtering instead of memory filtering
+  // Optimized dashboard data - uses database-level filtering 
   async getOptimizedDashboardData(userIds: number[]): Promise<{
     allTasks: any[];
     allSubtasks: any[];
   }> {
     try {
-      // Get filtered tasks with context in one query
-      const tasksWithContext = await db
-        .select({
-          // Task fields
-          taskId: tasks.id,
-          taskTitle: tasks.title,
-          taskDescription: tasks.description,
-          taskStatus: tasks.status,
-          taskPriority: tasks.priority,
-          taskCompleted: tasks.completed,
-          taskDeadline: tasks.deadline,
-          taskStartDate: tasks.startDate,
-          taskEstimatedHours: tasks.estimatedHours,
-          taskTimeEstimate: tasks.timeEstimate,
-          taskAssignedTo: tasks.assignedTo,
-          taskPercentComplete: tasks.percentComplete,
-          // Project fields
-          projectId: projects.id,
-          projectTitle: projects.title,
-          projectDescription: projects.description,
-          projectStatus: projects.status,
-          projectPriority: projects.priority,
-          projectCompleted: projects.completed,
-          projectDeadline: projects.deadline,
-          projectAssignedTo: projects.assignedTo,
-          // Goal fields
-          goalId: goals.id,
-          goalTitle: goals.title,
-          goalDescription: goals.description,
-          goalStatus: goals.status,
-          goalPriority: goals.priority,
-          goalCompleted: goals.completed,
-          goalDeadline: goals.deadline,
-          goalAssignedTo: goals.assignedTo,
-        })
+      if (userIds.length === 0) {
+        return { allTasks: [], allSubtasks: [] };
+      }
+
+      // Step 1: Get filtered tasks efficiently
+      const filteredTasks = await db
+        .select()
         .from(tasks)
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .innerJoin(goals, eq(projects.goalId, goals.id))
         .where(sql`${tasks.assignedTo} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`);
 
-      // Get filtered subtasks with context in one query
-      const subtasksWithContext = await db
-        .select({
-          // Subtask fields
-          subtaskId: subtasks.id,
-          subtaskTitle: subtasks.title,
-          subtaskDescription: subtasks.description,
-          subtaskStatus: subtasks.status,
-          subtaskPriority: subtasks.priority,
-          subtaskCompleted: subtasks.completed,
-          subtaskDeadline: subtasks.deadline,
-          subtaskStartDate: subtasks.startDate,
-          subtaskEstimatedHours: subtasks.estimatedHours,
-          subtaskTimeEstimate: subtasks.timeEstimate,
-          subtaskAssignedTo: subtasks.assignedTo,
-          subtaskPercentComplete: subtasks.percentComplete,
-          // Task fields
-          taskId: tasks.id,
-          taskTitle: tasks.title,
-          taskDescription: tasks.description,
-          taskStatus: tasks.status,
-          taskPriority: tasks.priority,
-          taskCompleted: tasks.completed,
-          taskDeadline: tasks.deadline,
-          taskAssignedTo: tasks.assignedTo,
-          // Project fields
-          projectId: projects.id,
-          projectTitle: projects.title,
-          projectDescription: projects.description,
-          projectStatus: projects.status,
-          projectPriority: projects.priority,
-          projectCompleted: projects.completed,
-          projectDeadline: projects.deadline,
-          projectAssignedTo: projects.assignedTo,
-          // Goal fields
-          goalId: goals.id,
-          goalTitle: goals.title,
-          goalDescription: goals.description,
-          goalStatus: goals.status,
-          goalPriority: goals.priority,
-          goalCompleted: goals.completed,
-          goalDeadline: goals.deadline,
-          goalAssignedTo: goals.assignedTo,
-        })
+      // Step 2: Get filtered subtasks efficiently  
+      const filteredSubtasks = await db
+        .select()
         .from(subtasks)
-        .innerJoin(tasks, eq(subtasks.taskId, tasks.id))
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .innerJoin(goals, eq(projects.goalId, goals.id))
         .where(sql`${subtasks.assignedTo} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`);
 
-      // Transform to expected format
-      const transformedTasks = tasksWithContext.map(row => ({
-        id: row.taskId,
-        title: row.taskTitle,
-        description: row.taskDescription,
-        status: row.taskStatus,
-        priority: row.taskPriority,
-        completed: row.taskCompleted,
-        deadline: row.taskDeadline,
-        startDate: row.taskStartDate,
-        estimatedHours: row.taskEstimatedHours,
-        timeEstimate: row.taskTimeEstimate,
-        assignedTo: row.taskAssignedTo,
-        percentComplete: row.taskPercentComplete,
-        goalId: row.goalId,
-        projectId: row.projectId,
-        goal: {
-          id: row.goalId,
-          title: row.goalTitle,
-          description: row.goalDescription,
-          status: row.goalStatus,
-          priority: row.goalPriority,
-          completed: row.goalCompleted,
-          deadline: row.goalDeadline,
-          assignedTo: row.goalAssignedTo,
-        },
-        project: {
-          id: row.projectId,
-          title: row.projectTitle,
-          description: row.projectDescription,
-          status: row.projectStatus,
-          priority: row.projectPriority,
-          completed: row.projectCompleted,
-          deadline: row.projectDeadline,
-          assignedTo: row.projectAssignedTo,
-        }
-      }));
+      // Step 3: Get unique project and goal IDs from tasks
+      const projectIds = [...new Set(filteredTasks.map(t => t.projectId))];
+      const taskIds = [...new Set(filteredTasks.map(t => t.id))];
 
-      const transformedSubtasks = subtasksWithContext.map(row => ({
-        id: row.subtaskId,
-        title: row.subtaskTitle,
-        description: row.subtaskDescription,
-        status: row.subtaskStatus,
-        priority: row.subtaskPriority,
-        completed: row.subtaskCompleted,
-        deadline: row.subtaskDeadline,
-        startDate: row.subtaskStartDate,
-        estimatedHours: row.subtaskEstimatedHours,
-        timeEstimate: row.subtaskTimeEstimate,
-        assignedTo: row.subtaskAssignedTo,
-        percentComplete: row.subtaskPercentComplete,
-        goalId: row.goalId,
-        projectId: row.projectId,
-        taskId: row.taskId,
-        goal: {
-          id: row.goalId,
-          title: row.goalTitle,
-          description: row.goalDescription,
-          status: row.goalStatus,
-          priority: row.goalPriority,
-          completed: row.goalCompleted,
-          deadline: row.goalDeadline,
-          assignedTo: row.goalAssignedTo,
-        },
-        project: {
-          id: row.projectId,
-          title: row.projectTitle,
-          description: row.projectDescription,
-          status: row.projectStatus,
-          priority: row.projectPriority,
-          completed: row.projectCompleted,
-          deadline: row.projectDeadline,
-          assignedTo: row.projectAssignedTo,
-        },
-        task: {
-          id: row.taskId,
-          title: row.taskTitle,
-          description: row.taskDescription,
-          status: row.taskStatus,
-          priority: row.taskPriority,
-          completed: row.taskCompleted,
-          deadline: row.taskDeadline,
-          assignedTo: row.taskAssignedTo,
+      // Step 4: Batch fetch projects and goals
+      const projectsMap = new Map();
+      const goalsMap = new Map();
+
+      if (projectIds.length > 0) {
+        const batchProjects = await db
+          .select()
+          .from(projects)
+          .where(sql`${projects.id} IN (${sql.join(projectIds.map(id => sql`${id}`), sql`, `)})`);
+        
+        batchProjects.forEach(project => projectsMap.set(project.id, project));
+
+        const goalIds = [...new Set(batchProjects.map(p => p.goalId))];
+        if (goalIds.length > 0) {
+          const batchGoals = await db
+            .select()
+            .from(goals)
+            .where(sql`${goals.id} IN (${sql.join(goalIds.map(id => sql`${id}`), sql`, `)})`);
+          
+          batchGoals.forEach(goal => goalsMap.set(goal.id, goal));
         }
-      }));
+      }
+
+      // Step 5: Enrich tasks with context
+      const enrichedTasks = filteredTasks.map(task => {
+        const project = projectsMap.get(task.projectId);
+        const goal = project ? goalsMap.get(project.goalId) : null;
+        
+        return {
+          ...task,
+          goalId: goal?.id,
+          projectId: project?.id,
+          goal: goal || null,
+          project: project || null
+        };
+      });
+
+      // Step 6: Batch fetch parent tasks for subtasks
+      const parentTasksMap = new Map();
+      const subtaskTaskIds = [...new Set(filteredSubtasks.map(s => s.taskId))];
+      
+      if (subtaskTaskIds.length > 0) {
+        const batchTasks = await db
+          .select()
+          .from(tasks)
+          .where(sql`${tasks.id} IN (${sql.join(subtaskTaskIds.map(id => sql`${id}`), sql`, `)})`);
+        
+        batchTasks.forEach(task => parentTasksMap.set(task.id, task));
+      }
+
+      // Step 7: Enrich subtasks with context
+      const enrichedSubtasks = filteredSubtasks.map(subtask => {
+        const task = parentTasksMap.get(subtask.taskId);
+        const project = task ? projectsMap.get(task.projectId) : null;
+        const goal = project ? goalsMap.get(project.goalId) : null;
+        
+        return {
+          ...subtask,
+          goalId: goal?.id,
+          projectId: project?.id,
+          taskId: task?.id,
+          goal: goal || null,
+          project: project || null,
+          task: task || null
+        };
+      });
 
       return {
-        allTasks: transformedTasks,
-        allSubtasks: transformedSubtasks
+        allTasks: enrichedTasks,
+        allSubtasks: enrichedSubtasks
       };
     } catch (error) {
       console.error('Error in getOptimizedDashboardData:', error);
