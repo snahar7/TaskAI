@@ -774,7 +774,7 @@ function DatabaseContent() {
                   />
                 </div>
               </TableCell>
-              <TableCell className="hidden md:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <EditableField
                     type="projects"
@@ -787,10 +787,10 @@ function DatabaseContent() {
                   />
                 </div>
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell>
                 <span className="text-gray-400 text-sm">-</span>
               </TableCell>
-              <TableCell className="hidden xl:table-cell text-center">
+              <TableCell className="text-center">
                 <div onClick={(e) => e.stopPropagation()}>
                   <EditableField
                     type="projects"
@@ -806,7 +806,7 @@ function DatabaseContent() {
               <TableCell>
                 <Progress value={parseFloat(project.percentComplete || "0")} className="w-20" />
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <EditableField
                     type="projects"
@@ -819,7 +819,7 @@ function DatabaseContent() {
                   />
                 </div>
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <TeamAssignmentDropdown 
                     type="projects" 
@@ -933,7 +933,7 @@ function DatabaseContent() {
               <TableCell>
                 <Badge variant="outline">Task</Badge>
               </TableCell>
-              <TableCell className="hidden sm:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <EditableField
                     type="tasks"
@@ -946,7 +946,7 @@ function DatabaseContent() {
                   />
                 </div>
               </TableCell>
-              <TableCell className="hidden md:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <EditableField
                     type="tasks"
@@ -959,7 +959,7 @@ function DatabaseContent() {
                   />
                 </div>
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   {task.dependencies && Array.isArray(task.dependencies) && task.dependencies.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -986,7 +986,7 @@ function DatabaseContent() {
                   </Button>
                 </div>
               </TableCell>
-              <TableCell className="hidden xl:table-cell text-center">
+              <TableCell className="text-center">
                 <div onClick={(e) => e.stopPropagation()}>
                   <EditableField
                     type="tasks"
@@ -1002,7 +1002,7 @@ function DatabaseContent() {
               <TableCell>
                 <Progress value={parseFloat(task.percentComplete || "0")} className="w-20" />
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <EditableField
                     type="tasks"
@@ -1015,7 +1015,7 @@ function DatabaseContent() {
                   />
                 </div>
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell>
                 <div onClick={(e) => e.stopPropagation()}>
                   <TeamAssignmentDropdown 
                     type="tasks" 
@@ -1113,7 +1113,7 @@ function DatabaseContent() {
             <TableCell>
               <Badge variant="outline" className="text-xs">Subtask</Badge>
             </TableCell>
-            <TableCell className="hidden sm:table-cell">
+            <TableCell>
               <div onClick={(e) => e.stopPropagation()}>
                 <EditableField
                   type="subtasks"
@@ -1126,7 +1126,7 @@ function DatabaseContent() {
                 />
               </div>
             </TableCell>
-            <TableCell className="hidden md:table-cell">
+            <TableCell>
               <div onClick={(e) => e.stopPropagation()}>
                 <EditableField
                   type="subtasks"
@@ -1139,7 +1139,10 @@ function DatabaseContent() {
                 />
               </div>
             </TableCell>
-            <TableCell className="hidden xl:table-cell text-center">
+            <TableCell>
+              <span className="text-gray-400 text-sm">-</span>
+            </TableCell>
+            <TableCell className="text-center">
               <div onClick={(e) => e.stopPropagation()}>
                 <EditableField
                   type="subtasks"
@@ -1157,7 +1160,7 @@ function DatabaseContent() {
                 {subtask.status === "completed" ? "✓ Complete" : "In Progress"}
               </div>
             </TableCell>
-            <TableCell className="hidden lg:table-cell">
+            <TableCell>
               <div onClick={(e) => e.stopPropagation()}>
                 <EditableField
                   type="subtasks"
@@ -1170,7 +1173,7 @@ function DatabaseContent() {
                 />
               </div>
             </TableCell>
-            <TableCell className="hidden lg:table-cell">
+            <TableCell>
               <div onClick={(e) => e.stopPropagation()}>
                 <TeamAssignmentDropdown 
                   type="subtasks" 
@@ -1253,18 +1256,18 @@ function DatabaseContent() {
           </div>
         ) : (
           <div className="rounded-md border overflow-hidden bg-white overflow-x-auto">
-            <Table className="min-w-full">
+            <Table className="min-w-[1200px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[200px] text-xs sm:text-sm">Name</TableHead>
                   <TableHead className="min-w-[80px] text-xs sm:text-sm">Type</TableHead>
-                  <TableHead className="min-w-[90px] text-xs sm:text-sm hidden sm:table-cell">Status</TableHead>
-                  <TableHead className="min-w-[90px] text-xs sm:text-sm hidden md:table-cell">Priority</TableHead>
-                  <TableHead className="min-w-[120px] text-xs sm:text-sm hidden lg:table-cell">Dependencies</TableHead>
-                  <TableHead className="min-w-[80px] text-xs sm:text-sm hidden xl:table-cell">Days</TableHead>
+                  <TableHead className="min-w-[90px] text-xs sm:text-sm">Status</TableHead>
+                  <TableHead className="min-w-[90px] text-xs sm:text-sm">Priority</TableHead>
+                  <TableHead className="min-w-[120px] text-xs sm:text-sm">Dependencies</TableHead>
+                  <TableHead className="min-w-[80px] text-xs sm:text-sm">Days</TableHead>
                   <TableHead className="min-w-[100px] text-xs sm:text-sm">Progress</TableHead>
-                  <TableHead className="min-w-[100px] text-xs sm:text-sm hidden lg:table-cell">Deadline</TableHead>
-                  <TableHead className="min-w-[100px] text-xs sm:text-sm hidden lg:table-cell">Assigned</TableHead>
+                  <TableHead className="min-w-[100px] text-xs sm:text-sm">Deadline</TableHead>
+                  <TableHead className="min-w-[100px] text-xs sm:text-sm">Assigned</TableHead>
                   <TableHead className="min-w-[60px] text-xs sm:text-sm">Done</TableHead>
                   <TableHead className="min-w-[70px] text-xs sm:text-sm">Actions</TableHead>
                 </TableRow>
@@ -1312,7 +1315,7 @@ function DatabaseContent() {
                       <TableCell>
                         <Badge>Goal</Badge>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
+                      <TableCell>
                         <div onClick={(e) => e.stopPropagation()}>
                           <EditableField
                             type="goals"
@@ -1325,7 +1328,7 @@ function DatabaseContent() {
                           />
                         </div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">
+                      <TableCell>
                         <div onClick={(e) => e.stopPropagation()}>
                           <EditableField
                             type="goals"
@@ -1338,10 +1341,10 @@ function DatabaseContent() {
                           />
                         </div>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell>
                         <span className="text-gray-400 text-sm">-</span>
                       </TableCell>
-                      <TableCell className="hidden xl:table-cell text-center">
+                      <TableCell className="text-center">
                         <div onClick={(e) => e.stopPropagation()}>
                           <EditableField
                             type="goals"
@@ -1357,7 +1360,7 @@ function DatabaseContent() {
                       <TableCell>
                         <Progress value={parseFloat(goal.percentComplete || "0")} className="w-20" />
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell>
                         <div onClick={(e) => e.stopPropagation()}>
                           <EditableField
                             type="goals"
@@ -1370,7 +1373,7 @@ function DatabaseContent() {
                           />
                         </div>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell>
                         <div onClick={(e) => e.stopPropagation()}>
                           <TeamAssignmentDropdown 
                             type="goals" 
