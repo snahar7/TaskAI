@@ -557,116 +557,234 @@ function DashboardContent() {
                 <CardDescription>Tasks categorized by urgency and importance</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4 h-96">
-                  {/* Urgent & Important */}
-                  <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      Urgent + Important
-                    </h3>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {dashboardStats?.todayTasks
-                        ?.filter((task: any) => {
-                          const today = new Date().toISOString().split('T')[0];
-                          const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
-                          const isImportant = task.priority === 'urgent' || task.priority === 'high';
-                          return isUrgent && isImportant && !task.completed;
-                        })
-                        .map((task: any) => (
-                          <div 
-                            key={task.id}
-                            className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
-                            onClick={() => openTaskDetail(task)}
-                          >
-                            <p className="font-medium text-red-900 truncate">{task.title}</p>
-                            <p className="text-red-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
-                          </div>
-                        )) || <p className="text-xs text-red-600 italic">No urgent important tasks</p>}
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-4 md:h-96">
+                  {/* Mobile: Single column layout with specific order */}
+                  <div className="md:hidden col-span-2 space-y-4">
+                    {/* 1. Urgent & Important */}
+                    <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        Urgent + Important
+                      </h3>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return isUrgent && isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-red-900 truncate">{task.title}</p>
+                              <p className="text-red-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-red-600 italic">No urgent important tasks</p>}
+                      </div>
+                    </div>
+
+                    {/* 2. Important but Not Urgent */}
+                    <div className="border-2 border-blue-200 bg-blue-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Important but Not Urgent
+                      </h3>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return !isUrgent && isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-blue-900 truncate">{task.title}</p>
+                              <p className="text-blue-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-blue-600 italic">No important tasks</p>}
+                      </div>
+                    </div>
+
+                    {/* 3. Urgent but Not Important */}
+                    <div className="border-2 border-yellow-200 bg-yellow-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Urgent but Not Important
+                      </h3>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return isUrgent && !isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-yellow-900 truncate">{task.title}</p>
+                              <p className="text-yellow-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-yellow-600 italic">No urgent tasks</p>}
+                      </div>
+                    </div>
+
+                    {/* 4. Neither Urgent nor Important */}
+                    <div className="border-2 border-gray-200 bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <Circle className="h-4 w-4" />
+                        Neither Urgent nor Important
+                      </h3>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return !isUrgent && !isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-gray-900 truncate">{task.title}</p>
+                              <p className="text-gray-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-gray-600 italic">No low priority tasks</p>}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Important but Not Urgent */}
-                  <div className="border-2 border-blue-200 bg-blue-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Important but Not Urgent
-                    </h3>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {dashboardStats?.todayTasks
-                        ?.filter((task: any) => {
-                          const today = new Date().toISOString().split('T')[0];
-                          const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
-                          const isImportant = task.priority === 'urgent' || task.priority === 'high';
-                          return !isUrgent && isImportant && !task.completed;
-                        })
-                        .map((task: any) => (
-                          <div 
-                            key={task.id}
-                            className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
-                            onClick={() => openTaskDetail(task)}
-                          >
-                            <p className="font-medium text-blue-900 truncate">{task.title}</p>
-                            <p className="text-blue-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
-                          </div>
-                        )) || <p className="text-xs text-blue-600 italic">No important tasks</p>}
+                  {/* Desktop: 2x2 grid layout */}
+                  <div className="hidden md:contents">
+                    {/* Urgent & Important */}
+                    <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        Urgent + Important
+                      </h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return isUrgent && isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-red-900 truncate">{task.title}</p>
+                              <p className="text-red-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-red-600 italic">No urgent important tasks</p>}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Urgent but Not Important */}
-                  <div className="border-2 border-yellow-200 bg-yellow-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Urgent but Not Important
-                    </h3>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {dashboardStats?.todayTasks
-                        ?.filter((task: any) => {
-                          const today = new Date().toISOString().split('T')[0];
-                          const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
-                          const isImportant = task.priority === 'urgent' || task.priority === 'high';
-                          return isUrgent && !isImportant && !task.completed;
-                        })
-                        .map((task: any) => (
-                          <div 
-                            key={task.id}
-                            className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
-                            onClick={() => openTaskDetail(task)}
-                          >
-                            <p className="font-medium text-yellow-900 truncate">{task.title}</p>
-                            <p className="text-yellow-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
-                          </div>
-                        )) || <p className="text-xs text-yellow-600 italic">No urgent tasks</p>}
+                    {/* Important but Not Urgent */}
+                    <div className="border-2 border-blue-200 bg-blue-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Important but Not Urgent
+                      </h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return !isUrgent && isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-blue-900 truncate">{task.title}</p>
+                              <p className="text-blue-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-blue-600 italic">No important tasks</p>}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Neither Urgent nor Important */}
-                  <div className="border-2 border-gray-200 bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                      <Circle className="h-4 w-4" />
-                      Neither Urgent nor Important
-                    </h3>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {dashboardStats?.todayTasks
-                        ?.filter((task: any) => {
-                          const today = new Date().toISOString().split('T')[0];
-                          const deadline = task.deadline?.split('T')[0];
-                          const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
-                          const isImportant = task.priority === 'urgent' || task.priority === 'high';
-                          return !isUrgent && !isImportant && !task.completed;
-                        })
-                        .map((task: any) => (
-                          <div 
-                            key={task.id}
-                            className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
-                            onClick={() => openTaskDetail(task)}
-                          >
-                            <p className="font-medium text-gray-900 truncate">{task.title}</p>
-                            <p className="text-gray-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
-                          </div>
-                        )) || <p className="text-xs text-gray-600 italic">No low priority tasks</p>}
+                    {/* Urgent but Not Important */}
+                    <div className="border-2 border-yellow-200 bg-yellow-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Urgent but Not Important
+                      </h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return isUrgent && !isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-yellow-900 truncate">{task.title}</p>
+                              <p className="text-yellow-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-yellow-600 italic">No urgent tasks</p>}
+                      </div>
+                    </div>
+
+                    {/* Neither Urgent nor Important */}
+                    <div className="border-2 border-gray-200 bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <Circle className="h-4 w-4" />
+                        Neither Urgent nor Important
+                      </h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {dashboardStats?.todayTasks
+                          ?.filter((task: any) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const deadline = task.deadline?.split('T')[0];
+                            const isUrgent = deadline === today || (deadline && new Date(deadline) < new Date(today));
+                            const isImportant = task.priority === 'urgent' || task.priority === 'high';
+                            return !isUrgent && !isImportant && !task.completed;
+                          })
+                          .map((task: any) => (
+                            <div 
+                              key={task.id}
+                              className="text-xs p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => openTaskDetail(task)}
+                            >
+                              <p className="font-medium text-gray-900 truncate">{task.title}</p>
+                              <p className="text-gray-600 text-xs mt-1">Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
+                            </div>
+                          )) || <p className="text-xs text-gray-600 italic">No low priority tasks</p>}
+                      </div>
                     </div>
                   </div>
                 </div>
