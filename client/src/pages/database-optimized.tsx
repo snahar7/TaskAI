@@ -920,22 +920,20 @@ function DatabaseContent() {
                     {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
                   <CheckSquare className="h-4 w-4 text-green-600" />
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <span 
-                      className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Use hierarchical navigation if available, otherwise fallback to direct route
-                        if (task.goalId && task.projectId) {
-                          navigate(`/goal/${task.goalId}/project/${task.projectId}/task/${task.id}`);
-                        } else {
-                          navigate(`/task/${task.id}`);
-                        }
-                      }}
-                    >
-                      {task.title}
-                    </span>
-                  </div>
+                  <span 
+                    className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Use hierarchical navigation if available, otherwise fallback to direct route
+                      if (task.goalId && task.projectId) {
+                        navigate(`/goal/${task.goalId}/project/${task.projectId}/task/${task.id}`);
+                      } else {
+                        navigate(`/task/${task.id}`);
+                      }
+                    }}
+                  >
+                    {task.title}
+                  </span>
                 </div>
               </TableCell>
               <TableCell>
