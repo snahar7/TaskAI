@@ -1384,14 +1384,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getCurrentUserId(req);
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
-      // Get accessible user IDs for filtering
-      let accessibleUserIds: number[] | undefined;
-      if (showMyTasksOnly && userId) {
+      // ALWAYS get accessible user IDs for proper privacy control
+      let accessibleUserIds: number[] = [];
+      if (userId) {
         accessibleUserIds = await getAccessibleUserIds(userId);
+        
+        // If showMyTasksOnly is true, filter to only the current user
+        if (showMyTasksOnly) {
+          accessibleUserIds = [userId];
+        }
+        // Otherwise, use all accessible user IDs (team members)
       }
       
-      // Use optimized database queries instead of N+1 loops
-      const { allTasks, allSubtasks } = await storage.getOptimizedDashboardData(accessibleUserIds || []);
+      // Use optimized database queries with proper privacy filtering
+      const { allTasks, allSubtasks } = await storage.getOptimizedDashboardData(accessibleUserIds);
       
       // Get goals for overview (simple query)
       const allGoals = await storage.getAllGoals();
