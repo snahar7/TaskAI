@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,6 +33,7 @@ export default function DatabaseOptimizedPage() {
 function DatabaseContent() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
@@ -919,14 +921,20 @@ function DatabaseContent() {
                   </button>
                   <CheckSquare className="h-4 w-4 text-green-600" />
                   <div onClick={(e) => e.stopPropagation()}>
-                    <EditableField
-                      type="tasks"
-                      id={task.id}
-                      field="title"
-                      value={task.title}
-                      className="font-medium"
-                      placeholder="Task title"
-                    />
+                    <span 
+                      className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Use hierarchical navigation if available, otherwise fallback to direct route
+                        if (task.goalId && task.projectId) {
+                          navigate(`/goal/${task.goalId}/project/${task.projectId}/task/${task.id}`);
+                        } else {
+                          navigate(`/task/${task.id}`);
+                        }
+                      }}
+                    >
+                      {task.title}
+                    </span>
                   </div>
                 </div>
               </TableCell>
