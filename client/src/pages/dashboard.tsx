@@ -482,7 +482,7 @@ function DashboardContent() {
             </Card>
 
             {/* Overdue Items */}
-            <Card>
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-red-600 text-base sm:text-lg">
                   <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
