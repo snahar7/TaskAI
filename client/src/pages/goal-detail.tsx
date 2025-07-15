@@ -431,7 +431,7 @@ export default function GoalDetailPage() {
                       <div 
                         key={project.id}
                         className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/project/${project.id}`)}
+                        onClick={() => navigate(`/goal/${goal.id}/project/${project.id}`)}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className={`w-2 h-2 rounded-full ${
