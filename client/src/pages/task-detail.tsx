@@ -29,8 +29,9 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AuthGuard } from "@/components/AuthGuard";
 
-export default function TaskDetailPage() {
+function TaskDetailContent() {
   const { goalId, projectId, taskId } = useParams();
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -638,5 +639,13 @@ export default function TaskDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TaskDetailPage() {
+  return (
+    <AuthGuard>
+      <TaskDetailContent />
+    </AuthGuard>
   );
 }

@@ -29,8 +29,9 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AuthGuard } from "@/components/AuthGuard";
 
-export default function ProjectDetailPage() {
+function ProjectDetailContent() {
   const { goalId, projectId } = useParams();
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -186,62 +187,9 @@ export default function ProjectDetailPage() {
             {/* Project Header */}
             <Card>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    {editingField === "title" ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="text-2xl font-bold"
-                        />
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <CardTitle 
-                        className="text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
-                        onClick={() => startEditing("title", project.title)}
-                      >
-                        {project.title}
-                        <Edit2 className="h-4 w-4 ml-2 inline opacity-0 group-hover:opacity-100" />
-                      </CardTitle>
-                    )}
-                    
-                    {editingField === "description" ? (
-                      <div className="mt-4">
-                        <Textarea
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder="Add a description for this project..."
-                          rows={3}
-                        />
-                        <div className="flex gap-2 mt-2">
-                          <Button size="sm" onClick={saveEdit}>
-                            <Save className="h-3 w-3 mr-1" />
-                            Save
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={cancelEdit}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <CardDescription 
-                        className="mt-2 cursor-pointer hover:bg-gray-50 p-2 rounded min-h-[60px] flex items-center"
-                        onClick={() => startEditing("description", project.description)}
-                      >
-                        {project.description || "Click to add a description..."}
-                      </CardDescription>
-                    )}
-                  </div>
-
-                  {/* Priority Badge */}
-                  <div className="ml-4">
+                <div className="space-y-4">
+                  {/* Priority Badge at top */}
+                  <div className="flex justify-start">
                     {editingField === "priority" ? (
                       <div className="flex items-center gap-2">
                         <Select value={editValue} onValueChange={setEditValue}>
@@ -281,6 +229,63 @@ export default function ProjectDetailPage() {
                         } PRIORITY
                         <Edit2 className="h-3 w-3 ml-1" />
                       </Badge>
+                    )}
+                  </div>
+
+                  {/* Project Title */}
+                  <div className="w-full">
+                    {editingField === "title" ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="text-2xl font-bold"
+                        />
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <CardTitle 
+                        className="text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                        onClick={() => startEditing("title", project.title)}
+                      >
+                        {project.title}
+                        <Edit2 className="h-4 w-4 ml-2 inline opacity-0 group-hover:opacity-100" />
+                      </CardTitle>
+                    )}
+                  </div>
+                  
+                  {/* Project Description */}
+                  <div className="w-full">
+                    {editingField === "description" ? (
+                      <div>
+                        <Textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          placeholder="Add a description for this project..."
+                          rows={3}
+                        />
+                        <div className="flex gap-2 mt-2">
+                          <Button size="sm" onClick={saveEdit}>
+                            <Save className="h-3 w-3 mr-1" />
+                            Save
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={cancelEdit}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <CardDescription 
+                        className="cursor-pointer hover:bg-gray-50 p-2 rounded min-h-[60px] flex items-center"
+                        onClick={() => startEditing("description", project.description)}
+                      >
+                        {project.description || "Click to add a description..."}
+                      </CardDescription>
                     )}
                   </div>
                 </div>
@@ -525,5 +530,13 @@ export default function ProjectDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProjectDetailPage() {
+  return (
+    <AuthGuard>
+      <ProjectDetailContent />
+    </AuthGuard>
   );
 }
