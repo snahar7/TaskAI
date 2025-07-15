@@ -354,32 +354,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get accessible user IDs (user + team members)
       const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // Use optimized dashboard data method to get all hierarchy data efficiently
-      const { allTasks: tasksData } = await storage.getDashboardData(showMyTasksOnly ? [userId] : accessibleUserIds);
-      
-      // Get all goals and filter based on whether they have accessible tasks/projects
+      // ALWAYS filter by accessible users (team-based privacy)
       const allGoals = await storage.getAllGoals();
       console.log("All goals:", allGoals.length, allGoals.map(g => ({ id: g.id, title: g.title, assignedTo: g.assignedTo })));
       
-      // Create a set of goal IDs that have accessible tasks
-      const accessibleGoalIds = new Set<number>();
-      for (const task of tasksData) {
-        if (task.goalId) {
-          accessibleGoalIds.add(task.goalId);
-        }
-      }
+      // Simple filtering - only show goals assigned to accessible users for now
+      const accessibleGoals = allGoals.filter(goal => 
+        goal.assignedTo && accessibleUserIds.includes(goal.assignedTo)
+      );
       
-      // Filter goals to only include those with accessible tasks or directly assigned to accessible users
-      const accessibleGoals = allGoals.filter(goal => {
-        // Include if goal itself is assigned to accessible user
-        if (goal.assignedTo && accessibleUserIds.includes(goal.assignedTo)) {
-          return true;
-        }
-        // Include if goal has accessible tasks/projects  
-        return accessibleGoalIds.has(goal.id);
-      });
-      
-      console.log(`User ${userId} sees ${accessibleGoals.length}/${allGoals.length} goals (filtered efficiently)`);
+      console.log(`User ${userId} sees ${accessibleGoals.length}/${allGoals.length} goals (simple filter)`);
       res.json(accessibleGoals);
     } catch (error) {
       next(error);
@@ -469,11 +453,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get accessible user IDs (user + team members)
       const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // Use optimized dashboard data method to get filtered tasks efficiently
-      const { allTasks: tasksData } = await storage.getDashboardData(showMyTasksOnly ? [userId] : accessibleUserIds);
+      // Get all tasks first
+      const allTasks = await storage.getAllTasks();
       
-      console.log(`User ${userId} sees ${tasksData.length} tasks (optimized filtering)`);
-      res.json(tasksData);
+      // Filter tasks to only show those assigned to accessible users
+      const filteredTasks = allTasks.filter(task => 
+        task.assignedTo && accessibleUserIds.includes(task.assignedTo)
+      );
+      
+      console.log(`User ${userId} sees ${filteredTasks.length}/${allTasks.length} tasks (accessible users: ${accessibleUserIds.join(', ')})`);
+      res.json(filteredTasks);
     } catch (error) {
       next(error);
     }
@@ -1401,8 +1390,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accessibleUserIds = await getAccessibleUserIds(userId);
       }
       
-      // Use optimized method to get all data with JOINs
-      const { allTasks: tasksData, allSubtasks: subtasksData } = await storage.getDashboardData(accessibleUserIds);
+      // Get all goals, tasks and subtasks (reverting to working approach)
+      const allGoals = await storage.getAllGoals();
+      const allTasks = [];
+      const allSubtasks = [];
+      
+      // Collect all tasks and subtasks with filtering
+      for (const goal of allGoals) {
+        const projects = await storage.getProjectsByGoalId(goal.id);
+        for (const project of projects) {
+          const tasks = await storage.getTasksByProjectId(project.id);
+          for (const task of tasks) {
+            // Apply user filtering if requested
+            if (!showMyTasksOnly || !userId || task.assignedTo === userId || accessibleUserIds.includes(task.assignedTo || 0)) {
+              const taskWithContext = { 
+                ...task, 
+                project, 
+                goal, 
+                goalId: goal.id, 
+                projectId: project.id 
+              };
+              allTasks.push(taskWithContext);
+            }
+            
+            // Get subtasks for this task
+            const subtasks = await storage.getSubtasksByTaskId(task.id);
+            for (const subtask of subtasks) {
+              // Apply user filtering if requested
+              if (!showMyTasksOnly || !userId || subtask.assignedTo === userId || accessibleUserIds.includes(subtask.assignedTo || 0)) {
+                const subtaskWithContext = { 
+                  ...subtask, 
+                  task, 
+                  project, 
+                  goal, 
+                  goalId: goal.id, 
+                  projectId: project.id,
+                  taskId: task.id 
+                };
+                allSubtasks.push(subtaskWithContext);
+              }
+            }
+          }
+        }
+      }
       
       const todayTasks = [];
       const overdueTasks = [];
@@ -1410,7 +1440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const behindSchedule = [];
       
       // Process tasks for dashboard categories
-      for (const task of tasksData) {
+      for (const task of allTasks) {
         // Check if task is in today's focus (today is between start date and deadline)
         const taskDeadline = task.deadline ? new Date(task.deadline) : null;
         const taskStartDate = task.startDate ? new Date(task.startDate) : null;
@@ -1427,10 +1457,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (taskDeadline && taskDeadline < today && task.status !== "completed" && !task.completed) {
           overdueTasks.push(task);
         }
+        
+        // Check if task is a quick win (< 1 hour)
+        if (task.estimatedHours && Number(task.estimatedHours) < 1 && !task.completed) {
+          quickWins.push(task);
+        }
+        
+        // Check if task is behind schedule (incomplete with passed deadline)
+        if (task.deadline && new Date(task.deadline) < today && !task.completed) {
+          behindSchedule.push(task);
+        }
       }
       
       // Process subtasks for dashboard categories
-      for (const subtask of subtasksData) {
+      for (const subtask of allSubtasks) {
         // Check if subtask is in today's focus
         const subtaskDeadline = subtask.deadline ? new Date(subtask.deadline) : null;
         const subtaskStartDate = subtask.startDate ? new Date(subtask.startDate) : null;
@@ -1458,29 +1498,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Process tasks for additional categories
-      for (const task of tasksData) {
-        // Check if task is a quick win (< 1 hour)
-        if (task.estimatedHours && Number(task.estimatedHours) < 1 && !task.completed) {
-          quickWins.push(task);
-        }
-        
-        // Check if task is behind schedule (incomplete with passed deadline)
-        if (task.deadline && new Date(task.deadline) < today && !task.completed) {
-          behindSchedule.push(task);
-        }
-      }
-      
-      // Get goals for overview (optimized query)
-      const allGoals = await storage.getAllGoals();
-      
       // Calculate productivity metrics
-      const completedToday = subtasksData.filter(s => 
+      const completedToday = allSubtasks.filter(s => 
         s.completed && s.updatedAt && new Date(s.updatedAt).toDateString() === today.toDateString()
       ).length;
       
-      const totalActive = tasksData.filter(t => !t.completed).length + subtasksData.filter(s => !s.completed).length;
-      const totalCompleted = tasksData.filter(t => t.completed).length + subtasksData.filter(s => s.completed).length;
+      const totalActive = allTasks.filter(t => !t.completed).length + allSubtasks.filter(s => !s.completed).length;
+      const totalCompleted = allTasks.filter(t => t.completed).length + allSubtasks.filter(s => s.completed).length;
       
       const productivity = totalActive + totalCompleted > 0 ? 
         Math.round((totalCompleted / (totalActive + totalCompleted)) * 100) : 0;
@@ -1537,8 +1561,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quickWins: quickWins.length,
           behindSchedule: behindSchedule.length,
           totalGoals: allGoals.length,
-          totalTasks: tasksData.length,
-          totalSubtasks: subtasksData.length
+          totalTasks: allTasks.length,
+          totalSubtasks: allSubtasks.length
         },
         
         // Goal data for overview
