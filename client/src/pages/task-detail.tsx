@@ -217,8 +217,7 @@ function TaskDetailContent() {
                 onClick={() => navigate("/dashboard")}
                 className="text-gray-600 hover:text-gray-900 shrink-0"
               >
-                <ArrowLeft className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Back to Dashboard</span>
+                <ArrowLeft className="h-4 w-4" />
               </Button>
               
               {/* Mobile-optimized Breadcrumb */}

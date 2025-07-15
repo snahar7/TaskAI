@@ -142,8 +142,7 @@ function ProjectDetailContent() {
                 onClick={() => navigate("/dashboard")}
                 className="text-gray-600 hover:text-gray-900"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                <ArrowLeft className="h-4 w-4" />
               </Button>
               
               {/* Breadcrumb */}
