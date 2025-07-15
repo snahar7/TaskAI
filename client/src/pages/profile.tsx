@@ -18,7 +18,8 @@ function TeamMembersList({ teamId }: { teamId: number | null | undefined }) {
   console.log('TeamMembersList teamId:', teamId);
   
   const { data: teamMembers = [], isLoading } = useQuery<User[]>({
-    queryKey: ["/api/users/team", teamId],
+    queryKey: [`/api/users/team/${teamId}`],
+    queryFn: () => fetch(`/api/users/team/${teamId}`).then(res => res.json()),
     enabled: !!teamId && !isNaN(teamId),
   });
 
