@@ -354,77 +354,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get accessible user IDs (user + team members)
       const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // ALWAYS filter by accessible users (team-based privacy)
+      // Use optimized dashboard data method to get all hierarchy data efficiently
+      const { allTasks: tasksData } = await storage.getDashboardData(showMyTasksOnly ? [userId] : accessibleUserIds);
+      
+      // Get all goals and filter based on whether they have accessible tasks/projects
       const allGoals = await storage.getAllGoals();
       console.log("All goals:", allGoals.length, allGoals.map(g => ({ id: g.id, title: g.title, assignedTo: g.assignedTo })));
-      const accessibleGoals = [];
       
-      for (const goal of allGoals) {
-        let goalIsAccessible = false;
-        
-        // Check if goal is assigned to accessible user
+      // Create a set of goal IDs that have accessible tasks
+      const accessibleGoalIds = new Set<number>();
+      for (const task of tasksData) {
+        if (task.goalId) {
+          accessibleGoalIds.add(task.goalId);
+        }
+      }
+      
+      // Filter goals to only include those with accessible tasks or directly assigned to accessible users
+      const accessibleGoals = allGoals.filter(goal => {
+        // Include if goal itself is assigned to accessible user
         if (goal.assignedTo && accessibleUserIds.includes(goal.assignedTo)) {
-          goalIsAccessible = true;
-        } else {
-          // Check if any projects in this goal are assigned to accessible user
-          const projects = await storage.getProjectsByGoalId(goal.id);
-          const hasAccessibleProject = projects.some(p => p.assignedTo && accessibleUserIds.includes(p.assignedTo));
-          if (hasAccessibleProject) {
-            goalIsAccessible = true;
-          } else {
-            // Check if any tasks in this goal are assigned to accessible user
-            for (const project of projects) {
-              const tasks = await storage.getTasksByProjectId(project.id);
-              const hasAccessibleTask = tasks.some(t => t.assignedTo && accessibleUserIds.includes(t.assignedTo));
-              if (hasAccessibleTask) {
-                goalIsAccessible = true;
-                break;
-              }
-            }
-          }
+          return true;
         }
-        
-        if (goalIsAccessible) {
-          accessibleGoals.push(goal);
-        }
-      }
+        // Include if goal has accessible tasks/projects  
+        return accessibleGoalIds.has(goal.id);
+      });
       
-      // If showMyTasksOnly is true, further filter to only current user's items
-      if (showMyTasksOnly) {
-        const userGoals = [];
-        
-        for (const goal of accessibleGoals) {
-          // Check if goal is assigned to current user
-          if (goal.assignedTo === userId) {
-            userGoals.push(goal);
-            continue;
-          }
-          
-          // Check if any projects in this goal are assigned to current user
-          const projects = await storage.getProjectsByGoalId(goal.id);
-          const hasUserProject = projects.some(p => p.assignedTo === userId);
-          if (hasUserProject) {
-            userGoals.push(goal);
-            continue;
-          }
-          
-          // Check if any tasks in this goal are assigned to current user
-          for (const project of projects) {
-            const tasks = await storage.getTasksByProjectId(project.id);
-            const hasUserTask = tasks.some(t => t.assignedTo === userId);
-            if (hasUserTask) {
-              userGoals.push(goal);
-              break;
-            }
-          }
-        }
-        
-        console.log(`User ${userId} sees ${userGoals.length}/${accessibleGoals.length} goals (my tasks only)`);
-        res.json(userGoals);
-      } else {
-        console.log(`User ${userId} sees ${accessibleGoals.length}/${allGoals.length} goals (team access, users: ${accessibleUserIds.join(', ')})`);
-        res.json(accessibleGoals);
-      }
+      console.log(`User ${userId} sees ${accessibleGoals.length}/${allGoals.length} goals (filtered efficiently)`);
+      res.json(accessibleGoals);
     } catch (error) {
       next(error);
     }
@@ -499,29 +455,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all tasks (for dependency lookups) - WITH PROPER PRIVACY FILTERING
+  // Get all tasks (for dependency lookups) - WITH PROPER PRIVACY FILTERING - OPTIMIZED
   app.get("/api/tasks/all", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getCurrentUserId(req);
+      const showMyTasksOnly = req.query.assignedToMe === 'true';
       
       // CRITICAL: No access without authentication
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" });
       }
       
-      // Get all tasks first
-      const allTasks = await storage.getAllTasks();
-      
       // Get accessible user IDs (user + team members)
       const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // Filter tasks to only show those assigned to accessible users
-      const filteredTasks = allTasks.filter(task => 
-        task.assignedTo && accessibleUserIds.includes(task.assignedTo)
-      );
+      // Use optimized dashboard data method to get filtered tasks efficiently
+      const { allTasks: tasksData } = await storage.getDashboardData(showMyTasksOnly ? [userId] : accessibleUserIds);
       
-      console.log(`User ${userId} sees ${filteredTasks.length}/${allTasks.length} tasks (accessible users: ${accessibleUserIds.join(', ')})`);
-      res.json(filteredTasks);
+      console.log(`User ${userId} sees ${tasksData.length} tasks (optimized filtering)`);
+      res.json(tasksData);
     } catch (error) {
       next(error);
     }
@@ -1440,124 +1392,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/dashboard/stats", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
       const userId = getCurrentUserId(req);
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
-      // Get all goals, projects, tasks, and subtasks
-      const allGoals = await storage.getAllGoals();
-      const allTasks = [];
-      const allSubtasks = [];
+      // Get accessible user IDs for filtering
+      let accessibleUserIds: number[] | undefined;
+      if (showMyTasksOnly && userId) {
+        accessibleUserIds = await getAccessibleUserIds(userId);
+      }
+      
+      // Use optimized method to get all data with JOINs
+      const { allTasks: tasksData, allSubtasks: subtasksData } = await storage.getDashboardData(accessibleUserIds);
+      
       const todayTasks = [];
       const overdueTasks = [];
       const quickWins = [];
       const behindSchedule = [];
       
-      // Collect all tasks and subtasks with their context
-      for (const goal of allGoals) {
-        const projects = await storage.getProjectsByGoalId(goal.id);
-        for (const project of projects) {
-          const tasks = await storage.getTasksByProjectId(project.id);
-          for (const task of tasks) {
-            const taskWithContext = { 
-              ...task, 
-              project, 
-              goal, 
-              goalId: goal.id, 
-              projectId: project.id 
-            };
-            allTasks.push(taskWithContext);
-            
-            // Apply user filtering if requested
-            if (showMyTasksOnly && userId && task.assignedTo !== userId) {
-              // Skip this task if filtering and not assigned to current user
-              continue;
-            }
-            
-            // Check if task is in today's focus (today is between start date and deadline)
-            const taskDeadline = task.deadline ? new Date(task.deadline) : null;
-            const taskStartDate = task.startDate ? new Date(task.startDate) : null;
-            
-            // Today's focus: tasks where today falls between start date and deadline AND not completed
-            if (taskDeadline && taskDeadline >= today && task.status !== "completed" && !task.completed) {
-              if (!taskStartDate || taskStartDate <= today) {
-                // Task is active today (started and not yet due)
-                todayTasks.push(taskWithContext);
-              }
-            }
-            
-            // Check if task is overdue (deadline passed and not completed)
-            if (taskDeadline && taskDeadline < today && task.status !== "completed" && !task.completed) {
-              overdueTasks.push(taskWithContext);
-            }
-            
-            // Get subtasks for this task
-            const subtasks = await storage.getSubtasksByTaskId(task.id);
-            for (const subtask of subtasks) {
-              // Apply user filtering if requested
-              if (showMyTasksOnly && userId && subtask.assignedTo !== userId) {
-                // Skip this subtask if filtering and not assigned to current user
-                continue;
-              }
-              
-              const subtaskWithContext = { 
-                ...subtask, 
-                task, 
-                project, 
-                goal, 
-                goalId: goal.id, 
-                projectId: project.id,
-                taskId: task.id 
-              };
-              allSubtasks.push(subtaskWithContext);
-              
-              // Check if subtask is in today's focus
-              const subtaskDeadline = subtask.deadline ? new Date(subtask.deadline) : null;
-              const subtaskStartDate = subtask.startDate ? new Date(subtask.startDate) : null;
-              
-              if (subtaskDeadline && subtaskDeadline >= today && subtask.status !== "completed" && !subtask.completed) {
-                if (!subtaskStartDate || subtaskStartDate <= today) {
-                  // Subtask is active today
-                  todayTasks.push(subtaskWithContext);
-                }
-              }
-              
-              // Check if subtask is overdue
-              if (subtaskDeadline && subtaskDeadline < today && subtask.status !== "completed" && !subtask.completed) {
-                overdueTasks.push(subtaskWithContext);
-              }
-              
-              // Check if subtask is a quick win (< 1 hour)
-              if (subtask.estimatedHours && Number(subtask.estimatedHours) < 1 && !subtask.completed) {
-                quickWins.push(subtaskWithContext);
-              }
-              
-              // Check if subtask is behind schedule
-              if (subtaskDeadline && subtaskDeadline < today && !subtask.completed) {
-                behindSchedule.push(subtaskWithContext);
-              }
-            }
-            
-            // Check if task is a quick win (< 1 hour)
-            if (task.estimatedHours && Number(task.estimatedHours) < 1 && !task.completed) {
-              quickWins.push(taskWithContext);
-            }
-            
-            // Check if task is behind schedule (incomplete with passed deadline)
-            if (task.deadline && new Date(task.deadline) < today && !task.completed) {
-              behindSchedule.push(taskWithContext);
-            }
+      // Process tasks for dashboard categories
+      for (const task of tasksData) {
+        // Check if task is in today's focus (today is between start date and deadline)
+        const taskDeadline = task.deadline ? new Date(task.deadline) : null;
+        const taskStartDate = task.startDate ? new Date(task.startDate) : null;
+        
+        // Today's focus: tasks where today falls between start date and deadline AND not completed
+        if (taskDeadline && taskDeadline >= today && task.status !== "completed" && !task.completed) {
+          if (!taskStartDate || taskStartDate <= today) {
+            // Task is active today (started and not yet due)
+            todayTasks.push(task);
           }
+        }
+        
+        // Check if task is overdue (deadline passed and not completed)
+        if (taskDeadline && taskDeadline < today && task.status !== "completed" && !task.completed) {
+          overdueTasks.push(task);
         }
       }
       
+      // Process subtasks for dashboard categories
+      for (const subtask of subtasksData) {
+        // Check if subtask is in today's focus
+        const subtaskDeadline = subtask.deadline ? new Date(subtask.deadline) : null;
+        const subtaskStartDate = subtask.startDate ? new Date(subtask.startDate) : null;
+        
+        if (subtaskDeadline && subtaskDeadline >= today && subtask.status !== "completed" && !subtask.completed) {
+          if (!subtaskStartDate || subtaskStartDate <= today) {
+            // Subtask is active today
+            todayTasks.push(subtask);
+          }
+        }
+        
+        // Check if subtask is overdue
+        if (subtaskDeadline && subtaskDeadline < today && subtask.status !== "completed" && !subtask.completed) {
+          overdueTasks.push(subtask);
+        }
+        
+        // Check if subtask is a quick win (< 1 hour)
+        if (subtask.estimatedHours && Number(subtask.estimatedHours) < 1 && !subtask.completed) {
+          quickWins.push(subtask);
+        }
+        
+        // Check if subtask is behind schedule
+        if (subtaskDeadline && subtaskDeadline < today && !subtask.completed) {
+          behindSchedule.push(subtask);
+        }
+      }
+      
+      // Process tasks for additional categories
+      for (const task of tasksData) {
+        // Check if task is a quick win (< 1 hour)
+        if (task.estimatedHours && Number(task.estimatedHours) < 1 && !task.completed) {
+          quickWins.push(task);
+        }
+        
+        // Check if task is behind schedule (incomplete with passed deadline)
+        if (task.deadline && new Date(task.deadline) < today && !task.completed) {
+          behindSchedule.push(task);
+        }
+      }
+      
+      // Get goals for overview (optimized query)
+      const allGoals = await storage.getAllGoals();
+      
       // Calculate productivity metrics
-      const completedToday = allSubtasks.filter(s => 
+      const completedToday = subtasksData.filter(s => 
         s.completed && s.updatedAt && new Date(s.updatedAt).toDateString() === today.toDateString()
       ).length;
       
-      const totalActive = allTasks.filter(t => !t.completed).length + allSubtasks.filter(s => !s.completed).length;
-      const totalCompleted = allTasks.filter(t => t.completed).length + allSubtasks.filter(s => s.completed).length;
+      const totalActive = tasksData.filter(t => !t.completed).length + subtasksData.filter(s => !s.completed).length;
+      const totalCompleted = tasksData.filter(t => t.completed).length + subtasksData.filter(s => s.completed).length;
       
       const productivity = totalActive + totalCompleted > 0 ? 
         Math.round((totalCompleted / (totalActive + totalCompleted)) * 100) : 0;
@@ -1614,8 +1537,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quickWins: quickWins.length,
           behindSchedule: behindSchedule.length,
           totalGoals: allGoals.length,
-          totalTasks: allTasks.length,
-          totalSubtasks: allSubtasks.length
+          totalTasks: tasksData.length,
+          totalSubtasks: subtasksData.length
         },
         
         // Goal data for overview
