@@ -512,7 +512,18 @@ function DashboardContent() {
                             </div>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
-                            <Button size="sm" variant="outline" className="h-8 text-xs">Reschedule</Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 text-xs"
+                              onClick={() => setRescheduleDialog({
+                                isOpen: true,
+                                taskId: item.id,
+                                currentDate: item.deadline ? item.deadline.split('T')[0] : ""
+                              })}
+                            >
+                              Reschedule
+                            </Button>
                             <Button 
                               size="sm" 
                               variant="destructive"
