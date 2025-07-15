@@ -509,9 +509,6 @@ function DashboardContent() {
                               {item.deadline && (
                                 <span>• {daysPastDue} days overdue</span>
                               )}
-                              {item.estimatedHours && (
-                                <span>• {item.estimatedHours}h</span>
-                              )}
                             </div>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
