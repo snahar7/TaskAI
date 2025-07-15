@@ -218,14 +218,26 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // Get current user from session
+  // Get current user from session or header
   app.get("/api/auth/user", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.session.authenticated || !req.session.userId) {
+      // Try session first, then header (for compatibility with different auth methods)
+      let userId = null;
+      
+      if (req.session.authenticated && req.session.userId) {
+        userId = req.session.userId;
+      } else {
+        const headerUserId = req.headers['x-user-id'] as string;
+        if (headerUserId) {
+          userId = parseInt(headerUserId);
+        }
+      }
+      
+      if (!userId || isNaN(userId)) {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const user = await storage.getUserById(req.session.userId);
+      const user = await storage.getUserById(userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }

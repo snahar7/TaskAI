@@ -12,7 +12,8 @@ interface User {
 }
 
 interface UserAvatarProps {
-  userId: number | null;
+  userId?: number | null;
+  user?: User;
   size?: "sm" | "md" | "lg";
   showTooltip?: boolean;
   className?: string;
@@ -38,15 +39,17 @@ const sizeClasses = {
   lg: "h-10 w-10 text-base"
 };
 
-export function UserAvatar({ userId, size = "md", showTooltip = true, className = "" }: UserAvatarProps) {
-  const { data: user, isLoading } = useQuery<User>({
+export function UserAvatar({ userId, user: providedUser, size = "md", showTooltip = true, className = "" }: UserAvatarProps) {
+  const { data: fetchedUser, isLoading } = useQuery<User>({
     queryKey: [`/api/users/${userId}`],
-    enabled: !!userId,
+    enabled: !!userId && !providedUser,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
     refetchOnWindowFocus: false,
   });
 
-  if (!userId) {
+  const user = providedUser || fetchedUser;
+
+  if (!userId && !providedUser) {
     return (
       <div className={`flex items-center ${className}`}>
         <Avatar className={`${sizeClasses[size]} bg-gray-100`}>
@@ -61,7 +64,7 @@ export function UserAvatar({ userId, size = "md", showTooltip = true, className 
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !providedUser) {
     return (
       <div className={`flex items-center ${className}`}>
         <Avatar className={`${sizeClasses[size]} bg-gray-100 animate-pulse`}>
