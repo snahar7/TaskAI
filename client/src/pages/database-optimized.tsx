@@ -748,16 +748,15 @@ function DatabaseContent() {
                     {expandedProjects.has(project.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
                   <FolderOpen className="h-4 w-4 text-blue-600" />
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <EditableField
-                      type="projects"
-                      id={project.id}
-                      field="title"
-                      value={project.title}
-                      className="font-medium"
-                      placeholder="Project title"
-                    />
-                  </div>
+                  <span 
+                    className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/goal/${project.goalId}/project/${project.id}`);
+                    }}
+                  >
+                    {project.title}
+                  </span>
                 </div>
               </TableCell>
               <TableCell>
@@ -1104,16 +1103,20 @@ function DatabaseContent() {
             <TableCell className="pl-24">
               <div className="flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-yellow-600" />
-                <div onClick={(e) => e.stopPropagation()}>
-                  <EditableField
-                    type="subtasks"
-                    id={subtask.id}
-                    field="title"
-                    value={subtask.title}
-                    className="font-medium text-sm"
-                    placeholder="Subtask title"
-                  />
-                </div>
+                <span 
+                  className="font-medium text-sm cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Navigate to parent task since subtasks don't have their own page
+                    if (subtask.goalId && subtask.projectId) {
+                      navigate(`/goal/${subtask.goalId}/project/${subtask.projectId}/task/${subtask.taskId}`);
+                    } else {
+                      navigate(`/task/${subtask.taskId}`);
+                    }
+                  }}
+                >
+                  {subtask.title}
+                </span>
               </div>
             </TableCell>
             <TableCell>
@@ -1306,16 +1309,15 @@ function DatabaseContent() {
                             {expandedGoals.has(goal.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </button>
                           <Target className="h-4 w-4 text-purple-600" />
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <EditableField
-                              type="goals"
-                              id={goal.id}
-                              field="title"
-                              value={goal.title}
-                              className="font-medium"
-                              placeholder="Goal title"
-                            />
-                          </div>
+                          <span 
+                            className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/goal/${goal.id}`);
+                            }}
+                          >
+                            {goal.title}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
