@@ -449,13 +449,6 @@ function DashboardContent() {
                               <p className="font-medium text-sm sm:text-base truncate">{displayTitle}</p>
                               <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
                                 <span>From {parentInfo}</span>
-                                {item.estimatedHours && <span>• {item.estimatedHours}h</span>}
-                                {item.deadline && (
-                                  <span>• Due: {new Date(item.deadline).toLocaleDateString()}</span>
-                                )}
-                                {item.startDate && (
-                                  <span>• Started: {new Date(item.startDate).toLocaleDateString()}</span>
-                                )}
                               </div>
                             </div>
                           </div>
