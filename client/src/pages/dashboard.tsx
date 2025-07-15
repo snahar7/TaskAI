@@ -511,7 +511,7 @@ function DashboardContent() {
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+                          <div className="flex flex-row gap-2 flex-shrink-0">
                             <Button size="sm" variant="outline" className="h-8 text-xs">Reschedule</Button>
                             <Button 
                               size="sm" 
