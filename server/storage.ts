@@ -31,6 +31,7 @@ export interface IStorage {
   // Goals
   createGoal(goal: InsertGoal): Promise<Goal>;
   getAllGoals(): Promise<Goal[]>;
+  getAccessibleGoals(userIds: number[]): Promise<Goal[]>; // Privacy-filtered goals
   getGoal(id: number): Promise<Goal | undefined>;
   getGoalWithProjects(id: number): Promise<GoalWithProjects | undefined>;
   updateGoalApproval(id: number, approved: boolean): Promise<void>;
@@ -39,6 +40,7 @@ export interface IStorage {
   // Projects
   createProject(project: InsertProject): Promise<Project>;
   getProjectsByGoalId(goalId: number): Promise<Project[]>;
+  getAccessibleProjectsByGoalId(goalId: number, userIds: number[]): Promise<Project[]>; // Privacy-filtered projects
   getProject(id: number): Promise<Project | undefined>;
   getProjectWithTasks(id: number): Promise<ProjectWithTasks | undefined>;
   updateProjectApproval(id: number, approved: boolean): Promise<void>;
@@ -47,7 +49,9 @@ export interface IStorage {
   // Tasks
   createTask(task: InsertTask): Promise<Task>;
   getTasksByProjectId(projectId: number): Promise<Task[]>;
+  getAccessibleTasksByProjectId(projectId: number, userIds: number[]): Promise<Task[]>; // Privacy-filtered tasks
   getAllTasks(): Promise<Task[]>;
+  getAccessibleTasks(userIds: number[]): Promise<Task[]>; // Privacy-filtered all tasks
   getTask(id: number): Promise<Task | undefined>;
   getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined>;
   updateTaskCompletion(id: number, completed: boolean): Promise<void>;
@@ -57,6 +61,7 @@ export interface IStorage {
   // Subtasks
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
   getSubtasksByTaskId(taskId: number): Promise<Subtask[]>;
+  getAccessibleSubtasksByTaskId(taskId: number, userIds: number[]): Promise<Subtask[]>; // Privacy-filtered subtasks
   getSubtask(id: number): Promise<Subtask | undefined>;
   updateSubtaskCompletion(id: number, completed: boolean): Promise<void>;
   updateSubtaskApproval(id: number, approved: boolean): Promise<void>;
@@ -143,6 +148,14 @@ export class MemStorage implements IStorage {
   async getAllGoals(): Promise<Goal[]> {
     return Array.from(this.goals.values());
   }
+  
+  // Privacy-filtered goals - only show goals assigned to accessible users
+  async getAccessibleGoals(userIds: number[]): Promise<Goal[]> {
+    if (userIds.length === 0) return [];
+    return Array.from(this.goals.values()).filter(goal => 
+      goal.assignedTo && userIds.includes(goal.assignedTo)
+    );
+  }
 
   async getGoal(id: number): Promise<Goal | undefined> {
     return this.goals.get(id);
@@ -206,6 +219,14 @@ export class MemStorage implements IStorage {
   async getProjectsByGoalId(goalId: number): Promise<Project[]> {
     return Array.from(this.projects.values()).filter(p => p.goalId === goalId);
   }
+  
+  // Privacy-filtered projects - only show projects assigned to accessible users
+  async getAccessibleProjectsByGoalId(goalId: number, userIds: number[]): Promise<Project[]> {
+    if (userIds.length === 0) return [];
+    return Array.from(this.projects.values()).filter(project => 
+      project.goalId === goalId && project.assignedTo && userIds.includes(project.assignedTo)
+    );
+  }
 
   async getProject(id: number): Promise<Project | undefined> {
     return this.projects.get(id);
@@ -264,6 +285,14 @@ export class MemStorage implements IStorage {
 
   async getTasksByProjectId(projectId: number): Promise<Task[]> {
     return Array.from(this.tasks.values()).filter(t => t.projectId === projectId);
+  }
+  
+  // Privacy-filtered tasks by project
+  async getAccessibleTasksByProjectId(projectId: number, userIds: number[]): Promise<Task[]> {
+    if (userIds.length === 0) return [];
+    return Array.from(this.tasks.values()).filter(task => 
+      task.projectId === projectId && task.assignedTo && userIds.includes(task.assignedTo)
+    );
   }
 
   async getTask(id: number): Promise<Task | undefined> {
@@ -328,6 +357,27 @@ export class MemStorage implements IStorage {
 
   async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
     return Array.from(this.subtasks.values()).filter(s => s.taskId === taskId);
+  }
+  
+  // Privacy-filtered subtasks by task
+  async getAccessibleSubtasksByTaskId(taskId: number, userIds: number[]): Promise<Subtask[]> {
+    if (userIds.length === 0) return [];
+    return Array.from(this.subtasks.values()).filter(subtask => 
+      subtask.taskId === taskId && subtask.assignedTo && userIds.includes(subtask.assignedTo)
+    );
+  }
+  
+  // Get all tasks
+  async getAllTasks(): Promise<Task[]> {
+    return Array.from(this.tasks.values());
+  }
+  
+  // Privacy-filtered all tasks - only show tasks assigned to accessible users
+  async getAccessibleTasks(userIds: number[]): Promise<Task[]> {
+    if (userIds.length === 0) return [];
+    return Array.from(this.tasks.values()).filter(task => 
+      task.assignedTo && userIds.includes(task.assignedTo)
+    );
   }
 
   async getSubtask(id: number): Promise<Subtask | undefined> {
@@ -480,6 +530,15 @@ export class DatabaseStorage implements IStorage {
 
   async getAllGoals(): Promise<Goal[]> {
     return await db.select().from(goals);
+  }
+  
+  // Privacy-filtered goals - only show goals assigned to accessible users
+  async getAccessibleGoals(userIds: number[]): Promise<Goal[]> {
+    if (userIds.length === 0) return [];
+    
+    return await db.select().from(goals).where(
+      sql`assigned_to = ANY(${userIds})`
+    );
   }
 
   async getAllGoalsWithProjects(): Promise<GoalWithProjects[]> {
@@ -774,6 +833,15 @@ export class DatabaseStorage implements IStorage {
   async getProjectsByGoalId(goalId: number): Promise<Project[]> {
     return await db.select().from(projects).where(eq(projects.goalId, goalId));
   }
+  
+  // Privacy-filtered projects - only show projects assigned to accessible users
+  async getAccessibleProjectsByGoalId(goalId: number, userIds: number[]): Promise<Project[]> {
+    if (userIds.length === 0) return [];
+    
+    return await db.select().from(projects).where(
+      sql`goal_id = ${goalId} AND assigned_to = ANY(${userIds})`
+    );
+  }
 
   async getProject(id: number): Promise<Project | undefined> {
     const [project] = await db.select().from(projects).where(eq(projects.id, id));
@@ -822,6 +890,15 @@ export class DatabaseStorage implements IStorage {
   async getTasksByProjectId(projectId: number): Promise<Task[]> {
     return await db.select().from(tasks).where(eq(tasks.projectId, projectId));
   }
+  
+  // Privacy-filtered tasks by project
+  async getAccessibleTasksByProjectId(projectId: number, userIds: number[]): Promise<Task[]> {
+    if (userIds.length === 0) return [];
+    
+    return await db.select().from(tasks).where(
+      sql`project_id = ${projectId} AND assigned_to = ANY(${userIds})`
+    );
+  }
 
   async getTask(id: number): Promise<Task | undefined> {
     const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
@@ -869,6 +946,15 @@ export class DatabaseStorage implements IStorage {
 
   async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
     return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
+  }
+  
+  // Privacy-filtered subtasks by task
+  async getAccessibleSubtasksByTaskId(taskId: number, userIds: number[]): Promise<Subtask[]> {
+    if (userIds.length === 0) return [];
+    
+    return await db.select().from(subtasks).where(
+      sql`task_id = ${taskId} AND assigned_to = ANY(${userIds})`
+    );
   }
 
   async getSubtask(id: number): Promise<Subtask | undefined> {
@@ -975,6 +1061,15 @@ export class DatabaseStorage implements IStorage {
 
   async getAllTasks(): Promise<Task[]> {
     return await db.select().from(tasks);
+  }
+  
+  // Privacy-filtered all tasks - only show tasks assigned to accessible users
+  async getAccessibleTasks(userIds: number[]): Promise<Task[]> {
+    if (userIds.length === 0) return [];
+    
+    return await db.select().from(tasks).where(
+      sql`assigned_to = ANY(${userIds})`
+    );
   }
 
   // Optimized dashboard data - uses database-level filtering 
