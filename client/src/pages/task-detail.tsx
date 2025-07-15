@@ -209,40 +209,40 @@ export default function TaskDetailPage() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4 overflow-hidden">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => navigate("/dashboard")}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-gray-900 shrink-0"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Back to Dashboard</span>
               </Button>
               
-              {/* Breadcrumb */}
-              <div className="flex items-center text-sm text-gray-500">
+              {/* Mobile-optimized Breadcrumb */}
+              <div className="flex items-center text-sm text-gray-500 min-w-0 overflow-hidden">
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="p-0 h-auto text-gray-500 hover:text-blue-600"
+                  className="p-0 h-auto text-gray-500 hover:text-blue-600 shrink-0"
                   onClick={() => navigate("/dashboard")}
                 >
                   <Home className="h-4 w-4" />
                 </Button>
-                <ChevronRight className="h-4 w-4 mx-2" />
+                <ChevronRight className="h-4 w-4 mx-1 shrink-0" />
                 {task.goal && (
                   <>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1"
+                      className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1 min-w-0"
                       onClick={() => navigate(`/goal/${goalId}`)}
                     >
-                      <Target className="h-4 w-4" />
-                      <span>{task.goal.title}</span>
+                      <Target className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="truncate text-xs sm:text-sm max-w-[80px] sm:max-w-none">{task.goal.title}</span>
                     </Button>
-                    <ChevronRight className="h-4 w-4 mx-2" />
+                    <ChevronRight className="h-4 w-4 mx-1 shrink-0" />
                   </>
                 )}
                 {task.project && (
@@ -250,16 +250,16 @@ export default function TaskDetailPage() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1"
+                      className="p-0 h-auto text-gray-500 hover:text-blue-600 flex items-center gap-1 min-w-0"
                       onClick={() => navigate(`/goal/${goalId}/project/${projectId}`)}
                     >
-                      <Briefcase className="h-4 w-4" />
-                      <span>{task.project.title}</span>
+                      <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="truncate text-xs sm:text-sm max-w-[80px] sm:max-w-none">{task.project.title}</span>
                     </Button>
-                    <ChevronRight className="h-4 w-4 mx-2" />
+                    <ChevronRight className="h-4 w-4 mx-1 shrink-0" />
                   </>
                 )}
-                <span className="font-medium text-gray-900">Task Details</span>
+                <span className="font-medium text-gray-900 text-xs sm:text-sm truncate">Task Details</span>
               </div>
             </div>
           </div>
@@ -267,10 +267,10 @@ export default function TaskDetailPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
           {/* Main Task Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Task Header */}
             <Card>
               <CardHeader>
@@ -337,7 +337,7 @@ export default function TaskDetailPage() {
                       </div>
                     ) : (
                       <CardTitle 
-                        className="text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                        className="text-xl sm:text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
                         onClick={() => startEditing("title", task.title)}
                       >
                         {task.title}
@@ -393,10 +393,10 @@ export default function TaskDetailPage() {
             </Card>
 
             {/* Task Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {/* Deadline */}
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">Deadline</span>
@@ -433,7 +433,7 @@ export default function TaskDetailPage() {
 
               {/* Estimated Hours */}
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">Estimated Hours</span>
@@ -468,7 +468,7 @@ export default function TaskDetailPage() {
 
               {/* Assigned User */}
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <User className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">Assigned to</span>
@@ -581,7 +581,7 @@ export default function TaskDetailPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Quick Actions */}
             <Card>
               <CardHeader>
