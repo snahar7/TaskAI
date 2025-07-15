@@ -55,9 +55,6 @@ function TeamMembersList({ teamId }: { teamId: number | null | undefined }) {
               <p className="text-sm font-medium">{member.displayName}</p>
               <p className="text-xs text-slate-500">{member.email}</p>
             </div>
-            <Badge variant="outline" className="text-xs">
-              {member.provider === 'google' ? 'Google' : 'Email'}
-            </Badge>
           </div>
         ))}
       </div>
