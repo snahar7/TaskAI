@@ -84,15 +84,19 @@ export async function validateWorkspaceAccess(req: Request, res: Response, next:
         
         if (entityType === 'goals') {
           const goal = await storage.getGoal(entityId);
+          console.log(`DEBUG: Retrieved goal:`, goal);
           workspaceId = goal?.workspaceId;
         } else if (entityType === 'projects') {
           const project = await storage.getProject(entityId);
+          console.log(`DEBUG: Retrieved project:`, project);
           workspaceId = project?.workspaceId;
         } else if (entityType === 'tasks') {
           const task = await storage.getTask(entityId);
+          console.log(`DEBUG: Retrieved task:`, task);
           workspaceId = task?.workspaceId;
         } else if (entityType === 'subtasks') {
           const subtask = await storage.getSubtask(entityId);
+          console.log(`DEBUG: Retrieved subtask:`, subtask);
           workspaceId = subtask?.workspaceId;
         }
         console.log(`DEBUG: Extracted workspaceId: ${workspaceId}`);
