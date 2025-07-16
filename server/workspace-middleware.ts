@@ -54,20 +54,20 @@ export async function validateWorkspaceAccess(req: Request, res: Response, next:
       const entityId = parseInt(req.params.id);
       console.log(`DEBUG: Extracting workspace from entity. EntityId: ${entityId}, Path: ${req.path}`);
       
-      // Determine entity type from URL
-      if (req.path.includes('/goals/')) {
+      // Determine entity type from URL - handle both /api/goals and /goals patterns
+      if (req.path.includes('/goals/') || req.path.match(/\/api\/goals\/\d+/)) {
         const goal = await storage.getGoal(entityId);
         workspaceId = goal?.workspaceId;
         console.log(`DEBUG: Goal ${entityId} has workspaceId: ${workspaceId}`, goal);
-      } else if (req.path.includes('/projects/')) {
+      } else if (req.path.includes('/projects/') || req.path.match(/\/api\/projects\/\d+/)) {
         const project = await storage.getProject(entityId);
         workspaceId = project?.workspaceId;
         console.log(`DEBUG: Project ${entityId} has workspaceId: ${workspaceId}`, project);
-      } else if (req.path.includes('/tasks/')) {
+      } else if (req.path.includes('/tasks/') || req.path.match(/\/api\/tasks\/\d+/)) {
         const task = await storage.getTask(entityId);
         workspaceId = task?.workspaceId;
         console.log(`DEBUG: Task ${entityId} has workspaceId: ${workspaceId}`, task);
-      } else if (req.path.includes('/subtasks/')) {
+      } else if (req.path.includes('/subtasks/') || req.path.match(/\/api\/subtasks\/\d+/)) {
         const subtask = await storage.getSubtask(entityId);
         workspaceId = subtask?.workspaceId;
         console.log(`DEBUG: Subtask ${entityId} has workspaceId: ${workspaceId}`, subtask);
