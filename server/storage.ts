@@ -688,6 +688,23 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workspaces.id, id));
   }
 
+  // Workspace-based entity filtering methods (for multi-tenant security)
+  async getGoalsByWorkspace(workspaceId: number): Promise<Goal[]> {
+    return await db.select().from(goals).where(eq(goals.workspaceId, workspaceId));
+  }
+
+  async getProjectsByWorkspace(workspaceId: number): Promise<Project[]> {
+    return await db.select().from(projects).where(eq(projects.workspaceId, workspaceId));
+  }
+
+  async getTasksByWorkspace(workspaceId: number): Promise<Task[]> {
+    return await db.select().from(tasks).where(eq(tasks.workspaceId, workspaceId));
+  }
+
+  async getSubtasksByWorkspace(workspaceId: number): Promise<Subtask[]> {
+    return await db.select().from(subtasks).where(eq(subtasks.workspaceId, workspaceId));
+  }
+
   // Goals
   async createGoal(insertGoal: InsertGoal): Promise<Goal> {
     const [goal] = await db.insert(goals).values(insertGoal).returning();

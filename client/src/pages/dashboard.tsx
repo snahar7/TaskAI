@@ -1266,7 +1266,7 @@ function DashboardContent() {
               {dependencyDialog.selectedDependencies.size > 0 ? (
                 <div className="flex flex-wrap gap-1">
                   {Array.from(dependencyDialog.selectedDependencies).map(depId => {
-                    const task = allTasks.find((t: any) => t.id === depId);
+                    const task = (allTasks || []).find((t: any) => t.id === depId);
                     return (
                       <Badge key={depId} variant="secondary" className="text-xs">
                         {task ? task.title : `Task ${depId}`}
@@ -1283,10 +1283,10 @@ function DashboardContent() {
             <div className="space-y-4">
               <h4 className="font-medium">Available Tasks</h4>
               <div className="max-h-60 overflow-y-auto space-y-1">
-                {allTasks
+                {(allTasks || [])
                   .filter((task: any) => 
                     task.id !== dependencyDialog.taskId && // Can't depend on itself
-                    !wouldCreateCycle(dependencyDialog.taskId!, task.id, allTasks) // Prevent cycles
+                    !wouldCreateCycle(dependencyDialog.taskId!, task.id, allTasks || []) // Prevent cycles
                   )
                   .map((task: any) => (
                     <div key={task.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
