@@ -686,6 +686,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update goal completion with comprehensive progress cascading
+  app.patch("/api/goals/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
+      
+      // Use the new progress updater service for proper cascading
+      const { progressUpdater } = await import("./services/progressUpdater");
+      await progressUpdater.updateGoalProgress(id, completed);
+      
+      res.json({ message: "Goal completion updated" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Update goal approval with cascading completion
   app.patch("/api/goals/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -26,7 +26,7 @@ export type {
   AIBreakdown,
   TaskAnalytics,
   DailyStandup,
-} from '@/schema';
+} from '@shared/schema';
 
 // API Response types
 export interface ApiResponse<T = unknown> {
