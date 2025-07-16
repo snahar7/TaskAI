@@ -1,6 +1,7 @@
 import { 
   users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags,
   files, comments, dependencies, entityTags, followers, teamMembers, entityLinks,
+  workspaces, workspaceMemberships,
   type User, type InsertUser,
   type Goal, type InsertGoal,
   type Project, type InsertProject, 
@@ -12,6 +13,8 @@ import {
   type Tag, type InsertTag,
   type Comment, type InsertComment,
   type File, type InsertFile,
+  type Workspace, type InsertWorkspace,
+  type WorkspaceMembership, type InsertWorkspaceMembership,
   type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks,
   type GoalWithDetails, type ProjectWithDetails, type TaskWithDetails
 } from "@shared/schema";
@@ -26,6 +29,14 @@ export interface IEnhancedStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User>;
+  
+  // Workspaces - CRITICAL MISSING METHODS
+  getUserWorkspaces(userId: number): Promise<any[]>;
+  isUserInWorkspace(userId: number, workspaceId: number): Promise<boolean>;
+  getWorkspaceMembers(workspaceId: number): Promise<User[]>;
+  getGoalsByWorkspace(workspaceId: number): Promise<Goal[]>;
+  getProjectsByWorkspace(workspaceId: number): Promise<Project[]>;
+  getTasksByWorkspace(workspaceId: number): Promise<Task[]>;
   
   // Goals - enhanced with relational fields
   createGoal(goal: InsertGoal): Promise<Goal>;
@@ -287,6 +298,70 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+  
+  // WORKSPACE METHODS - CRITICAL IMPLEMENTATION
+  async getUserWorkspaces(userId: number): Promise<any[]> {
+    const result = await this.db
+      .select({
+        id: workspaces.id,
+        name: workspaces.name,
+        ownerId: workspaces.ownerId,
+        isPersonal: workspaces.isPersonal
+      })
+      .from(workspaceMemberships)
+      .innerJoin(workspaces, eq(workspaceMemberships.workspaceId, workspaces.id))
+      .where(eq(workspaceMemberships.userId, userId));
+    return result;
+  }
+  
+  async isUserInWorkspace(userId: number, workspaceId: number): Promise<boolean> {
+    const [membership] = await this.db
+      .select()
+      .from(workspaceMemberships)
+      .where(and(
+        eq(workspaceMemberships.userId, userId),
+        eq(workspaceMemberships.workspaceId, workspaceId)
+      ));
+    return !!membership;
+  }
+  
+  async getWorkspaceMembers(workspaceId: number): Promise<User[]> {
+    const result = await this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        displayName: users.displayName,
+        profilePicture: users.profilePicture,
+        teamId: users.teamId
+      })
+      .from(workspaceMemberships)
+      .innerJoin(users, eq(workspaceMemberships.userId, users.id))
+      .where(eq(workspaceMemberships.workspaceId, workspaceId));
+    return result as User[];
+  }
+  
+  async getGoalsByWorkspace(workspaceId: number): Promise<Goal[]> {
+    return await this.db
+      .select()
+      .from(goals)
+      .where(eq(goals.workspaceId, workspaceId));
+  }
+  
+  async getProjectsByWorkspace(workspaceId: number): Promise<Project[]> {
+    return await this.db
+      .select()
+      .from(projects)
+      .where(eq(projects.workspaceId, workspaceId));
+  }
+  
+  async getTasksByWorkspace(workspaceId: number): Promise<Task[]> {
+    return await this.db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.workspaceId, workspaceId));
   }
 
   // Goals - Enhanced with comprehensive fields
