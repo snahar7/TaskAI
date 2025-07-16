@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
+import { storage } from "./storage-enhanced";
 
 // Extend Express Request interface to include workspace context
 declare global {
@@ -52,20 +52,25 @@ export async function validateWorkspaceAccess(req: Request, res: Response, next:
     // 4. From entity being accessed (goals, projects, tasks, subtasks)
     else if (req.params.id) {
       const entityId = parseInt(req.params.id);
+      console.log(`DEBUG: Extracting workspace from entity. EntityId: ${entityId}, Path: ${req.path}`);
       
       // Determine entity type from URL
       if (req.path.includes('/goals/')) {
         const goal = await storage.getGoal(entityId);
         workspaceId = goal?.workspaceId;
+        console.log(`DEBUG: Goal ${entityId} has workspaceId: ${workspaceId}`, goal);
       } else if (req.path.includes('/projects/')) {
         const project = await storage.getProject(entityId);
         workspaceId = project?.workspaceId;
+        console.log(`DEBUG: Project ${entityId} has workspaceId: ${workspaceId}`, project);
       } else if (req.path.includes('/tasks/')) {
         const task = await storage.getTask(entityId);
         workspaceId = task?.workspaceId;
+        console.log(`DEBUG: Task ${entityId} has workspaceId: ${workspaceId}`, task);
       } else if (req.path.includes('/subtasks/')) {
         const subtask = await storage.getSubtask(entityId);
         workspaceId = subtask?.workspaceId;
+        console.log(`DEBUG: Subtask ${entityId} has workspaceId: ${workspaceId}`, subtask);
       }
     }
 
