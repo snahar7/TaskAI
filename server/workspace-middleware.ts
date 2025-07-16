@@ -73,6 +73,31 @@ export async function validateWorkspaceAccess(req: Request, res: Response, next:
         console.log(`DEBUG: Subtask ${entityId} has workspaceId: ${workspaceId}`, subtask);
       }
     }
+    
+    // 5. Extract entity ID from URL path for completion/approve/edit routes
+    else if (req.path.match(/\/api\/(goals|projects|tasks|subtasks)\/(\d+)\/(complete|approve|edit|delete)/)) {
+      const matches = req.path.match(/\/api\/(goals|projects|tasks|subtasks)\/(\d+)\//);
+      if (matches) {
+        const entityType = matches[1];
+        const entityId = parseInt(matches[2]);
+        console.log(`DEBUG: Extracted from URL - Type: ${entityType}, ID: ${entityId}`);
+        
+        if (entityType === 'goals') {
+          const goal = await storage.getGoal(entityId);
+          workspaceId = goal?.workspaceId;
+        } else if (entityType === 'projects') {
+          const project = await storage.getProject(entityId);
+          workspaceId = project?.workspaceId;
+        } else if (entityType === 'tasks') {
+          const task = await storage.getTask(entityId);
+          workspaceId = task?.workspaceId;
+        } else if (entityType === 'subtasks') {
+          const subtask = await storage.getSubtask(entityId);
+          workspaceId = subtask?.workspaceId;
+        }
+        console.log(`DEBUG: Extracted workspaceId: ${workspaceId}`);
+      }
+    }
 
     // If no workspaceId found, allow read-only operations but not writes
     if (!workspaceId) {
