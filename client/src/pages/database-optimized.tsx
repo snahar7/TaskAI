@@ -1282,7 +1282,7 @@ function DatabaseContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {goals
+                {(goals || [])
                   .sort((a, b) => {
                     // Sort goals by deadline (earliest first, then null deadlines)
                     if (!a.deadline && !b.deadline) return 0;
