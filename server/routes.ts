@@ -352,17 +352,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Goals filtering - userId:", userId, "showMyTasksOnly:", showMyTasksOnly);
       
       // Get accessible user IDs (user + team members)
-      let accessibleUserIds = await getAccessibleUserIds(userId);
+      const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // If showMyTasksOnly is true, filter to only current user
-      if (showMyTasksOnly) {
-        accessibleUserIds = [userId];
-      }
+      // ALWAYS filter by accessible users (team-based privacy)
+      const allGoals = await storage.getAllGoals();
+      console.log("All goals:", allGoals.length, allGoals.map(g => ({ id: g.id, title: g.title, assignedTo: g.assignedTo })));
       
-      // Use privacy-filtered storage method
-      const accessibleGoals = await storage.getAccessibleGoals(accessibleUserIds);
+      // Simple filtering - only show goals assigned to accessible users for now
+      const accessibleGoals = allGoals.filter(goal => 
+        goal.assignedTo && accessibleUserIds.includes(goal.assignedTo)
+      );
       
-      console.log(`User ${userId} sees ${accessibleGoals.length} goals (privacy-filtered at storage level)`);
+      console.log(`User ${userId} sees ${accessibleGoals.length}/${allGoals.length} goals (simple filter)`);
       res.json(accessibleGoals);
     } catch (error) {
       next(error);
@@ -382,18 +383,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get accessible user IDs (user + team members)
-      let accessibleUserIds = await getAccessibleUserIds(userId);
+      const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // If showMyTasksOnly is true, filter to only current user
-      if (showMyTasksOnly) {
-        accessibleUserIds = [userId];
+      const allProjects = await storage.getProjectsByGoalId(goalId);
+      
+      // ALWAYS filter by accessible users (team-based privacy)
+      const accessibleProjects = [];
+      
+      for (const project of allProjects) {
+        let projectIsAccessible = false;
+        
+        // Check if project is assigned to accessible user
+        if (project.assignedTo && accessibleUserIds.includes(project.assignedTo)) {
+          projectIsAccessible = true;
+        } else {
+          // Check if any tasks in this project are assigned to accessible user
+          const tasks = await storage.getTasksByProjectId(project.id);
+          const hasAccessibleTask = tasks.some(t => t.assignedTo && accessibleUserIds.includes(t.assignedTo));
+          if (hasAccessibleTask) {
+            projectIsAccessible = true;
+          }
+        }
+        
+        if (projectIsAccessible) {
+          accessibleProjects.push(project);
+        }
       }
       
-      // Use privacy-filtered storage method
-      const accessibleProjects = await storage.getAccessibleProjectsByGoalId(goalId, accessibleUserIds);
-      
-      console.log(`User ${userId} sees ${accessibleProjects.length} projects in goal ${goalId} (privacy-filtered at storage level)`);
-      res.json(accessibleProjects);
+      // If showMyTasksOnly is true, further filter to only current user's items
+      if (showMyTasksOnly) {
+        const userProjects = [];
+        
+        for (const project of accessibleProjects) {
+          if (project.assignedTo === userId) {
+            userProjects.push(project);
+            continue;
+          }
+          
+          // Check if any tasks in this project are assigned to current user
+          const tasks = await storage.getTasksByProjectId(project.id);
+          const hasUserTask = tasks.some(t => t.assignedTo === userId);
+          if (hasUserTask) {
+            userProjects.push(project);
+          }
+        }
+        
+        console.log(`User ${userId} sees ${userProjects.length}/${accessibleProjects.length} projects in goal ${goalId} (my tasks only)`);
+        res.json(userProjects);
+      } else {
+        console.log(`User ${userId} sees ${accessibleProjects.length}/${allProjects.length} projects in goal ${goalId} (team access, users: ${accessibleUserIds.join(', ')})`);
+        res.json(accessibleProjects);
+      }
     } catch (error) {
       next(error);
     }
@@ -411,17 +451,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get accessible user IDs (user + team members)
-      let accessibleUserIds = await getAccessibleUserIds(userId);
+      const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // If showMyTasksOnly is true, filter to only current user
-      if (showMyTasksOnly) {
-        accessibleUserIds = [userId];
-      }
+      // Get all tasks first
+      const allTasks = await storage.getAllTasks();
       
-      // Use privacy-filtered storage method
-      const filteredTasks = await storage.getAccessibleTasks(accessibleUserIds);
+      // Filter tasks to only show those assigned to accessible users
+      const filteredTasks = allTasks.filter(task => 
+        task.assignedTo && accessibleUserIds.includes(task.assignedTo)
+      );
       
-      console.log(`User ${userId} sees ${filteredTasks.length} tasks (privacy-filtered at storage level)`);
+      console.log(`User ${userId} sees ${filteredTasks.length}/${allTasks.length} tasks (accessible users: ${accessibleUserIds.join(', ')})`);
       res.json(filteredTasks);
     } catch (error) {
       next(error);
@@ -441,18 +481,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get accessible user IDs (user + team members)
-      let accessibleUserIds = await getAccessibleUserIds(userId);
+      const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // If showMyTasksOnly is true, filter to only current user
+      const allTasks = await storage.getTasksByProjectId(projectId);
+      
+      // ALWAYS filter by accessible users (team-based privacy)
+      const accessibleTasks = allTasks.filter(task => 
+        task.assignedTo && accessibleUserIds.includes(task.assignedTo)
+      );
+      
+      // If showMyTasksOnly is true, further filter to only current user's items
       if (showMyTasksOnly) {
-        accessibleUserIds = [userId];
+        const userTasks = accessibleTasks.filter(task => task.assignedTo === userId);
+        console.log(`User ${userId} sees ${userTasks.length}/${accessibleTasks.length} tasks in project ${projectId} (my tasks only)`);
+        res.json(userTasks);
+      } else {
+        console.log(`User ${userId} sees ${accessibleTasks.length}/${allTasks.length} tasks in project ${projectId} (team access, users: ${accessibleUserIds.join(', ')})`);
+        res.json(accessibleTasks);
       }
-      
-      // Use privacy-filtered storage method
-      const accessibleTasks = await storage.getAccessibleTasksByProjectId(projectId, accessibleUserIds);
-      
-      console.log(`User ${userId} sees ${accessibleTasks.length} tasks in project ${projectId} (privacy-filtered at storage level)`);
-      res.json(accessibleTasks);
     } catch (error) {
       next(error);
     }
@@ -471,18 +517,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get accessible user IDs (user + team members)
-      let accessibleUserIds = await getAccessibleUserIds(userId);
+      const accessibleUserIds = await getAccessibleUserIds(userId);
       
-      // If showMyTasksOnly is true, filter to only current user
+      const allSubtasks = await storage.getSubtasksByTaskId(taskId);
+      
+      // ALWAYS filter by accessible users (team-based privacy)
+      const accessibleSubtasks = allSubtasks.filter(subtask => 
+        subtask.assignedTo && accessibleUserIds.includes(subtask.assignedTo)
+      );
+      
+      // If showMyTasksOnly is true, further filter to only current user's items
       if (showMyTasksOnly) {
-        accessibleUserIds = [userId];
+        const userSubtasks = accessibleSubtasks.filter(subtask => subtask.assignedTo === userId);
+        console.log(`User ${userId} sees ${userSubtasks.length}/${accessibleSubtasks.length} subtasks in task ${taskId} (my tasks only)`);
+        res.json(userSubtasks);
+      } else {
+        console.log(`User ${userId} sees ${accessibleSubtasks.length}/${allSubtasks.length} subtasks in task ${taskId} (team access, users: ${accessibleUserIds.join(', ')})`);
+        res.json(accessibleSubtasks);
       }
-      
-      // Use privacy-filtered storage method
-      const accessibleSubtasks = await storage.getAccessibleSubtasksByTaskId(taskId, accessibleUserIds);
-      
-      console.log(`User ${userId} sees ${accessibleSubtasks.length} subtasks in task ${taskId} (privacy-filtered at storage level)`);
-      res.json(accessibleSubtasks);
     } catch (error) {
       next(error);
     }

@@ -1259,7 +1259,7 @@ function DatabaseContent() {
           </div>
         </div>
 
-        {!goals || goals.length === 0 ? (
+        {goals.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">No goals found. Create your first goal to get started!</p>
           </div>
@@ -1282,7 +1282,7 @@ function DatabaseContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {goals && goals.length > 0 && goals
+                {goals
                   .sort((a, b) => {
                     // Sort goals by deadline (earliest first, then null deadlines)
                     if (!a.deadline && !b.deadline) return 0;
@@ -1568,7 +1568,7 @@ function DatabaseContent() {
             <div className="space-y-4">
               <h4 className="font-medium">Available Tasks</h4>
               {/* Group tasks by project for better organization */}
-              {goals && goals.length > 0 && goals.map(goal => (
+              {goals.map(goal => (
                 <div key={goal.id} className="space-y-2">
                   <h5 className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Target className="h-4 w-4" />
