@@ -1568,7 +1568,7 @@ function DatabaseContent() {
             <div className="space-y-4">
               <h4 className="font-medium">Available Tasks</h4>
               {/* Group tasks by project for better organization */}
-              {goals.map(goal => (
+              {goals && goals.length > 0 && goals.map(goal => (
                 <div key={goal.id} className="space-y-2">
                   <h5 className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Target className="h-4 w-4" />

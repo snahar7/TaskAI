@@ -12,7 +12,7 @@ import {
   type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -537,7 +537,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(goals).where(
-      sql`assigned_to = ANY(${sql.array(userIds)})`
+      inArray(goals.assignedTo, userIds)
     );
   }
 
@@ -839,7 +839,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(projects).where(
-      sql`goal_id = ${goalId} AND assigned_to = ANY(${sql.array(userIds)})`
+      sql`${projects.goalId} = ${goalId} AND ${projects.assignedTo} IN (${userIds.join(',')})`
     );
   }
 
@@ -896,7 +896,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(tasks).where(
-      sql`project_id = ${projectId} AND assigned_to = ANY(${sql.array(userIds)})`
+      sql`${tasks.projectId} = ${projectId} AND ${tasks.assignedTo} IN (${userIds.join(',')})`
     );
   }
 
@@ -953,7 +953,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(subtasks).where(
-      sql`task_id = ${taskId} AND assigned_to = ANY(${sql.array(userIds)})`
+      sql`${subtasks.taskId} = ${taskId} AND ${subtasks.assignedTo} IN (${userIds.join(',')})`
     );
   }
 
@@ -1068,7 +1068,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(tasks).where(
-      sql`assigned_to = ANY(${sql.array(userIds)})`
+      inArray(tasks.assignedTo, userIds)
     );
   }
 
