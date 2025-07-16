@@ -17,6 +17,8 @@ declare global {
  */
 export async function validateWorkspaceAccess(req: Request, res: Response, next: NextFunction) {
   try {
+    console.log(`\nDEBUG WORKSPACE MIDDLEWARE: Path: ${req.path}, Method: ${req.method}, Params:`, req.params);
+    
     // Skip validation for auth routes
     if (req.path.startsWith('/api/auth/')) {
       return next();
