@@ -52,30 +52,33 @@ export async function validateWorkspaceAccess(req: Request, res: Response, next:
     }
     
     // 4. Extract entity ID from URL path for all routes (including complete/approve/edit/delete)
-    const pathMatch = req.path.match(/\/api\/(goals|projects|tasks|subtasks)\/(\d+)/);
-    if (pathMatch) {
-      const entityType = pathMatch[1];
-      const entityId = parseInt(pathMatch[2]);
-      console.log(`DEBUG: Extracted from URL path - Type: ${entityType}, ID: ${entityId}`);
-      
-      if (entityType === 'goals') {
-        const goal = await storage.getGoal(entityId);
-        console.log(`DEBUG: Retrieved goal:`, goal);
-        workspaceId = goal?.workspaceId;
-      } else if (entityType === 'projects') {
-        const project = await storage.getProject(entityId);
-        console.log(`DEBUG: Retrieved project:`, project);
-        workspaceId = project?.workspaceId;
-      } else if (entityType === 'tasks') {
-        const task = await storage.getTask(entityId);
-        console.log(`DEBUG: Retrieved task:`, task);
-        workspaceId = task?.workspaceId;
-      } else if (entityType === 'subtasks') {
-        const subtask = await storage.getSubtask(entityId);
-        console.log(`DEBUG: Retrieved subtask:`, subtask);
-        workspaceId = subtask?.workspaceId;
+    if (!workspaceId) {
+      const pathMatch = req.path.match(/\/api\/(goals|projects|tasks|subtasks)\/(\d+)/);
+      console.log(`DEBUG: Path match attempt for ${req.path}, result:`, pathMatch);
+      if (pathMatch) {
+        const entityType = pathMatch[1];
+        const entityId = parseInt(pathMatch[2]);
+        console.log(`DEBUG: Extracted from URL path - Type: ${entityType}, ID: ${entityId}`);
+        
+        if (entityType === 'goals') {
+          const goal = await storage.getGoal(entityId);
+          console.log(`DEBUG: Retrieved goal:`, goal);
+          workspaceId = goal?.workspaceId;
+        } else if (entityType === 'projects') {
+          const project = await storage.getProject(entityId);
+          console.log(`DEBUG: Retrieved project:`, project);
+          workspaceId = project?.workspaceId;
+        } else if (entityType === 'tasks') {
+          const task = await storage.getTask(entityId);
+          console.log(`DEBUG: Retrieved task:`, task);
+          workspaceId = task?.workspaceId;
+        } else if (entityType === 'subtasks') {
+          const subtask = await storage.getSubtask(entityId);
+          console.log(`DEBUG: Retrieved subtask:`, subtask);
+          workspaceId = subtask?.workspaceId;
+        }
+        console.log(`DEBUG: Extracted workspaceId: ${workspaceId}`);
       }
-      console.log(`DEBUG: Extracted workspaceId: ${workspaceId}`);
     }
 
     // 5. Fallback: From entity being accessed (goals, projects, tasks, subtasks) via req.params.id
