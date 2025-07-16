@@ -43,12 +43,40 @@ export function registerAuthRoutes(app: Express) {
           teamId: null, // Will be set after user creation
         });
         
-        // Set initial team to user's own ID (each user starts their own team)
+        // Create a personal workspace for the new user
+        const personalWorkspace = await storage.createWorkspace({
+          name: `${displayName || email.split('@')[0]}'s Workspace`,
+          description: 'Personal workspace',
+          createdBy: user.id,
+          settings: {}
+        });
+        
+        // Add user to their workspace as owner
+        await storage.addUserToWorkspace({
+          userId: user.id,
+          workspaceId: personalWorkspace.id,
+          role: 'owner'
+        });
+        
+        // Set initial team to user's own ID (for backward compatibility)
         await storage.updateUser(user.id, { teamId: user.id });
         
         // If invite code provided, join the inviter's team
         if (inviteCode) {
           await storage.joinTeamByInviteCode(user.id, inviteCode);
+          
+          // Also add to inviter's workspaces
+          const inviter = await storage.getUserByInviteCode(inviteCode);
+          if (inviter) {
+            const inviterWorkspaces = await storage.getUserWorkspaces(inviter.id);
+            for (const workspace of inviterWorkspaces) {
+              await storage.addUserToWorkspace({
+                userId: user.id,
+                workspaceId: workspace.id,
+                role: 'member'
+              });
+            }
+          }
         }
         
         // Refresh user data to get updated teamId

@@ -12,8 +12,8 @@ function getCurrentUserId(req: Request): number | null {
   return userId ? parseInt(userId) : null;
 }
 
-// Helper to get accessible user IDs for a user (themselves + team members)
-async function getAccessibleUserIds(userId: number): Promise<number[]> {
+// Helper to get accessible user IDs for a user within a workspace
+async function getAccessibleUserIds(userId: number, workspaceId?: number): Promise<number[]> {
   try {
     // Validate userId
     if (!userId || isNaN(userId)) {
@@ -21,33 +21,37 @@ async function getAccessibleUserIds(userId: number): Promise<number[]> {
       return [];
     }
     
-    // Get current user to find their team
-    const currentUser = await storage.getUserById(userId);
-    if (!currentUser) {
-      console.log(`User ${userId} not found, returning only self access`);
-      return [userId]; // Only user themselves if user not found
-    }
-    
-    // If user has no team, they can only see their own tasks
-    if (!currentUser.teamId) {
-      console.log(`User ${userId} has no team, returning only self access`);
+    // If no workspace specified, return only the user themselves
+    if (!workspaceId) {
+      console.log(`No workspace specified for user ${userId}, returning only self access`);
       return [userId];
     }
     
-    // Get all team members
-    const teamMembers = await storage.getTeamMembers(currentUser.teamId);
-    const accessibleIds = teamMembers.map(member => member.id);
+    // Get all members of the workspace
+    const workspaceMembers = await storage.getWorkspaceMembers(workspaceId);
+    const accessibleIds = workspaceMembers.map(member => member.id);
     
     // Ensure current user is included
     if (!accessibleIds.includes(userId)) {
       accessibleIds.push(userId);
     }
     
-    console.log(`User ${userId} (team ${currentUser.teamId}) has access to user IDs:`, accessibleIds);
+    console.log(`User ${userId} in workspace ${workspaceId} has access to user IDs:`, accessibleIds);
     return accessibleIds;
   } catch (error) {
     console.error('Error getting accessible user IDs for user', userId, ':', error);
     return userId && !isNaN(userId) ? [userId] : []; // Fallback to only user themselves if valid, empty array if invalid
+  }
+}
+
+// Helper to get all user's workspaces for filtering
+async function getUserWorkspaceIds(userId: number): Promise<number[]> {
+  try {
+    const workspaces = await storage.getUserWorkspaces(userId);
+    return workspaces.map(w => w.id);
+  } catch (error) {
+    console.error('Error getting user workspaces:', error);
+    return [];
   }
 }
 
@@ -342,6 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getCurrentUserId(req);
+      const workspaceId = (req as any).workspaceId; // Set by workspace middleware
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
       // CRITICAL: No access without authentication
@@ -349,22 +354,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
       
-      console.log("Goals filtering - userId:", userId, "showMyTasksOnly:", showMyTasksOnly);
+      console.log("Goals filtering - userId:", userId, "workspaceId:", workspaceId, "showMyTasksOnly:", showMyTasksOnly);
       
-      // Get accessible user IDs (user + team members)
-      const accessibleUserIds = await getAccessibleUserIds(userId);
+      // Use workspace-based filtering
+      const goalsInWorkspace = await storage.getGoalsByWorkspace(workspaceId);
       
-      // ALWAYS filter by accessible users (team-based privacy)
-      const allGoals = await storage.getAllGoals();
-      console.log("All goals:", allGoals.length, allGoals.map(g => ({ id: g.id, title: g.title, assignedTo: g.assignedTo })));
+      // Apply user filtering if requested
+      let filteredGoals = goalsInWorkspace;
+      if (showMyTasksOnly) {
+        filteredGoals = goalsInWorkspace.filter(goal => goal.assignedTo === userId);
+      }
       
-      // Simple filtering - only show goals assigned to accessible users for now
-      const accessibleGoals = allGoals.filter(goal => 
-        goal.assignedTo && accessibleUserIds.includes(goal.assignedTo)
-      );
-      
-      console.log(`User ${userId} sees ${accessibleGoals.length}/${allGoals.length} goals (simple filter)`);
-      res.json(accessibleGoals);
+      console.log(`User ${userId} in workspace ${workspaceId} sees ${filteredGoals.length} goals (showMyTasksOnly: ${showMyTasksOnly})`);
+      res.json(filteredGoals);
     } catch (error) {
       next(error);
     }
@@ -382,58 +384,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
       
-      // Get accessible user IDs (user + team members)
-      const accessibleUserIds = await getAccessibleUserIds(userId);
+      const workspaceId = (req as any).workspaceId;
+      
+      // First verify the goal belongs to the workspace
+      const goal = await storage.getGoal(goalId);
+      if (!goal || goal.workspaceId !== workspaceId) {
+        return res.status(404).json({ error: "Goal not found in your workspace" });
+      }
       
       const allProjects = await storage.getProjectsByGoalId(goalId);
       
-      // ALWAYS filter by accessible users (team-based privacy)
-      const accessibleProjects = [];
-      
-      for (const project of allProjects) {
-        let projectIsAccessible = false;
-        
-        // Check if project is assigned to accessible user
-        if (project.assignedTo && accessibleUserIds.includes(project.assignedTo)) {
-          projectIsAccessible = true;
-        } else {
-          // Check if any tasks in this project are assigned to accessible user
-          const tasks = await storage.getTasksByProjectId(project.id);
-          const hasAccessibleTask = tasks.some(t => t.assignedTo && accessibleUserIds.includes(t.assignedTo));
-          if (hasAccessibleTask) {
-            projectIsAccessible = true;
-          }
-        }
-        
-        if (projectIsAccessible) {
-          accessibleProjects.push(project);
-        }
-      }
-      
-      // If showMyTasksOnly is true, further filter to only current user's items
+      // Apply user filtering if requested
+      let filteredProjects = allProjects;
       if (showMyTasksOnly) {
-        const userProjects = [];
-        
-        for (const project of accessibleProjects) {
-          if (project.assignedTo === userId) {
-            userProjects.push(project);
-            continue;
-          }
-          
-          // Check if any tasks in this project are assigned to current user
-          const tasks = await storage.getTasksByProjectId(project.id);
-          const hasUserTask = tasks.some(t => t.assignedTo === userId);
-          if (hasUserTask) {
-            userProjects.push(project);
-          }
-        }
-        
-        console.log(`User ${userId} sees ${userProjects.length}/${accessibleProjects.length} projects in goal ${goalId} (my tasks only)`);
-        res.json(userProjects);
-      } else {
-        console.log(`User ${userId} sees ${accessibleProjects.length}/${allProjects.length} projects in goal ${goalId} (team access, users: ${accessibleUserIds.join(', ')})`);
-        res.json(accessibleProjects);
+        filteredProjects = allProjects.filter(project => project.assignedTo === userId);
       }
+      
+      console.log(`User ${userId} in workspace ${workspaceId} sees ${filteredProjects.length} projects for goal ${goalId} (showMyTasksOnly: ${showMyTasksOnly})`);
+      res.json(filteredProjects);
     } catch (error) {
       next(error);
     }
@@ -450,18 +418,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
       
-      // Get accessible user IDs (user + team members)
-      const accessibleUserIds = await getAccessibleUserIds(userId);
+      const workspaceId = (req as any).workspaceId;
       
-      // Get all tasks first
-      const allTasks = await storage.getAllTasks();
+      // Get all tasks in the workspace
+      const tasksInWorkspace = await storage.getTasksByWorkspace(workspaceId);
       
-      // Filter tasks to only show those assigned to accessible users
-      const filteredTasks = allTasks.filter(task => 
-        task.assignedTo && accessibleUserIds.includes(task.assignedTo)
-      );
+      // Apply user filtering if requested
+      let filteredTasks = tasksInWorkspace;
+      if (showMyTasksOnly) {
+        filteredTasks = tasksInWorkspace.filter(task => task.assignedTo === userId);
+      }
       
-      console.log(`User ${userId} sees ${filteredTasks.length}/${allTasks.length} tasks (accessible users: ${accessibleUserIds.join(', ')})`);
+      console.log(`User ${userId} in workspace ${workspaceId} sees ${filteredTasks.length} tasks (showMyTasksOnly: ${showMyTasksOnly})`);
       res.json(filteredTasks);
     } catch (error) {
       next(error);
@@ -550,36 +518,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
       
-      // Get accessible user IDs (user + team members)
-      const accessibleUserIds = await getAccessibleUserIds(userId);
+      const workspaceId = (req as any).workspaceId;
       
-      const allGoals = await storage.getAllGoals();
+      // Get all goals in the workspace
+      const goalsInWorkspace = await storage.getGoalsByWorkspace(workspaceId);
       const hierarchyData = [];
 
-      for (const goal of allGoals) {
-        // Check if goal is accessible (assigned to user or team member)
-        if (!goal.assignedTo || !accessibleUserIds.includes(goal.assignedTo)) {
-          continue; // Skip this goal
-        }
-        
+      for (const goal of goalsInWorkspace) {
         const projects = await storage.getProjectsByGoalId(goal.id);
         const projectsWithTasks = [];
 
         for (const project of projects) {
-          // Check if project is accessible
-          if (!project.assignedTo || !accessibleUserIds.includes(project.assignedTo)) {
-            continue; // Skip this project
-          }
-          
           const tasks = await storage.getTasksByProjectId(project.id);
-          // Filter tasks to only accessible ones
-          const accessibleTasks = tasks.filter(task => 
-            task.assignedTo && accessibleUserIds.includes(task.assignedTo)
-          );
           
           projectsWithTasks.push({
             ...project,
-            tasks: accessibleTasks
+            tasks
           });
         }
 
@@ -589,7 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`User ${userId} sees ${hierarchyData.length}/${allGoals.length} goals in hierarchy (accessible users: ${accessibleUserIds.join(', ')})`);
+      console.log(`User ${userId} in workspace ${workspaceId} sees ${hierarchyData.length} goals in hierarchy`);
       res.json(hierarchyData);
     } catch (error) {
       next(error);

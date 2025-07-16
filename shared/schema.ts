@@ -23,7 +23,28 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Teams table
+// Workspaces table (tenants) - replacing teams concept
+export const workspaces = pgTable("workspaces", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  ownerId: integer("owner_id").references(() => users.id).notNull(),
+  isPersonal: boolean("is_personal").default(false).notNull(), // true for personal workspaces
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Workspace memberships - who can access which workspace
+export const workspaceMemberships = pgTable("workspace_memberships", {
+  userId: integer("user_id").references(() => users.id).notNull(),
+  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(),
+  role: text("role").notNull().default('member'), // 'admin', 'member'
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+}, (table) => ({
+  pk: { columns: [table.userId, table.workspaceId] }
+}));
+
+// Teams table (kept for backward compatibility, but deprecated)
 export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -46,13 +67,15 @@ export const goals = pgTable("goals", {
   title: text("title").notNull(), // keeping original field name for compatibility
   name: text("name"), // new comprehensive field
   description: text("description"),
+  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
   assignedTo: integer("assigned_to").references(() => users.id),
+  createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
   status: text("status").default('not_started').notNull(), // not_started, in_progress, completed, on_hold, cancelled
   priority: text("priority").default('medium').notNull(), // low, medium, high, urgent
   percentComplete: decimal("percent_complete", { precision: 5, scale: 2 }).default('0.00').notNull(),
   deadline: timestamp("deadline"),
   categoryId: integer("category_id").references(() => categories.id),
-  teamId: integer("team_id").references(() => teams.id),
+  teamId: integer("team_id").references(() => teams.id), // Deprecated - kept for migration
   timeEstimate: integer("time_estimate"), // in hours
   timeActual: integer("time_actual"), // in hours
   customFields: json("custom_fields"),
@@ -71,14 +94,16 @@ export const projects = pgTable("projects", {
   title: text("title").notNull(), // keeping original field name for compatibility
   name: text("name"), // new comprehensive field
   description: text("description"),
+  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
   goalId: integer("goal_id").references(() => goals.id).notNull(),
   assignedTo: integer("assigned_to").references(() => users.id),
+  createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
   status: text("status").default('not_started').notNull(),
   priority: text("priority").default('medium').notNull(),
   percentComplete: decimal("percent_complete", { precision: 5, scale: 2 }).default('0.00').notNull(),
   deadline: timestamp("deadline"),
   categoryId: integer("category_id").references(() => categories.id),
-  teamId: integer("team_id").references(() => teams.id),
+  teamId: integer("team_id").references(() => teams.id), // Deprecated - kept for migration
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
   estimatedDays: integer("estimated_days"), // New field for day-based estimation
@@ -99,14 +124,16 @@ export const tasks = pgTable("tasks", {
   title: text("title").notNull(), // keeping original field name for compatibility
   name: text("name"), // new comprehensive field
   description: text("description"),
+  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
   projectId: integer("project_id").references(() => projects.id).notNull(),
   assignedTo: integer("assigned_to").references(() => users.id),
+  createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
   status: text("status").default('not_started').notNull(),
   priority: text("priority").default('medium').notNull(),
   percentComplete: decimal("percent_complete", { precision: 5, scale: 2 }).default('0.00').notNull(),
   deadline: timestamp("deadline"),
   categoryId: integer("category_id").references(() => categories.id),
-  teamId: integer("team_id").references(() => teams.id),
+  teamId: integer("team_id").references(() => teams.id), // Deprecated - kept for migration
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
   estimatedDays: integer("estimated_days"), // New field for day-based estimation
@@ -130,14 +157,16 @@ export const subtasks = pgTable("subtasks", {
   title: text("title").notNull(), // keeping original field name for compatibility
   name: text("name"), // new comprehensive field
   description: text("description"),
+  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
   taskId: integer("task_id").references(() => tasks.id).notNull(),
   assignedTo: integer("assigned_to").references(() => users.id),
+  createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
   status: text("status").default('not_started').notNull(),
   priority: text("priority").default('medium').notNull(),
   // No percentComplete for subtasks as requested
   deadline: timestamp("deadline"),
   categoryId: integer("category_id").references(() => categories.id),
-  teamId: integer("team_id").references(() => teams.id),
+  teamId: integer("team_id").references(() => teams.id), // Deprecated - kept for migration
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
   estimatedDays: integer("estimated_days"), // New field for day-based estimation
@@ -349,6 +378,16 @@ export const insertUserSchema = createInsertSchema(users).omit({
   lastLogin: true,
 });
 
+export const insertWorkspaceSchema = createInsertSchema(workspaces).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWorkspaceMembershipSchema = createInsertSchema(workspaceMemberships).omit({
+  joinedAt: true,
+});
+
 // Specific schemas for different auth methods
 export const emailSignupSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -433,6 +472,12 @@ export const insertFileSchema = createInsertSchema(files).omit({
 // Types - updated for new field names
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export type InsertWorkspace = z.infer<typeof insertWorkspaceSchema>;
+export type Workspace = typeof workspaces.$inferSelect;
+
+export type InsertWorkspaceMembership = z.infer<typeof insertWorkspaceMembershipSchema>;
+export type WorkspaceMembership = typeof workspaceMemberships.$inferSelect;
 
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type Goal = typeof goals.$inferSelect;

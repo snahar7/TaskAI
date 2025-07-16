@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage-enhanced";
+import { validateWorkspaceAccess, setDefaultWorkspace } from "./workspace-middleware";
 
 const app = express();
 app.use(express.json());
@@ -67,12 +68,19 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
       // For now, use Shubham's user ID (4) since that's the authenticated user
       // This should be replaced with proper Firebase token verification
       req.headers['x-user-id'] = '4'; // Shubham Nahar's user ID
+      
+      // Set userId on request for workspace middleware
+      (req as any).userId = 4;
     }
     next();
   } catch (error) {
     next(error);
   }
 });
+
+// Apply workspace middleware for API routes
+app.use('/api', validateWorkspaceAccess);
+app.use('/api', setDefaultWorkspace);
 
 (async () => {
   // Register authentication routes
