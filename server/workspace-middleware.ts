@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { storage } from "./storage-enhanced";
+import { storage } from "./storage";
 
 // Extend Express Request interface to include workspace context
 declare global {

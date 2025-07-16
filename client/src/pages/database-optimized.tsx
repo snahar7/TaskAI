@@ -423,12 +423,15 @@ function DatabaseContent() {
   };
 
   // Load goals only (lightweight query)
-  const { data: goals = [], isLoading } = useQuery<Goal[]>({
+  const { data: goalsData = [], isLoading } = useQuery<Goal[]>({
     queryKey: ["/api/goals", { assignedToMe: showMyTasksOnly }],
     queryFn: () => fetch(`/api/goals?assignedToMe=${showMyTasksOnly}`).then(res => res.json()),
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
+
+  // Ensure goals is always an array
+  const goals = Array.isArray(goalsData) ? goalsData : [];
 
   // Load all tasks for dependency management
   const { data: allTasks = [] } = useQuery<Task[]>({
@@ -1282,7 +1285,7 @@ function DatabaseContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(goals || [])
+                {goals
                   .sort((a, b) => {
                     // Sort goals by deadline (earliest first, then null deadlines)
                     if (!a.deadline && !b.deadline) return 0;
