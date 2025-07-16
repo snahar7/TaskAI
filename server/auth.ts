@@ -98,6 +98,10 @@ export function registerAuthRoutes(app: Express) {
         return res.status(404).json({ error: "User not found" });
       }
 
+      // Set session for authenticated user
+      req.session.authenticated = true;
+      (req.session as any).user = { id: user.id, email: user.email };
+
       res.json({ user });
     } catch (error) {
       next(error);

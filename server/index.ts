@@ -78,13 +78,13 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// Apply workspace middleware for API routes
-app.use('/api', validateWorkspaceAccess);
-app.use('/api', setDefaultWorkspace);
-
 (async () => {
-  // Register authentication routes
+  // Register authentication routes FIRST (before workspace middleware)
   registerAuthRoutes(app);
+  
+  // Apply workspace middleware for API routes AFTER auth routes are registered
+  app.use('/api', validateWorkspaceAccess);
+  app.use('/api', setDefaultWorkspace);
   
   const server = await registerRoutes(app);
 
