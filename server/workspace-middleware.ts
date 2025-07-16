@@ -22,8 +22,8 @@ export async function validateWorkspaceAccess(req: Request, res: Response, next:
       return next();
     }
 
-    // Get user ID from session
-    const userId = (req.session as any)?.user?.id;
+    // Get user ID from auth middleware (already set on req.userId)
+    const userId = req.userId || (req.session as any)?.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Not authenticated" });
     }
