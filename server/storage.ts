@@ -537,7 +537,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(goals).where(
-      sql`assigned_to = ANY(${userIds})`
+      sql`assigned_to = ANY(${sql.array(userIds)})`
     );
   }
 
@@ -839,7 +839,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(projects).where(
-      sql`goal_id = ${goalId} AND assigned_to = ANY(${userIds})`
+      sql`goal_id = ${goalId} AND assigned_to = ANY(${sql.array(userIds)})`
     );
   }
 
@@ -896,7 +896,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(tasks).where(
-      sql`project_id = ${projectId} AND assigned_to = ANY(${userIds})`
+      sql`project_id = ${projectId} AND assigned_to = ANY(${sql.array(userIds)})`
     );
   }
 
@@ -953,7 +953,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(subtasks).where(
-      sql`task_id = ${taskId} AND assigned_to = ANY(${userIds})`
+      sql`task_id = ${taskId} AND assigned_to = ANY(${sql.array(userIds)})`
     );
   }
 
@@ -1068,7 +1068,7 @@ export class DatabaseStorage implements IStorage {
     if (userIds.length === 0) return [];
     
     return await db.select().from(tasks).where(
-      sql`assigned_to = ANY(${userIds})`
+      sql`assigned_to = ANY(${sql.array(userIds)})`
     );
   }
 
