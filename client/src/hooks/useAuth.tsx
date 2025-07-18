@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const urlParams = new URLSearchParams(window.location.search);
           const inviteCode = urlParams.get('invite') || sessionStorage.getItem('pendingInviteCode');
           
-          // Clear stored invite code after use
+          // Clear stored invite code after use (but keep other session data)
           if (sessionStorage.getItem('pendingInviteCode')) {
             sessionStorage.removeItem('pendingInviteCode');
           }
@@ -119,9 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 1. Clear React Query cache first to prevent stale data
       queryClient.clear();
       
-      // 2. Clear localStorage and sessionStorage
-      localStorage.clear();
-      sessionStorage.clear();
+      // 2. Clear localStorage and sessionStorage (only auth-related data)
+      localStorage.removeItem('firebaseUser');
+      sessionStorage.removeItem('pendingInviteCode');
       
       // 3. Firebase logout
       await firebaseLogout();

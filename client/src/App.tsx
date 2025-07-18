@@ -35,14 +35,9 @@ function Router() {
 
 function App() {
   useEffect(() => {
-    // Add global logout handler to clear cache on browser session end
-    const handleBeforeUnload = () => {
-      // Clear any cached data when user closes browser
-      sessionStorage.clear();
-    };
-
+    // Only refresh cache when returning to the page, don't clear session data
     const handleVisibilityChange = () => {
-      // Clear query cache when user switches away and comes back to prevent stale data
+      // Refresh data when user returns to prevent stale data
       if (document.visibilityState === 'visible') {
         // Small delay to allow auth systems to synchronize
         setTimeout(() => {
@@ -51,11 +46,9 @@ function App() {
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);

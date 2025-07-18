@@ -43,40 +43,12 @@ export function registerAuthRoutes(app: Express) {
           teamId: null, // Will be set after user creation
         });
         
-        // Create a personal workspace for the new user
-        const personalWorkspace = await storage.createWorkspace({
-          name: `${displayName || email.split('@')[0]}'s Workspace`,
-          description: 'Personal workspace',
-          createdBy: user.id,
-          settings: {}
-        });
-        
-        // Add user to their workspace as owner
-        await storage.addUserToWorkspace({
-          userId: user.id,
-          workspaceId: personalWorkspace.id,
-          role: 'owner'
-        });
-        
-        // Set initial team to user's own ID (for backward compatibility)
+        // Set initial team to user's own ID (hybrid model)
         await storage.updateUser(user.id, { teamId: user.id });
         
         // If invite code provided, join the inviter's team
         if (inviteCode) {
           await storage.joinTeamByInviteCode(user.id, inviteCode);
-          
-          // Also add to inviter's workspaces
-          const inviter = await storage.getUserByInviteCode(inviteCode);
-          if (inviter) {
-            const inviterWorkspaces = await storage.getUserWorkspaces(inviter.id);
-            for (const workspace of inviterWorkspaces) {
-              await storage.addUserToWorkspace({
-                userId: user.id,
-                workspaceId: workspace.id,
-                role: 'member'
-              });
-            }
-          }
         }
         
         // Refresh user data to get updated teamId
@@ -98,19 +70,12 @@ export function registerAuthRoutes(app: Express) {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Clear any existing session data to prevent cross-user contamination
-      req.session.regenerate((err) => {
-        if (err) {
-          console.error('Session regeneration error:', err);
-        }
-      });
-
-      // Set fresh session for authenticated user
+      // Set session data (maintain persistence)
       req.session.authenticated = true;
       req.session.userId = user.id;
       (req.session as any).user = { id: user.id, email: user.email };
       
-      console.log(`🔐 FIREBASE SYNC: User ${user.id} (${user.email}) session created`);
+      console.log(`🔐 FIREBASE SYNC: User ${user.id} (${user.email}) session updated`);
 
       res.json({ user });
     } catch (error) {
@@ -163,14 +128,7 @@ export function registerAuthRoutes(app: Express) {
         await storage.updateUser(newUser.id, { teamId: newUser.id });
       }
       
-      // Clear any existing session data to prevent cross-user contamination
-      req.session.regenerate((err) => {
-        if (err) {
-          console.error('Session regeneration error:', err);
-        }
-      });
-
-      // Set fresh session
+      // Set fresh session  
       req.session.authenticated = true;
       req.session.userId = newUser.id;
       
@@ -207,14 +165,7 @@ export function registerAuthRoutes(app: Express) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
       
-      // Clear any existing session data to prevent cross-user contamination
-      req.session.regenerate((err) => {
-        if (err) {
-          console.error('Session regeneration error:', err);
-        }
-      });
-
-      // Set fresh session
+      // Set session for authenticated user
       req.session.authenticated = true;
       req.session.userId = user.id;
       

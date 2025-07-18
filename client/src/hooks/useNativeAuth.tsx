@@ -86,9 +86,9 @@ export function NativeAuthProvider({ children }: { children: ReactNode }) {
       // 1. Clear React Query cache first to prevent stale data
       queryClient.clear();
       
-      // 2. Clear localStorage and sessionStorage  
-      localStorage.clear();
-      sessionStorage.clear();
+      // 2. Clear localStorage and sessionStorage (only auth-related data)
+      localStorage.removeItem('nativeUser');
+      sessionStorage.removeItem('pendingInviteCode');
       
       // 3. Backend logout API call
       const response = await apiRequest('POST', '/api/auth/logout');
