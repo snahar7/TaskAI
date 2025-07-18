@@ -1,4 +1,4 @@
-import { storage } from "../storage-enhanced";
+import { storage } from "../storage";
 
 interface TimelineCalculation {
   estimatedDays: number;

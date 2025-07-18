@@ -12,7 +12,7 @@ import {
   type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -154,74 +154,7 @@ export class MemStorage implements IStorage {
     }
   }
 
-  // Workspaces (placeholder implementation for MemoryStorage)
-  private workspaces = new Map<number, Workspace>();
-  private workspaceMemberships = new Map<string, WorkspaceMembership>();
-  private currentWorkspaceId = 1;
 
-  async createWorkspace(workspace: InsertWorkspace): Promise<Workspace> {
-    const id = this.currentWorkspaceId++;
-    const created: Workspace = {
-      ...workspace,
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.workspaces.set(id, created);
-    return created;
-  }
-
-  async getWorkspace(id: number): Promise<Workspace | undefined> {
-    return this.workspaces.get(id);
-  }
-
-  async getUserWorkspaces(userId: number): Promise<Workspace[]> {
-    const userWorkspaceIds: number[] = [];
-    this.workspaceMemberships.forEach((membership) => {
-      if (membership.userId === userId) {
-        userWorkspaceIds.push(membership.workspaceId);
-      }
-    });
-    
-    return userWorkspaceIds.map(id => this.workspaces.get(id)).filter(w => w !== undefined) as Workspace[];
-  }
-
-  async isUserInWorkspace(userId: number, workspaceId: number): Promise<boolean> {
-    const key = `${userId}-${workspaceId}`;
-    return this.workspaceMemberships.has(key);
-  }
-
-  async addUserToWorkspace(membership: InsertWorkspaceMembership): Promise<void> {
-    const key = `${membership.userId}-${membership.workspaceId}`;
-    const created: WorkspaceMembership = {
-      ...membership,
-      joinedAt: new Date()
-    };
-    this.workspaceMemberships.set(key, created);
-  }
-
-  async removeUserFromWorkspace(userId: number, workspaceId: number): Promise<void> {
-    const key = `${userId}-${workspaceId}`;
-    this.workspaceMemberships.delete(key);
-  }
-
-  async getWorkspaceMembers(workspaceId: number): Promise<User[]> {
-    const memberIds: number[] = [];
-    this.workspaceMemberships.forEach((membership) => {
-      if (membership.workspaceId === workspaceId) {
-        memberIds.push(membership.userId);
-      }
-    });
-    
-    return memberIds.map(id => this.users.get(id)).filter(u => u !== undefined) as User[];
-  }
-
-  async updateWorkspace(id: number, updates: Partial<InsertWorkspace>): Promise<void> {
-    const workspace = this.workspaces.get(id);
-    if (workspace) {
-      this.workspaces.set(id, { ...workspace, ...updates, updatedAt: new Date() });
-    }
-  }
 
   // Teams (keeping for compatibility)
   async getTeamMembers(teamId: number): Promise<User[]> {
@@ -271,9 +204,7 @@ export class MemStorage implements IStorage {
     return Array.from(this.goals.values());
   }
 
-  async getAllGoalsByWorkspace(workspaceId: number): Promise<Goal[]> {
-    return Array.from(this.goals.values()).filter(g => g.workspaceId === workspaceId);
-  }
+
 
   async getGoal(id: number): Promise<Goal | undefined> {
     return this.goals.get(id);
@@ -338,9 +269,7 @@ export class MemStorage implements IStorage {
     return Array.from(this.projects.values()).filter(p => p.goalId === goalId);
   }
 
-  async getAllProjectsByWorkspace(workspaceId: number): Promise<Project[]> {
-    return Array.from(this.projects.values()).filter(p => p.workspaceId === workspaceId);
-  }
+
 
   async getProject(id: number): Promise<Project | undefined> {
     return this.projects.get(id);
@@ -405,9 +334,7 @@ export class MemStorage implements IStorage {
     return Array.from(this.tasks.values());
   }
 
-  async getAllTasksByWorkspace(workspaceId: number): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter(t => t.workspaceId === workspaceId);
-  }
+
 
   async getTask(id: number): Promise<Task | undefined> {
     return this.tasks.get(id);
@@ -473,9 +400,7 @@ export class MemStorage implements IStorage {
     return Array.from(this.subtasks.values()).filter(s => s.taskId === taskId);
   }
 
-  async getAllSubtasksByWorkspace(workspaceId: number): Promise<Subtask[]> {
-    return Array.from(this.subtasks.values()).filter(s => s.workspaceId === workspaceId);
-  }
+
 
   async getSubtask(id: number): Promise<Subtask | undefined> {
     return this.subtasks.get(id);
@@ -618,88 +543,7 @@ export class DatabaseStorage implements IStorage {
     await db.update(users).set(updates).where(eq(users.id, id));
   }
 
-  // Workspaces
-  async createWorkspace(workspace: InsertWorkspace): Promise<Workspace> {
-    const [created] = await db.insert(workspaces).values(workspace).returning();
-    return created;
-  }
 
-  async getWorkspace(id: number): Promise<Workspace | undefined> {
-    const [workspace] = await db.select().from(workspaces).where(eq(workspaces.id, id));
-    return workspace || undefined;
-  }
-
-  async getUserWorkspaces(userId: number): Promise<Workspace[]> {
-    const result = await db
-      .select({ workspace: workspaces })
-      .from(workspaceMemberships)
-      .innerJoin(workspaces, eq(workspaceMemberships.workspaceId, workspaces.id))
-      .where(eq(workspaceMemberships.userId, userId));
-    
-    return result.map(r => r.workspace);
-  }
-
-  async isUserInWorkspace(userId: number, workspaceId: number): Promise<boolean> {
-    const [membership] = await db
-      .select()
-      .from(workspaceMemberships)
-      .where(
-        and(
-          eq(workspaceMemberships.userId, userId),
-          eq(workspaceMemberships.workspaceId, workspaceId)
-        )
-      );
-    
-    return !!membership;
-  }
-
-  async addUserToWorkspace(membership: InsertWorkspaceMembership): Promise<void> {
-    await db.insert(workspaceMemberships).values(membership);
-  }
-
-  async removeUserFromWorkspace(userId: number, workspaceId: number): Promise<void> {
-    await db
-      .delete(workspaceMemberships)
-      .where(
-        and(
-          eq(workspaceMemberships.userId, userId),
-          eq(workspaceMemberships.workspaceId, workspaceId)
-        )
-      );
-  }
-
-  async getWorkspaceMembers(workspaceId: number): Promise<User[]> {
-    const result = await db
-      .select({ user: users })
-      .from(workspaceMemberships)
-      .innerJoin(users, eq(workspaceMemberships.userId, users.id))
-      .where(eq(workspaceMemberships.workspaceId, workspaceId));
-    
-    return result.map(r => r.user);
-  }
-
-  async updateWorkspace(id: number, updates: Partial<InsertWorkspace>): Promise<void> {
-    await db.update(workspaces)
-      .set(updates)
-      .where(eq(workspaces.id, id));
-  }
-
-  // Workspace-based entity filtering methods (for multi-tenant security)
-  async getGoalsByWorkspace(workspaceId: number): Promise<Goal[]> {
-    return await db.select().from(goals).where(eq(goals.workspaceId, workspaceId));
-  }
-
-  async getProjectsByWorkspace(workspaceId: number): Promise<Project[]> {
-    return await db.select().from(projects).where(eq(projects.workspaceId, workspaceId));
-  }
-
-  async getTasksByWorkspace(workspaceId: number): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.workspaceId, workspaceId));
-  }
-
-  async getSubtasksByWorkspace(workspaceId: number): Promise<Subtask[]> {
-    return await db.select().from(subtasks).where(eq(subtasks.workspaceId, workspaceId));
-  }
 
   // Goals
   async createGoal(insertGoal: InsertGoal): Promise<Goal> {
@@ -711,9 +555,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(goals);
   }
 
-  async getAllGoalsByWorkspace(workspaceId: number): Promise<Goal[]> {
-    return await db.select().from(goals).where(eq(goals.workspaceId, workspaceId));
-  }
+
 
   async getAllGoalsWithProjects(): Promise<GoalWithProjects[]> {
     // Single optimized query with joins for all goals
@@ -1008,9 +850,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(projects).where(eq(projects.goalId, goalId));
   }
 
-  async getAllProjectsByWorkspace(workspaceId: number): Promise<Project[]> {
-    return await db.select().from(projects).where(eq(projects.workspaceId, workspaceId));
-  }
+
 
   async getProject(id: number): Promise<Project | undefined> {
     const [project] = await db.select().from(projects).where(eq(projects.id, id));
@@ -1108,9 +948,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
   }
 
-  async getAllSubtasksByWorkspace(workspaceId: number): Promise<Subtask[]> {
-    return await db.select().from(subtasks).where(eq(subtasks.workspaceId, workspaceId));
-  }
+
 
   async getSubtask(id: number): Promise<Subtask | undefined> {
     const [subtask] = await db.select().from(subtasks).where(eq(subtasks.id, id));
@@ -1218,9 +1056,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tasks);
   }
 
-  async getAllTasksByWorkspace(workspaceId: number): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.workspaceId, workspaceId));
-  }
+
 
   // Optimized dashboard data - uses database-level filtering 
   async getOptimizedDashboardData(userIds: number[]): Promise<{

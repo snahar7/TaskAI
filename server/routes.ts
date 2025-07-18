@@ -1325,16 +1325,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getCurrentUserId(req);
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
-      // ALWAYS get accessible user IDs for proper privacy control
-      let accessibleUserIds: number[] = [];
-      if (userId) {
-        accessibleUserIds = await getAccessibleUserIds(userId);
-        
-        // If showMyTasksOnly is true, filter to only the current user
-        if (showMyTasksOnly) {
-          accessibleUserIds = [userId];
+      // HYBRID ACCESS: Get user + team member IDs for proper privacy control
+      let accessibleUserIds: number[] = [userId]; // Always include current user
+      
+      if (!showMyTasksOnly) {
+        // Include team members if not filtering to personal tasks only
+        const user = await storage.getUser(userId);
+        if (user?.teamId) {
+          const teamMembers = await storage.getTeamMembers(user.teamId);
+          accessibleUserIds = teamMembers.map(member => member.id);
         }
-        // Otherwise, use all accessible user IDs (team members)
       }
       
       // Use optimized database queries with proper privacy filtering
