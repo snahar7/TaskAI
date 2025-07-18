@@ -50,6 +50,12 @@ export interface IStorage {
   updateGoalApproval(id: number, approved: boolean): Promise<void>;
   deleteGoal(id: number): Promise<void>;
   
+  // User-centric methods (simplified approach)
+  getGoalsForUser(userId: number): Promise<Goal[]>;
+  getProjectsForUser(userId: number): Promise<Project[]>;
+  getTasksForUser(userId: number): Promise<Task[]>;
+  getSubtasksForUser(userId: number): Promise<Subtask[]>;
+  
   // Projects
   createProject(project: InsertProject): Promise<Project>;
   getProjectsByGoalId(goalId: number): Promise<Project[]>;
@@ -1329,6 +1335,34 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // USER-CENTRIC METHODS - Simple implementation to replace workspace complexity
+  async getGoalsForUser(userId: number): Promise<Goal[]> {
+    console.log(`STORAGE: Getting goals for user ${userId}`);
+    const userGoals = await db.select().from(goals).where(eq(goals.assignedTo, userId));
+    console.log(`STORAGE: Found ${userGoals.length} goals for user ${userId}`);
+    return userGoals;
+  }
+
+  async getProjectsForUser(userId: number): Promise<Project[]> {
+    console.log(`STORAGE: Getting projects for user ${userId}`);
+    const userProjects = await db.select().from(projects).where(eq(projects.assignedTo, userId));
+    console.log(`STORAGE: Found ${userProjects.length} projects for user ${userId}`);
+    return userProjects;
+  }
+
+  async getTasksForUser(userId: number): Promise<Task[]> {
+    console.log(`STORAGE: Getting tasks for user ${userId}`);
+    const userTasks = await db.select().from(tasks).where(eq(tasks.assignedTo, userId));
+    console.log(`STORAGE: Found ${userTasks.length} tasks for user ${userId}`);
+    return userTasks;
+  }
+
+  async getSubtasksForUser(userId: number): Promise<Subtask[]> {
+    console.log(`STORAGE: Getting subtasks for user ${userId}`);
+    const userSubtasks = await db.select().from(subtasks).where(eq(subtasks.assignedTo, userId));
+    console.log(`STORAGE: Found ${userSubtasks.length} subtasks for user ${userId}`);
+    return userSubtasks;
+  }
 }
 
 export const storage = new DatabaseStorage();

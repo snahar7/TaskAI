@@ -49,6 +49,12 @@ export interface IEnhancedStorage {
   updateGoalApproval(id: number, approved: boolean): Promise<void>;
   updateGoalProgress(id: number, percentComplete: number): Promise<void>;
   
+  // User-centric methods (simplified approach)
+  getGoalsForUser(userId: number): Promise<Goal[]>;
+  getProjectsForUser(userId: number): Promise<Project[]>;
+  getTasksForUser(userId: number): Promise<Task[]>;
+  getSubtasksForUser(userId: number): Promise<Subtask[]>;
+  
   // Projects - enhanced with relational fields
   createProject(project: InsertProject): Promise<Project>;
   getProjectsByGoalId(goalId: number): Promise<Project[]>;
@@ -1615,6 +1621,35 @@ export class EnhancedDatabaseStorage implements IEnhancedStorage {
       tasks: userTasks.length,
       subtasks: userSubtasks.length,
     };
+  }
+
+  // USER-CENTRIC METHODS - Simplified approach replacing workspace complexity
+  async getGoalsForUser(userId: number): Promise<Goal[]> {
+    console.log(`STORAGE: Getting goals for user ${userId}`);
+    const userGoals = await this.db.select().from(goals).where(eq(goals.assignedTo, userId));
+    console.log(`STORAGE: Found ${userGoals.length} goals for user ${userId}`);
+    return userGoals;
+  }
+
+  async getProjectsForUser(userId: number): Promise<Project[]> {
+    console.log(`STORAGE: Getting projects for user ${userId}`);
+    const userProjects = await this.db.select().from(projects).where(eq(projects.assignedTo, userId));
+    console.log(`STORAGE: Found ${userProjects.length} projects for user ${userId}`);
+    return userProjects;
+  }
+
+  async getTasksForUser(userId: number): Promise<Task[]> {
+    console.log(`STORAGE: Getting tasks for user ${userId}`);
+    const userTasks = await this.db.select().from(tasks).where(eq(tasks.assignedTo, userId));
+    console.log(`STORAGE: Found ${userTasks.length} tasks for user ${userId}`);
+    return userTasks;
+  }
+
+  async getSubtasksForUser(userId: number): Promise<Subtask[]> {
+    console.log(`STORAGE: Getting subtasks for user ${userId}`);
+    const userSubtasks = await this.db.select().from(subtasks).where(eq(subtasks.assignedTo, userId));
+    console.log(`STORAGE: Found ${userSubtasks.length} subtasks for user ${userId}`);
+    return userSubtasks;
   }
 
   // Pending breakdowns (legacy support)

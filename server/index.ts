@@ -3,7 +3,7 @@ import session from "express-session";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
-import { storage } from "./storage-enhanced";
+import { storage } from "./storage";
 import { extractUserContext } from "./user-middleware";
 
 const app = express();
