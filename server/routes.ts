@@ -419,8 +419,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
       
-      // Get accessible user IDs (user + team members)
-      const accessibleUserIds = await getAccessibleUserIds(userId);
+      // Get accessible user IDs (user + team members) 
+      const user = await storage.getUserById(userId);
+      const accessibleUserIds = user?.teamId ? await storage.getTeamMemberIds(user.teamId) : [userId];
       
       const allTasks = await storage.getTasksByProjectId(projectId);
       
@@ -456,7 +457,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get accessible user IDs (user + team members)
-      const accessibleUserIds = await getAccessibleUserIds(userId);
+      const user = await storage.getUserById(userId);
+      const accessibleUserIds = user?.teamId ? await storage.getTeamMemberIds(user.teamId) : [userId];
       
       const allSubtasks = await storage.getSubtasksByTaskId(taskId);
       

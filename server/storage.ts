@@ -30,6 +30,7 @@ export interface IStorage {
   
   // Teams (deprecated but kept for backward compatibility)
   getTeamMembers(teamId: number): Promise<User[]>;
+  getTeamMemberIds(teamId: number): Promise<number[]>;
   getUserByInviteCode(inviteCode: string): Promise<User | undefined>;
   joinTeamByInviteCode(userId: number, inviteCode: string): Promise<{ success: boolean; message: string }>;
   
@@ -1044,6 +1045,19 @@ export class DatabaseStorage implements IStorage {
       return members;
     } catch (error) {
       console.error('STORAGE: Error in getTeamMembers:', error);
+      throw error;
+    }
+  }
+
+  async getTeamMemberIds(teamId: number): Promise<number[]> {
+    console.log('STORAGE: Getting team member IDs for teamId:', teamId);
+    try {
+      const members = await db.select({ id: users.id }).from(users).where(eq(users.teamId, teamId));
+      const memberIds = members.map(m => m.id);
+      console.log('STORAGE: Team member IDs:', memberIds);
+      return memberIds;
+    } catch (error) {
+      console.error('STORAGE: Error in getTeamMemberIds:', error);
       throw error;
     }
   }
