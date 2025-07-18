@@ -514,6 +514,47 @@ export class MemStorage implements IStorage {
 
 export class DatabaseStorage implements IStorage {
   
+  // Helper function for hierarchical share level access control
+  private getEffectiveShareLevel(
+    item: { shareLevel?: string | null }, 
+    parentShareLevel: string = 'just_me'
+  ): string {
+    return item.shareLevel || parentShareLevel;
+  }
+
+  // Helper function to check if user can access item based on hierarchical share levels
+  private async canUserAccessItem(
+    userId: number, 
+    effectiveShareLevel: string, 
+    assignedTo: number, 
+    createdBy: number
+  ): Promise<boolean> {
+    // Always allow access if user is assigned to or created the item
+    if (userId === assignedTo || userId === createdBy) {
+      return true;
+    }
+
+    // Handle different share levels
+    switch (effectiveShareLevel) {
+      case 'just_me':
+        return false; // Only assigned/creator can see
+      
+      case 'my_team':
+        // Check if users are on the same team
+        const currentUser = await this.getUserById(userId);
+        const assignedUser = await this.getUserById(assignedTo);
+        return currentUser?.teamId !== null && 
+               currentUser?.teamId === assignedUser?.teamId;
+      
+      case 'specific_people':
+        // For now, treat same as just_me (can be enhanced later with viewers table)
+        return false;
+      
+      default:
+        return false; // Fail closed for unknown share levels
+    }
+  }
+
   // Users - implements IStorage interface
   async getUser(id: number): Promise<User | undefined> {
     return this.getUserById(id);
@@ -1161,78 +1202,185 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // HYBRID PERSONAL/TEAM ACCESS CONTROL - Clean, scalable implementation
+  // HIERARCHICAL SHARE LEVEL ACCESS CONTROL - Fixes User 9 security vulnerability
   async getGoalsForUser(userId: number): Promise<Goal[]> {
-    console.log(`STORAGE: Getting goals for user ${userId} (hybrid access)`);
+    console.log(`STORAGE: Getting goals for user ${userId} (hierarchical share level access)`);
     
-    // Get user's team to check team goals
+    // Get user's team information
     const user = await this.getUser(userId);
-    if (!user) return [];
+    if (!user) {
+      console.log(`STORAGE: User ${userId} not found, returning empty goals`);
+      return [];
+    }
     
-    // Hybrid access: personal goals (teamId=NULL, assignedTo=user) OR team goals (teamId=user.teamId)
-    const userGoals = await db.select().from(goals).where(
-      or(
-        and(isNull(goals.teamId), eq(goals.assignedTo, userId)), // Personal goals
-        user.teamId ? eq(goals.teamId, user.teamId) : sql`false` // Team goals (if user has team)
-      )
-    );
+    // Get all goals and filter by hierarchical access control
+    const allGoals = await db.select().from(goals);
+    const accessibleGoals: Goal[] = [];
     
-    console.log(`STORAGE: Found ${userGoals.length} goals for user ${userId} (personal + team)`);
-    return userGoals;
+    for (const goal of allGoals) {
+      const effectiveShareLevel = this.getEffectiveShareLevel(goal, 'just_me');
+      const canAccess = await this.canUserAccessItem(
+        userId, 
+        effectiveShareLevel, 
+        goal.assignedTo, 
+        goal.createdBy
+      );
+      
+      if (canAccess) {
+        accessibleGoals.push(goal);
+      }
+    }
+    
+    console.log(`STORAGE: User ${userId} can access ${accessibleGoals.length} of ${allGoals.length} total goals`);
+    console.log(`STORAGE: Accessible goal IDs: [${accessibleGoals.map(g => g.id).join(', ')}]`);
+    return accessibleGoals;
   }
 
   async getProjectsForUser(userId: number): Promise<Project[]> {
-    console.log(`STORAGE: Getting projects for user ${userId} (hybrid access)`);
+    console.log(`STORAGE: Getting projects for user ${userId} (hierarchical access)`);
     
     // Get user's accessible goals first
     const accessibleGoals = await this.getGoalsForUser(userId);
     const goalIds = accessibleGoals.map(g => g.id);
     
-    if (goalIds.length === 0) return [];
+    if (goalIds.length === 0) {
+      console.log(`STORAGE: No accessible goals, returning empty projects for user ${userId}`);
+      return [];
+    }
     
-    // Projects inherit access from their parent goals
-    const userProjects = await db.select().from(projects).where(
+    // Get projects for accessible goals
+    const goalProjects = await db.select().from(projects).where(
       sql`${projects.goalId} IN (${sql.join(goalIds.map(id => sql`${id}`), sql`, `)})`
     );
     
-    console.log(`STORAGE: Found ${userProjects.length} projects for user ${userId}`);
-    return userProjects;
+    // Filter projects by hierarchical share level (may override goal's share level)
+    const accessibleProjects: Project[] = [];
+    
+    for (const project of goalProjects) {
+      // Find parent goal to get its share level
+      const parentGoal = accessibleGoals.find(g => g.id === project.goalId);
+      const parentShareLevel = parentGoal?.shareLevel || 'just_me';
+      
+      const effectiveShareLevel = this.getEffectiveShareLevel(project, parentShareLevel);
+      const canAccess = await this.canUserAccessItem(
+        userId, 
+        effectiveShareLevel, 
+        project.assignedTo, 
+        project.createdBy
+      );
+      
+      if (canAccess) {
+        accessibleProjects.push(project);
+      }
+    }
+    
+    console.log(`STORAGE: User ${userId} can access ${accessibleProjects.length} of ${goalProjects.length} goal projects`);
+    return accessibleProjects;
   }
 
   async getTasksForUser(userId: number): Promise<Task[]> {
-    console.log(`STORAGE: Getting tasks for user ${userId} (hybrid access)`);
+    console.log(`STORAGE: Getting tasks for user ${userId} (hierarchical access)`);
     
     // Get user's accessible projects first
     const accessibleProjects = await this.getProjectsForUser(userId);
     const projectIds = accessibleProjects.map(p => p.id);
     
-    if (projectIds.length === 0) return [];
+    if (projectIds.length === 0) {
+      console.log(`STORAGE: No accessible projects, returning empty tasks for user ${userId}`);
+      return [];
+    }
     
-    // Tasks inherit access from their parent projects
-    const userTasks = await db.select().from(tasks).where(
+    // Get tasks for accessible projects
+    const projectTasks = await db.select().from(tasks).where(
       sql`${tasks.projectId} IN (${sql.join(projectIds.map(id => sql`${id}`), sql`, `)})`
     );
     
-    console.log(`STORAGE: Found ${userTasks.length} tasks for user ${userId}`);
-    return userTasks;
+    // Filter tasks by hierarchical share level (may override project/goal share level)
+    const accessibleTasks: Task[] = [];
+    
+    for (const task of projectTasks) {
+      // Find parent project and goal to get their share levels
+      const parentProject = accessibleProjects.find(p => p.id === task.projectId);
+      let parentShareLevel = 'just_me';
+      
+      if (parentProject) {
+        // Get goal's share level through accessible goals
+        const accessibleGoals = await this.getGoalsForUser(userId);
+        const parentGoal = accessibleGoals.find(g => g.id === parentProject.goalId);
+        const goalShareLevel = parentGoal?.shareLevel || 'just_me';
+        parentShareLevel = this.getEffectiveShareLevel(parentProject, goalShareLevel);
+      }
+      
+      const effectiveShareLevel = this.getEffectiveShareLevel(task, parentShareLevel);
+      const canAccess = await this.canUserAccessItem(
+        userId, 
+        effectiveShareLevel, 
+        task.assignedTo, 
+        task.createdBy
+      );
+      
+      if (canAccess) {
+        accessibleTasks.push(task);
+      }
+    }
+    
+    console.log(`STORAGE: User ${userId} can access ${accessibleTasks.length} of ${projectTasks.length} project tasks`);
+    return accessibleTasks;
   }
 
   async getSubtasksForUser(userId: number): Promise<Subtask[]> {
-    console.log(`STORAGE: Getting subtasks for user ${userId} (hybrid access)`);
+    console.log(`STORAGE: Getting subtasks for user ${userId} (hierarchical access)`);
     
     // Get user's accessible tasks first
     const accessibleTasks = await this.getTasksForUser(userId);
     const taskIds = accessibleTasks.map(t => t.id);
     
-    if (taskIds.length === 0) return [];
+    if (taskIds.length === 0) {
+      console.log(`STORAGE: No accessible tasks, returning empty subtasks for user ${userId}`);
+      return [];
+    }
     
-    // Subtasks inherit access from their parent tasks
-    const userSubtasks = await db.select().from(subtasks).where(
+    // Get subtasks for accessible tasks
+    const taskSubtasks = await db.select().from(subtasks).where(
       sql`${subtasks.taskId} IN (${sql.join(taskIds.map(id => sql`${id}`), sql`, `)})`
     );
     
-    console.log(`STORAGE: Found ${userSubtasks.length} subtasks for user ${userId}`);
-    return userSubtasks;
+    // Filter subtasks by hierarchical share level (may override task/project/goal share level)
+    const accessibleSubtasks: Subtask[] = [];
+    
+    for (const subtask of taskSubtasks) {
+      // Find parent task, project, and goal to get their share levels
+      const parentTask = accessibleTasks.find(t => t.id === subtask.taskId);
+      let parentShareLevel = 'just_me';
+      
+      if (parentTask) {
+        // Get project and goal share levels through accessible items
+        const accessibleProjects = await this.getProjectsForUser(userId);
+        const accessibleGoals = await this.getGoalsForUser(userId);
+        
+        const parentProject = accessibleProjects.find(p => p.id === parentTask.projectId);
+        const parentGoal = parentProject ? accessibleGoals.find(g => g.id === parentProject.goalId) : null;
+        
+        const goalShareLevel = parentGoal?.shareLevel || 'just_me';
+        const projectShareLevel = this.getEffectiveShareLevel(parentProject, goalShareLevel);
+        parentShareLevel = this.getEffectiveShareLevel(parentTask, projectShareLevel);
+      }
+      
+      const effectiveShareLevel = this.getEffectiveShareLevel(subtask, parentShareLevel);
+      const canAccess = await this.canUserAccessItem(
+        userId, 
+        effectiveShareLevel, 
+        subtask.assignedTo, 
+        subtask.createdBy
+      );
+      
+      if (canAccess) {
+        accessibleSubtasks.push(subtask);
+      }
+    }
+    
+    console.log(`STORAGE: User ${userId} can access ${accessibleSubtasks.length} of ${taskSubtasks.length} task subtasks`);
+    return accessibleSubtasks;
   }
 
   // Helper method to check if user can access a specific goal

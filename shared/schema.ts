@@ -41,15 +41,16 @@ export const categories = pgTable("categories", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Goals table - hybrid personal/team model
+// Goals table - hierarchical share level model
 export const goals = pgTable("goals", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  // HYBRID ACCESS CONTROL:
-  // - teamId = NULL → Personal goal (only assignedTo can see)
-  // - teamId = X → Team goal (all team members can see)
-  teamId: integer("team_id").references(() => teams.id), // NULL = personal, team ID = shared
+  // HIERARCHICAL SHARE LEVEL ACCESS CONTROL:
+  // - shareLevel = "just_me" → Private goal (only assignedTo can see)
+  // - shareLevel = "my_team" → Team goal (all team members can see)
+  shareLevel: text("share_level").default('just_me').notNull(), // "just_me", "my_team", "specific_people"
+  teamId: integer("team_id").references(() => teams.id), // Team context for collaboration
   assignedTo: integer("assigned_to").references(() => users.id).notNull(), // Always required
   createdBy: integer("created_by").references(() => users.id).notNull(),
   status: text("status").default('not_started').notNull(),
@@ -63,13 +64,14 @@ export const goals = pgTable("goals", {
   approved: boolean("approved").default(false).notNull(),
 });
 
-// Projects table - hybrid personal/team model
+// Projects table - hierarchical inheritance with override capability
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
   goalId: integer("goal_id").references(() => goals.id).notNull(),
-  // Inherits access from parent goal (no separate teamId needed)
+  // Hierarchical share level: NULL = inherit from goal, explicit value = override
+  shareLevel: text("share_level"), // NULL (inherit), "just_me", "my_team", "specific_people"
   assignedTo: integer("assigned_to").references(() => users.id).notNull(),
   createdBy: integer("created_by").references(() => users.id).notNull(),
   status: text("status").default('not_started').notNull(),
@@ -84,13 +86,14 @@ export const projects = pgTable("projects", {
   approved: boolean("approved").default(false).notNull(),
 });
 
-// Tasks table - hybrid personal/team model
+// Tasks table - hierarchical inheritance with override capability
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
   projectId: integer("project_id").references(() => projects.id).notNull(),
-  // Inherits access from parent project/goal (no separate teamId needed)
+  // Hierarchical share level: NULL = inherit from project/goal, explicit value = override
+  shareLevel: text("share_level"), // NULL (inherit), "just_me", "my_team", "specific_people"
   assignedTo: integer("assigned_to").references(() => users.id).notNull(),
   createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
   status: text("status").default('not_started').notNull(),
@@ -116,13 +119,14 @@ export const tasks = pgTable("tasks", {
   urgency: text("urgency").default("medium").notNull(),
 });
 
-// Subtasks table - hybrid personal/team model
+// Subtasks table - hierarchical inheritance with override capability
 export const subtasks = pgTable("subtasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
   taskId: integer("task_id").references(() => tasks.id).notNull(),
-  // Inherits access from parent task/project/goal (no separate teamId needed)
+  // Hierarchical share level: NULL = inherit from task/project/goal, explicit value = override
+  shareLevel: text("share_level"), // NULL (inherit), "just_me", "my_team", "specific_people"
   assignedTo: integer("assigned_to").references(() => users.id).notNull(),
   createdBy: integer("created_by").references(() => users.id).notNull(),
   status: text("status").default('not_started').notNull(),
