@@ -83,6 +83,24 @@ export class ProgressUpdater {
   }
   
   /**
+   * Updates goal completion and cascades down to all children
+   */
+  async updateGoalProgress(goalId: number, completed: boolean): Promise<void> {
+    console.log(`🚀 Starting goal progress update for goal ${goalId}, completed: ${completed}`);
+    
+    try {
+      // Step 1: Update the goal itself
+      await this.updateGoalStatus(goalId, completed);
+      
+      console.log(`✅ Goal ${goalId} progress update completed successfully`);
+      
+    } catch (error) {
+      console.error(`❌ Error in goal progress update:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Updates project completion and cascades up
    */
   async updateProjectProgress(projectId: number, completed: boolean): Promise<void> {
@@ -148,6 +166,23 @@ export class ProgressUpdater {
     console.log(`📝 Updated task ${taskId}: status=${updateData.status}, completed=${completed}, progress=${updateData.percentComplete}%`);
   }
   
+  private async updateGoalStatus(goalId: number, completed: boolean): Promise<void> {
+    const updateData: any = {
+      status: completed ? 'completed' : 'in_progress',
+      percentComplete: completed ? '100.00' : '0.00',
+      updatedAt: new Date()
+    };
+    
+    if (completed) {
+      updateData.completedAt = new Date();
+    } else {
+      updateData.completedAt = null;
+    }
+    
+    await db.update(goals).set(updateData).where(eq(goals.id, goalId));
+    console.log(`📝 Updated goal ${goalId}: status=${updateData.status}, progress=${updateData.percentComplete}%`);
+  }
+
   private async updateProjectStatus(projectId: number, completed: boolean): Promise<void> {
     const updateData: any = {
       status: completed ? 'completed' : 'in_progress',

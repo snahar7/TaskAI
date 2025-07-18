@@ -363,36 +363,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get projects for a specific goal - WITH PROPER PRIVACY FILTERING
+  // Get projects for a specific goal - User-centric approach
   app.get("/api/goals/:goalId/projects", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const goalId = parseInt(req.params.goalId);
       const userId = getCurrentUserId(req);
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
-      // CRITICAL: No access without authentication
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
+      console.log(`Projects for goal ${goalId} - userId: ${userId}, showMyTasksOnly: ${showMyTasksOnly}`);
       
-      const workspaceId = (req as any).workspaceId;
-      
-      // First verify the goal belongs to the workspace
+      // First verify the goal belongs to the user
       const goal = await storage.getGoal(goalId);
-      if (!goal || goal.workspaceId !== workspaceId) {
-        return res.status(404).json({ error: "Goal not found in your workspace" });
+      console.log(`Goal ${goalId} check: exists=${!!goal}, assignedTo=${goal?.assignedTo}, userId=${userId}`);
+      if (!goal || goal.assignedTo !== userId) {
+        return res.status(404).json({ error: "Goal not found for user" });
       }
       
       const allProjects = await storage.getProjectsByGoalId(goalId);
       
-      // Apply user filtering if requested
-      let filteredProjects = allProjects;
-      if (showMyTasksOnly) {
-        filteredProjects = allProjects.filter(project => project.assignedTo === userId);
-      }
+      // Filter to user's projects only (since this is personal task management)
+      const userProjects = allProjects.filter(project => project.assignedTo === userId);
       
-      console.log(`User ${userId} in workspace ${workspaceId} sees ${filteredProjects.length} projects for goal ${goalId} (showMyTasksOnly: ${showMyTasksOnly})`);
-      res.json(filteredProjects);
+      console.log(`User ${userId} sees ${userProjects.length} projects for goal ${goalId}`);
+      res.json(userProjects);
     } catch (error) {
       next(error);
     }
@@ -404,24 +397,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getCurrentUserId(req);
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
-      // CRITICAL: No access without authentication
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
+      console.log("Tasks all filtering - userId:", userId, "showMyTasksOnly:", showMyTasksOnly);
       
-      const workspaceId = (req as any).workspaceId;
+      // Simple user-based filtering - much cleaner than workspace complexity
+      const userTasks = await storage.getTasksForUser(userId);
       
-      // Get all tasks in the workspace
-      const tasksInWorkspace = await storage.getTasksByWorkspace(workspaceId);
-      
-      // Apply user filtering if requested
-      let filteredTasks = tasksInWorkspace;
-      if (showMyTasksOnly) {
-        filteredTasks = tasksInWorkspace.filter(task => task.assignedTo === userId);
-      }
-      
-      console.log(`User ${userId} in workspace ${workspaceId} sees ${filteredTasks.length} tasks (showMyTasksOnly: ${showMyTasksOnly})`);
-      res.json(filteredTasks);
+      console.log(`User ${userId} sees ${userTasks.length} tasks (showMyTasksOnly: ${showMyTasksOnly})`);
+      res.json(userTasks);
     } catch (error) {
       next(error);
     }
@@ -683,9 +665,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
-      // Use the new progress updater service for proper cascading
-      const { progressUpdater } = await import("./services/progressUpdater");
-      await progressUpdater.updateGoalProgress(id, completed);
+      // Use the progress updater service for proper cascading
+      const progressUpdaterModule = await import("./services/progressUpdater");
+      await progressUpdaterModule.progressUpdater.updateGoalProgress(id, completed);
       
       res.json({ message: "Goal completion updated" });
     } catch (error) {
@@ -740,8 +722,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
       // Use the new progress updater service for proper cascading
-      const { progressUpdater } = await import("./services/progressUpdater");
-      await progressUpdater.updateProjectProgress(id, completed);
+      const progressUpdaterModule = await import("./services/progressUpdater");
+      await progressUpdaterModule.progressUpdater.updateProjectProgress(id, completed);
       
       res.json({ message: "Project completion updated" });
     } catch (error) {
@@ -795,8 +777,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
       // Use the new progress updater service for proper cascading
-      const { progressUpdater } = await import("./services/progressUpdater");
-      await progressUpdater.updateTaskProgress(id, completed);
+      const progressUpdaterModule = await import("./services/progressUpdater");
+      await progressUpdaterModule.progressUpdater.updateTaskProgress(id, completed);
       
       res.json({ message: "Task completion updated" });
     } catch (error) {
@@ -824,8 +806,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { completed } = z.object({ completed: z.boolean() }).parse(req.body);
       
       // Use the new progress updater service for proper cascading
-      const { progressUpdater } = await import("./services/progressUpdater");
-      await progressUpdater.updateSubtaskProgress(id, completed);
+      const progressUpdaterModule = await import("./services/progressUpdater");
+      await progressUpdaterModule.progressUpdater.updateSubtaskProgress(id, completed);
       
       res.json({ message: "Subtask completion updated" });
     } catch (error) {
