@@ -4,7 +4,7 @@ import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage-enhanced";
-import { validateWorkspaceAccess, setDefaultWorkspace } from "./workspace-middleware";
+import { extractUserContext } from "./user-middleware";
 
 const app = express();
 app.use(express.json());
@@ -82,9 +82,8 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
   // Register authentication routes FIRST (before workspace middleware)
   registerAuthRoutes(app);
   
-  // Apply workspace middleware for API routes AFTER auth routes are registered
-  app.use('/api', validateWorkspaceAccess);
-  app.use('/api', setDefaultWorkspace);
+  // Apply user context middleware for API routes AFTER auth routes are registered
+  app.use('/api', extractUserContext);
   
   const server = await registerRoutes(app);
 

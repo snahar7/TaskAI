@@ -6,11 +6,7 @@ import { gptAgent, type AIBreakdown } from "../src/services/gptAgent";
 import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema } from "@shared/schema";
 import { z } from "zod";
 
-// Helper to extract user ID from request headers (set by auth middleware)
-function getCurrentUserId(req: Request): number | null {
-  const userId = req.headers['x-user-id'] as string;
-  return userId ? parseInt(userId) : null;
-}
+import { getCurrentUserId } from "./user-middleware";
 
 // Helper to get accessible user IDs for a user within a workspace
 async function getAccessibleUserIds(userId: number, workspaceId?: number): Promise<number[]> {
@@ -221,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { pendingId, approved, editedBreakdown } = req.body;
       
-      // Get current user ID from middleware
+      // Get current user ID from middleware  
       const currentUserId = getCurrentUserId(req);
       
       const pendingBreakdown = await storage.getPendingBreakdown(pendingId);
@@ -254,7 +250,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startDate: breakdown.goal.startDate ? new Date(breakdown.goal.startDate) : null,
         deadline: breakdown.goal.dueDate ? new Date(breakdown.goal.dueDate) : null,
         approved: true,
-        assignedTo: currentUserId
+        assignedTo: currentUserId,
+        createdBy: currentUserId,
+        // Remove workspace complexity - user-centric approach
+        workspaceId: null
       });
       
       // Create projects under the goal
@@ -296,7 +295,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "pending",
             completed: false,
             approved: true,
-            assignedTo: currentUserId
+            assignedTo: currentUserId,
+            createdBy: currentUserId,
+            workspaceId: null
           });
           
           // Create subtasks under each task
@@ -318,7 +319,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: "pending",
               completed: false,
               approved: true,
-              assignedTo: currentUserId
+              assignedTo: currentUserId,
+              createdBy: currentUserId,
+              workspaceId: null
             });
             createdSubtasks.push(subtask);
           }
@@ -342,31 +345,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // HIERARCHICAL ENDPOINTS - Load data progressively for better performance
   
-  // Get all goals (lightweight - no nested data) - WITH PROPER PRIVACY FILTERING
+  // Get all goals for authenticated user (simplified user-centric approach)
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getCurrentUserId(req);
-      const workspaceId = (req as any).workspaceId; // Set by workspace middleware
       const showMyTasksOnly = req.query.assignedToMe === 'true';
       
-      // CRITICAL: No access without authentication
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
+      console.log("Goals filtering - userId:", userId, "showMyTasksOnly:", showMyTasksOnly);
       
-      console.log("Goals filtering - userId:", userId, "workspaceId:", workspaceId, "showMyTasksOnly:", showMyTasksOnly);
+      // Simple user-based filtering - much cleaner than workspace complexity
+      const userGoals = await storage.getGoalsForUser(userId);
       
-      // Use workspace-based filtering
-      const goalsInWorkspace = await storage.getGoalsByWorkspace(workspaceId);
-      
-      // Apply user filtering if requested
-      let filteredGoals = goalsInWorkspace;
-      if (showMyTasksOnly) {
-        filteredGoals = goalsInWorkspace.filter(goal => goal.assignedTo === userId);
-      }
-      
-      console.log(`User ${userId} in workspace ${workspaceId} sees ${filteredGoals.length} goals (showMyTasksOnly: ${showMyTasksOnly})`);
-      res.json(filteredGoals);
+      console.log(`User ${userId} sees ${userGoals.length} goals (showMyTasksOnly: ${showMyTasksOnly})`);
+      res.json(userGoals);
     } catch (error) {
       next(error);
     }
