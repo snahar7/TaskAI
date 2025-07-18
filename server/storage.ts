@@ -1,6 +1,5 @@
 import { 
   users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags,
-  workspaces, workspaceMemberships,
   type User, type InsertUser,
   type Goal, type InsertGoal,
   type Project, type InsertProject, 
@@ -10,9 +9,7 @@ import {
   type Team, type InsertTeam,
   type Category, type InsertCategory,
   type Tag, type InsertTag,
-  type Workspace, type InsertWorkspace,
-  type WorkspaceMembership, type InsertWorkspaceMembership,
-  type GoalWithProjects, type ProjectWithTasks, type TaskWithSubtasks
+  type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, and } from "drizzle-orm";
@@ -26,15 +23,10 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<void>;
   
-  // Workspaces
-  createWorkspace(workspace: InsertWorkspace): Promise<Workspace>;
-  getWorkspace(id: number): Promise<Workspace | undefined>;
-  getUserWorkspaces(userId: number): Promise<Workspace[]>;
-  isUserInWorkspace(userId: number, workspaceId: number): Promise<boolean>;
-  addUserToWorkspace(membership: InsertWorkspaceMembership): Promise<void>;
-  removeUserFromWorkspace(userId: number, workspaceId: number): Promise<void>;
-  getWorkspaceMembers(workspaceId: number): Promise<User[]>;
-  updateWorkspace(id: number, updates: Partial<InsertWorkspace>): Promise<void>;
+  // Teams (simplified for hybrid model)
+  createTeam(team: InsertTeam): Promise<Team>;
+  getTeam(id: number): Promise<Team | undefined>;
+  updateTeam(id: number, updates: Partial<InsertTeam>): Promise<void>;
   
   // Teams (deprecated but kept for backward compatibility)
   getTeamMembers(teamId: number): Promise<User[]>;
@@ -44,9 +36,7 @@ export interface IStorage {
   // Goals
   createGoal(goal: InsertGoal): Promise<Goal>;
   getAllGoals(): Promise<Goal[]>;
-  getAllGoalsByWorkspace(workspaceId: number): Promise<Goal[]>;
   getGoal(id: number): Promise<Goal | undefined>;
-  getGoalWithProjects(id: number): Promise<GoalWithProjects | undefined>;
   updateGoalApproval(id: number, approved: boolean): Promise<void>;
   deleteGoal(id: number): Promise<void>;
   
@@ -59,7 +49,7 @@ export interface IStorage {
   // Projects
   createProject(project: InsertProject): Promise<Project>;
   getProjectsByGoalId(goalId: number): Promise<Project[]>;
-  getAllProjectsByWorkspace(workspaceId: number): Promise<Project[]>;
+
   getProject(id: number): Promise<Project | undefined>;
   getProjectWithTasks(id: number): Promise<ProjectWithTasks | undefined>;
   updateProjectApproval(id: number, approved: boolean): Promise<void>;
@@ -69,7 +59,7 @@ export interface IStorage {
   createTask(task: InsertTask): Promise<Task>;
   getTasksByProjectId(projectId: number): Promise<Task[]>;
   getAllTasks(): Promise<Task[]>;
-  getAllTasksByWorkspace(workspaceId: number): Promise<Task[]>;
+
   getTask(id: number): Promise<Task | undefined>;
   getTaskWithSubtasks(id: number): Promise<TaskWithSubtasks | undefined>;
   updateTaskCompletion(id: number, completed: boolean): Promise<void>;
@@ -79,7 +69,7 @@ export interface IStorage {
   // Subtasks
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
   getSubtasksByTaskId(taskId: number): Promise<Subtask[]>;
-  getAllSubtasksByWorkspace(workspaceId: number): Promise<Subtask[]>;
+
   getSubtask(id: number): Promise<Subtask | undefined>;
   updateSubtaskCompletion(id: number, completed: boolean): Promise<void>;
   updateSubtaskApproval(id: number, approved: boolean): Promise<void>;
@@ -1335,33 +1325,95 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // USER-CENTRIC METHODS - Simple implementation to replace workspace complexity
+  // HYBRID PERSONAL/TEAM ACCESS CONTROL - Clean, scalable implementation
   async getGoalsForUser(userId: number): Promise<Goal[]> {
-    console.log(`STORAGE: Getting goals for user ${userId}`);
-    const userGoals = await db.select().from(goals).where(eq(goals.assignedTo, userId));
-    console.log(`STORAGE: Found ${userGoals.length} goals for user ${userId}`);
+    console.log(`STORAGE: Getting goals for user ${userId} (hybrid access)`);
+    
+    // Get user's team to check team goals
+    const user = await this.getUser(userId);
+    if (!user) return [];
+    
+    // Hybrid access: personal goals (teamId=NULL, assignedTo=user) OR team goals (teamId=user.teamId)
+    const userGoals = await db.select().from(goals).where(
+      or(
+        and(isNull(goals.teamId), eq(goals.assignedTo, userId)), // Personal goals
+        user.teamId ? eq(goals.teamId, user.teamId) : sql`false` // Team goals (if user has team)
+      )
+    );
+    
+    console.log(`STORAGE: Found ${userGoals.length} goals for user ${userId} (personal + team)`);
     return userGoals;
   }
 
   async getProjectsForUser(userId: number): Promise<Project[]> {
-    console.log(`STORAGE: Getting projects for user ${userId}`);
-    const userProjects = await db.select().from(projects).where(eq(projects.assignedTo, userId));
+    console.log(`STORAGE: Getting projects for user ${userId} (hybrid access)`);
+    
+    // Get user's accessible goals first
+    const accessibleGoals = await this.getGoalsForUser(userId);
+    const goalIds = accessibleGoals.map(g => g.id);
+    
+    if (goalIds.length === 0) return [];
+    
+    // Projects inherit access from their parent goals
+    const userProjects = await db.select().from(projects).where(
+      sql`${projects.goalId} IN (${sql.join(goalIds.map(id => sql`${id}`), sql`, `)})`
+    );
+    
     console.log(`STORAGE: Found ${userProjects.length} projects for user ${userId}`);
     return userProjects;
   }
 
   async getTasksForUser(userId: number): Promise<Task[]> {
-    console.log(`STORAGE: Getting tasks for user ${userId}`);
-    const userTasks = await db.select().from(tasks).where(eq(tasks.assignedTo, userId));
+    console.log(`STORAGE: Getting tasks for user ${userId} (hybrid access)`);
+    
+    // Get user's accessible projects first
+    const accessibleProjects = await this.getProjectsForUser(userId);
+    const projectIds = accessibleProjects.map(p => p.id);
+    
+    if (projectIds.length === 0) return [];
+    
+    // Tasks inherit access from their parent projects
+    const userTasks = await db.select().from(tasks).where(
+      sql`${tasks.projectId} IN (${sql.join(projectIds.map(id => sql`${id}`), sql`, `)})`
+    );
+    
     console.log(`STORAGE: Found ${userTasks.length} tasks for user ${userId}`);
     return userTasks;
   }
 
   async getSubtasksForUser(userId: number): Promise<Subtask[]> {
-    console.log(`STORAGE: Getting subtasks for user ${userId}`);
-    const userSubtasks = await db.select().from(subtasks).where(eq(subtasks.assignedTo, userId));
+    console.log(`STORAGE: Getting subtasks for user ${userId} (hybrid access)`);
+    
+    // Get user's accessible tasks first
+    const accessibleTasks = await this.getTasksForUser(userId);
+    const taskIds = accessibleTasks.map(t => t.id);
+    
+    if (taskIds.length === 0) return [];
+    
+    // Subtasks inherit access from their parent tasks
+    const userSubtasks = await db.select().from(subtasks).where(
+      sql`${subtasks.taskId} IN (${sql.join(taskIds.map(id => sql`${id}`), sql`, `)})`
+    );
+    
     console.log(`STORAGE: Found ${userSubtasks.length} subtasks for user ${userId}`);
     return userSubtasks;
+  }
+
+  // Helper method to check if user can access a specific goal
+  async canUserAccessGoal(userId: number, goalId: number): Promise<boolean> {
+    const goal = await this.getGoal(goalId);
+    if (!goal) return false;
+    
+    const user = await this.getUser(userId);
+    if (!user) return false;
+    
+    // Personal goal: user must be assigned
+    if (!goal.teamId) {
+      return goal.assignedTo === userId;
+    }
+    
+    // Team goal: user must be in same team
+    return user.teamId === goal.teamId;
   }
 }
 

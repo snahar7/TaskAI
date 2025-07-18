@@ -92,6 +92,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 18, 2025: **🎯 HYBRID PERSONAL/TEAM ARCHITECTURE IMPLEMENTATION**
+  - **✅ Clean Schema Design**: Removed complex workspace system, implemented simple hybrid model
+    - Personal goals: `teamId = NULL` (private to assignedTo user only)
+    - Team goals: `teamId = X` (shared with all team members)
+    - Projects/tasks/subtasks inherit access from parent goal via hierarchy
+  - **✅ Scalable Access Control**: New `canUserAccess()` helper with hierarchical permission checking
+  - **✅ Hybrid Storage Methods**: Updated `getGoalsForUser()`, `getProjectsForUser()`, etc. for personal + team access
+  - **✅ API Security**: All endpoints now use hybrid access control - no more privacy leaks
+  - **✅ Database Migration Ready**: Schema cleaned of workspace complexity, removed duplicate fields
+  - **✅ Team Collaboration**: Users can see team goals while keeping personal goals private
+  - **✅ Clean Architecture**: Deleted unnecessary workspace tables, simplified tenant model
+
 - July 18, 2025: **COMPLETE User-Centric Architecture Success**
   - **✅ SOLVED THE CORE PROBLEM**: Replaced complex failing workspace system with robust user-based filtering
   - **✅ Storage Layer Complete**: Added `getGoalsForUser()`, `getProjectsForUser()`, `getTasksForUser()`, `getSubtasksForUser()` methods

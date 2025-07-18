@@ -23,32 +23,12 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Workspaces table (tenants) - replacing teams concept
-export const workspaces = pgTable("workspaces", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  ownerId: integer("owner_id").references(() => users.id).notNull(),
-  isPersonal: boolean("is_personal").default(false).notNull(), // true for personal workspaces
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Workspace memberships - who can access which workspace
-export const workspaceMemberships = pgTable("workspace_memberships", {
-  userId: integer("user_id").references(() => users.id).notNull(),
-  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(),
-  role: text("role").notNull().default('member'), // 'admin', 'member'
-  joinedAt: timestamp("joined_at").defaultNow().notNull(),
-}, (table) => ({
-  pk: { columns: [table.userId, table.workspaceId] }
-}));
-
-// Teams table (kept for backward compatibility, but deprecated)
+// Teams table - simplified for hybrid personal/team model
 export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
+  ownerId: integer("owner_id").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -61,72 +41,57 @@ export const categories = pgTable("categories", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Goals table - comprehensive fields as requested
+// Goals table - hybrid personal/team model
 export const goals = pgTable("goals", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(), // keeping original field name for compatibility
-  name: text("name"), // new comprehensive field
+  title: text("title").notNull(),
   description: text("description"),
-  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
-  assignedTo: integer("assigned_to").references(() => users.id),
-  createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
-  status: text("status").default('not_started').notNull(), // not_started, in_progress, completed, on_hold, cancelled
-  priority: text("priority").default('medium').notNull(), // low, medium, high, urgent
-  percentComplete: decimal("percent_complete", { precision: 5, scale: 2 }).default('0.00').notNull(),
-  deadline: timestamp("deadline"),
-  categoryId: integer("category_id").references(() => categories.id),
-  teamId: integer("team_id").references(() => teams.id), // Deprecated - kept for migration
-  timeEstimate: integer("time_estimate"), // in hours
-  timeActual: integer("time_actual"), // in hours
-  customFields: json("custom_fields"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  approved: boolean("approved").default(false).notNull(),
-  // Legacy fields for backward compatibility
-  estimatedDuration: text("estimated_duration"),
-  targetDate: text("target_date"),
-  urgency: text("urgency").default("medium").notNull(),
-});
-
-// Projects table - comprehensive fields
-export const projects = pgTable("projects", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(), // keeping original field name for compatibility
-  name: text("name"), // new comprehensive field
-  description: text("description"),
-  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
-  goalId: integer("goal_id").references(() => goals.id).notNull(),
-  assignedTo: integer("assigned_to").references(() => users.id),
-  createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
+  // HYBRID ACCESS CONTROL:
+  // - teamId = NULL → Personal goal (only assignedTo can see)
+  // - teamId = X → Team goal (all team members can see)
+  teamId: integer("team_id").references(() => teams.id), // NULL = personal, team ID = shared
+  assignedTo: integer("assigned_to").references(() => users.id).notNull(), // Always required
+  createdBy: integer("created_by").references(() => users.id).notNull(),
   status: text("status").default('not_started').notNull(),
   priority: text("priority").default('medium').notNull(),
   percentComplete: decimal("percent_complete", { precision: 5, scale: 2 }).default('0.00').notNull(),
   deadline: timestamp("deadline"),
-  categoryId: integer("category_id").references(() => categories.id),
-  teamId: integer("team_id").references(() => teams.id), // Deprecated - kept for migration
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
-  estimatedDays: integer("estimated_days"), // New field for day-based estimation
-  startDate: timestamp("start_date"), // New field for start date
-  customFields: json("custom_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   approved: boolean("approved").default(false).notNull(),
-  // Legacy fields for backward compatibility
-  estimatedDuration: text("estimated_duration"),
-  targetDate: text("target_date"),
-  urgency: text("urgency").default("medium").notNull(),
 });
 
-// Tasks table - comprehensive fields
+// Projects table - hybrid personal/team model
+export const projects = pgTable("projects", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  goalId: integer("goal_id").references(() => goals.id).notNull(),
+  // Inherits access from parent goal (no separate teamId needed)
+  assignedTo: integer("assigned_to").references(() => users.id).notNull(),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
+  status: text("status").default('not_started').notNull(),
+  priority: text("priority").default('medium').notNull(),
+  percentComplete: decimal("percent_complete", { precision: 5, scale: 2 }).default('0.00').notNull(),
+  deadline: timestamp("deadline"),
+  timeEstimate: integer("time_estimate"),
+  timeActual: integer("time_actual"),
+  startDate: timestamp("start_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  approved: boolean("approved").default(false).notNull(),
+});
+
+// Tasks table - hybrid personal/team model
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(), // keeping original field name for compatibility
-  name: text("name"), // new comprehensive field
+  title: text("title").notNull(),
   description: text("description"),
-  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
   projectId: integer("project_id").references(() => projects.id).notNull(),
-  assignedTo: integer("assigned_to").references(() => users.id),
+  // Inherits access from parent project/goal (no separate teamId needed)
+  assignedTo: integer("assigned_to").references(() => users.id).notNull(),
   createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
   status: text("status").default('not_started').notNull(),
   priority: text("priority").default('medium').notNull(),
@@ -151,37 +116,26 @@ export const tasks = pgTable("tasks", {
   urgency: text("urgency").default("medium").notNull(),
 });
 
-// Subtasks table - comprehensive fields (no percent_complete as specified)
+// Subtasks table - hybrid personal/team model
 export const subtasks = pgTable("subtasks", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(), // keeping original field name for compatibility
-  name: text("name"), // new comprehensive field
+  title: text("title").notNull(),
   description: text("description"),
-  workspaceId: integer("workspace_id").references(() => workspaces.id).notNull(), // REQUIRED for tenant isolation
   taskId: integer("task_id").references(() => tasks.id).notNull(),
-  assignedTo: integer("assigned_to").references(() => users.id),
-  createdBy: integer("created_by").references(() => users.id).notNull(), // Track who created it
+  // Inherits access from parent task/project/goal (no separate teamId needed)
+  assignedTo: integer("assigned_to").references(() => users.id).notNull(),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
   status: text("status").default('not_started').notNull(),
   priority: text("priority").default('medium').notNull(),
-  // No percentComplete for subtasks as requested
   deadline: timestamp("deadline"),
-  categoryId: integer("category_id").references(() => categories.id),
-  teamId: integer("team_id").references(() => teams.id), // Deprecated - kept for migration
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
-  estimatedDays: integer("estimated_days"), // New field for day-based estimation
-  startDate: timestamp("start_date"), // New field for start date
-  customFields: json("custom_fields"),
+  startDate: timestamp("start_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   approved: boolean("approved").default(false).notNull(),
   completed: boolean("completed").default(false).notNull(),
   completedAt: timestamp("completed_at"),
-  // Legacy fields for backward compatibility
-  estimatedHours: decimal("estimated_hours", { precision: 8, scale: 2 }),
-  dueDate: text("due_date"),
-  urgency: text("urgency").default("medium").notNull(),
-  attachments: json("attachments"),
 });
 
 // Tags table
@@ -300,10 +254,6 @@ export const goalsRelations = relations(goals, ({ one, many }) => ({
     fields: [goals.assignedTo],
     references: [users.id],
   }),
-  category: one(categories, {
-    fields: [goals.categoryId],
-    references: [categories.id],
-  }),
   team: one(teams, {
     fields: [goals.teamId],
     references: [teams.id],
@@ -320,14 +270,6 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     fields: [projects.assignedTo],
     references: [users.id],
   }),
-  category: one(categories, {
-    fields: [projects.categoryId],
-    references: [categories.id],
-  }),
-  team: one(teams, {
-    fields: [projects.teamId],
-    references: [teams.id],
-  }),
   tasks: many(tasks),
 }));
 
@@ -339,14 +281,6 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   assignedUser: one(users, {
     fields: [tasks.assignedTo],
     references: [users.id],
-  }),
-  category: one(categories, {
-    fields: [tasks.categoryId],
-    references: [categories.id],
-  }),
-  team: one(teams, {
-    fields: [tasks.teamId],
-    references: [teams.id],
   }),
   subtasks: many(subtasks),
 }));
@@ -360,14 +294,6 @@ export const subtasksRelations = relations(subtasks, ({ one }) => ({
     fields: [subtasks.assignedTo],
     references: [users.id],
   }),
-  category: one(categories, {
-    fields: [subtasks.categoryId],
-    references: [categories.id],
-  }),
-  team: one(teams, {
-    fields: [subtasks.teamId],
-    references: [teams.id],
-  }),
 }));
 
 // Insert schemas - updated for new field names and OAuth support
@@ -378,14 +304,10 @@ export const insertUserSchema = createInsertSchema(users).omit({
   lastLogin: true,
 });
 
-export const insertWorkspaceSchema = createInsertSchema(workspaces).omit({
+export const insertTeamSchema = createInsertSchema(teams).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
-
-export const insertWorkspaceMembershipSchema = createInsertSchema(workspaceMemberships).omit({
-  joinedAt: true,
 });
 
 // Specific schemas for different auth methods
@@ -442,12 +364,6 @@ export const insertPendingBreakdownSchema = createInsertSchema(pendingBreakdowns
   createdAt: true,
 });
 
-export const insertTeamSchema = createInsertSchema(teams).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
   createdAt: true,
@@ -473,11 +389,7 @@ export const insertFileSchema = createInsertSchema(files).omit({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-export type InsertWorkspace = z.infer<typeof insertWorkspaceSchema>;
-export type Workspace = typeof workspaces.$inferSelect;
 
-export type InsertWorkspaceMembership = z.infer<typeof insertWorkspaceMembershipSchema>;
-export type WorkspaceMembership = typeof workspaceMemberships.$inferSelect;
 
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type Goal = typeof goals.$inferSelect;

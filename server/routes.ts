@@ -8,46 +8,33 @@ import { z } from "zod";
 
 import { getCurrentUserId } from "./user-middleware";
 
-// Helper to get accessible user IDs for a user within a workspace
-async function getAccessibleUserIds(userId: number, workspaceId?: number): Promise<number[]> {
+// HYBRID ACCESS CONTROL: Helper to check if user can access an item
+async function canUserAccess(userId: number, itemType: 'goal' | 'project' | 'task' | 'subtask', itemId: number): Promise<boolean> {
   try {
-    // Validate userId
-    if (!userId || isNaN(userId)) {
-      console.error('Invalid userId passed to getAccessibleUserIds:', userId);
-      return [];
+    switch (itemType) {
+      case 'goal':
+        return await storage.canUserAccessGoal(userId, itemId);
+      case 'project':
+        const project = await storage.getProject(itemId);
+        return project ? await storage.canUserAccessGoal(userId, project.goalId) : false;
+      case 'task':
+        const task = await storage.getTask(itemId);
+        if (!task) return false;
+        const taskProject = await storage.getProject(task.projectId);
+        return taskProject ? await storage.canUserAccessGoal(userId, taskProject.goalId) : false;
+      case 'subtask':
+        const subtask = await storage.getSubtask(itemId);
+        if (!subtask) return false;
+        const subtaskTask = await storage.getTask(subtask.taskId);
+        if (!subtaskTask) return false;
+        const subtaskProject = await storage.getProject(subtaskTask.projectId);
+        return subtaskProject ? await storage.canUserAccessGoal(userId, subtaskProject.goalId) : false;
+      default:
+        return false;
     }
-    
-    // If no workspace specified, return only the user themselves
-    if (!workspaceId) {
-      console.log(`No workspace specified for user ${userId}, returning only self access`);
-      return [userId];
-    }
-    
-    // Get all members of the workspace
-    const workspaceMembers = await storage.getWorkspaceMembers(workspaceId);
-    const accessibleIds = workspaceMembers.map(member => member.id);
-    
-    // Ensure current user is included
-    if (!accessibleIds.includes(userId)) {
-      accessibleIds.push(userId);
-    }
-    
-    console.log(`User ${userId} in workspace ${workspaceId} has access to user IDs:`, accessibleIds);
-    return accessibleIds;
   } catch (error) {
-    console.error('Error getting accessible user IDs for user', userId, ':', error);
-    return userId && !isNaN(userId) ? [userId] : []; // Fallback to only user themselves if valid, empty array if invalid
-  }
-}
-
-// Helper to get all user's workspaces for filtering
-async function getUserWorkspaceIds(userId: number): Promise<number[]> {
-  try {
-    const workspaces = await storage.getUserWorkspaces(userId);
-    return workspaces.map(w => w.id);
-  } catch (error) {
-    console.error('Error getting user workspaces:', error);
-    return [];
+    console.error(`Error checking access for ${itemType} ${itemId}:`, error);
+    return false;
   }
 }
 
@@ -345,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // HIERARCHICAL ENDPOINTS - Load data progressively for better performance
   
-  // Get all goals for authenticated user (simplified user-centric approach)
+  // Get goals - HYBRID PERSONAL/TEAM ACCESS
   app.get("/api/goals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getCurrentUserId(req);
@@ -353,17 +340,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Goals filtering - userId:", userId, "showMyTasksOnly:", showMyTasksOnly);
       
-      // Simple user-based filtering - much cleaner than workspace complexity
-      const userGoals = await storage.getGoalsForUser(userId);
+      // Hybrid access: personal goals + team goals
+      const accessibleGoals = await storage.getGoalsForUser(userId);
       
-      console.log(`User ${userId} sees ${userGoals.length} goals (showMyTasksOnly: ${showMyTasksOnly})`);
-      res.json(userGoals);
+      // Optional filtering to only assigned goals
+      const filteredGoals = showMyTasksOnly 
+        ? accessibleGoals.filter(goal => goal.assignedTo === userId)
+        : accessibleGoals;
+      
+      console.log(`User ${userId} sees ${filteredGoals.length} goals (hybrid access, filtered: ${showMyTasksOnly})`);
+      res.json(filteredGoals);
     } catch (error) {
       next(error);
     }
   });
 
-  // Get projects for a specific goal - User-centric approach
+  // Get projects for a specific goal - HYBRID ACCESS CONTROL
   app.get("/api/goals/:goalId/projects", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const goalId = parseInt(req.params.goalId);
@@ -372,20 +364,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Projects for goal ${goalId} - userId: ${userId}, showMyTasksOnly: ${showMyTasksOnly}`);
       
-      // First verify the goal belongs to the user
-      const goal = await storage.getGoal(goalId);
-      console.log(`Goal ${goalId} check: exists=${!!goal}, assignedTo=${goal?.assignedTo}, userId=${userId}`);
-      if (!goal || goal.assignedTo !== userId) {
-        return res.status(404).json({ error: "Goal not found for user" });
+      // Verify user can access this goal
+      const hasAccess = await canUserAccess(userId, 'goal', goalId);
+      if (!hasAccess) {
+        return res.status(404).json({ error: "Goal not found or access denied" });
       }
       
       const allProjects = await storage.getProjectsByGoalId(goalId);
       
-      // Filter to user's projects only (since this is personal task management)
-      const userProjects = allProjects.filter(project => project.assignedTo === userId);
+      // Optional filtering to only assigned projects
+      const filteredProjects = showMyTasksOnly 
+        ? allProjects.filter(project => project.assignedTo === userId)
+        : allProjects;
       
-      console.log(`User ${userId} sees ${userProjects.length} projects for goal ${goalId}`);
-      res.json(userProjects);
+      console.log(`User ${userId} sees ${filteredProjects.length} projects for goal ${goalId} (hybrid access)`);
+      res.json(filteredProjects);
     } catch (error) {
       next(error);
     }
@@ -399,11 +392,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Tasks all filtering - userId:", userId, "showMyTasksOnly:", showMyTasksOnly);
       
-      // Simple user-based filtering - much cleaner than workspace complexity
-      const userTasks = await storage.getTasksForUser(userId);
+      // Hybrid access: personal + team tasks
+      const accessibleTasks = await storage.getTasksForUser(userId);
       
-      console.log(`User ${userId} sees ${userTasks.length} tasks (showMyTasksOnly: ${showMyTasksOnly})`);
-      res.json(userTasks);
+      // Optional filtering to only assigned tasks
+      const filteredTasks = showMyTasksOnly 
+        ? accessibleTasks.filter(task => task.assignedTo === userId)
+        : accessibleTasks;
+      
+      console.log(`User ${userId} sees ${filteredTasks.length} tasks (hybrid access, filtered: ${showMyTasksOnly})`);
+      res.json(filteredTasks);
     } catch (error) {
       next(error);
     }
