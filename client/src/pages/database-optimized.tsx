@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/AuthGuard";
+import { formatDateForInput, getTodayDateString } from "@/lib/utils";
 
 export default function DatabaseOptimizedPage() {
   return (

@@ -47,18 +47,36 @@ export function truncateText(text: string, maxLength: number): string {
   return text.substring(0, maxLength).trim() + '...';
 }
 
+// Timezone-safe date utilities
 export function formatDateForInput(date: string | Date | null | undefined): string {
   if (!date) return "";
   
-  // If it's a string, create a Date object but preserve the local date
-  const dateObj = typeof date === "string" ? new Date(date) : date;
+  let dateStr: string;
+  if (typeof date === "string") {
+    // If it's already a string, extract the date part without timezone conversion
+    dateStr = date.includes('T') ? date.split('T')[0] : date;
+  } else {
+    // If it's a Date object, use local components to avoid timezone shifts
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    dateStr = `${year}-${month}-${day}`;
+  }
   
-  // Format as YYYY-MM-DD for input fields, using local date components
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  
+  return dateStr;
+}
+
+export function getTodayDateString(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function createLocalDateString(dateInput: string): string {
+  // For saving dates, preserve the local date without timezone conversion
+  return dateInput + 'T00:00:00';
 }
 
 export function validateTaskInput(input: string): { isValid: boolean; error?: string } {

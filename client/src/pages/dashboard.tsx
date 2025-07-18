@@ -42,7 +42,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
-import { cn, formatRelativeDate, calculateProgress, getPriorityColor, formatDateForInput } from "@/lib/utils";
+import { cn, formatRelativeDate, calculateProgress, getPriorityColor, formatDateForInput, getTodayDateString } from "@/lib/utils";
 
 interface DashboardStats {
   todayTasks: any[];
@@ -308,7 +308,7 @@ function DashboardContent() {
     setRescheduleDialog({
       isOpen: true,
       taskId,
-      currentDate: currentDate ? new Date(currentDate).toISOString().split('T')[0] : ""
+      currentDate: formatDateForInput(currentDate)
     });
   };
 
@@ -377,7 +377,7 @@ function DashboardContent() {
 
 
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateString();
 
   return (
     <div className="container mx-auto p-3 sm:p-6 max-w-7xl">

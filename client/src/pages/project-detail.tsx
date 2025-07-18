@@ -30,7 +30,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
-import { formatDateForInput } from "@/lib/utils";
+import { formatDateForInput, createLocalDateString } from "@/lib/utils";
 
 function ProjectDetailContent() {
   const { goalId, projectId } = useParams();
@@ -99,7 +99,7 @@ function ProjectDetailContent() {
     } else if (editingField === "assignedTo") {
       value = editValue ? parseInt(editValue) : null;
     } else if (editingField === "deadline") {
-      value = editValue ? new Date(editValue).toISOString() : null;
+      value = editValue ? createLocalDateString(editValue) : null;
     }
 
     updateProjectMutation.mutate({ [editingField]: value });

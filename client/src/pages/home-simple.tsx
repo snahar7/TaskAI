@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { MobileInput, MobileButton, MobileFormField } from "@/components/mobile-form";
 import { AuthGuard } from "@/components/AuthGuard";
+import { getTodayDateString } from "@/lib/utils";
 
 export default function HomePage() {
   return (
@@ -177,7 +178,7 @@ function HomeContent() {
                     value={targetDate}
                     onChange={(e) => setTargetDate(e.target.value)}
                     disabled={isGenerating}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={getTodayDateString()}
                     className="pr-10"
                   />
                   <Calendar className="absolute right-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
