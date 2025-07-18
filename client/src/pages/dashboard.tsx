@@ -42,6 +42,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
+import { cn, formatRelativeDate, calculateProgress, getPriorityColor, formatDateForInput } from "@/lib/utils";
 
 interface DashboardStats {
   todayTasks: any[];
@@ -1056,7 +1057,7 @@ function DashboardContent() {
                     ) : (
                       <p 
                         className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
-                        onClick={() => startEditing("deadline", taskDetailModal.task.deadline ? taskDetailModal.task.deadline.split('T')[0] : "")}
+                        onClick={() => startEditing("deadline", formatDateForInput(taskDetailModal.task.deadline))}
                       >
                         {taskDetailModal.task.deadline ? 
                           format(new Date(taskDetailModal.task.deadline), "MMM dd, yyyy") : 

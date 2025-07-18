@@ -47,6 +47,20 @@ export function truncateText(text: string, maxLength: number): string {
   return text.substring(0, maxLength).trim() + '...';
 }
 
+export function formatDateForInput(date: string | Date | null | undefined): string {
+  if (!date) return "";
+  
+  // If it's a string, create a Date object but preserve the local date
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  
+  // Format as YYYY-MM-DD for input fields, using local date components
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
 export function validateTaskInput(input: string): { isValid: boolean; error?: string } {
   if (!input.trim()) {
     return { isValid: false, error: "Task description is required" };

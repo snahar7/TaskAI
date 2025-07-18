@@ -29,6 +29,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
+import { formatDateForInput } from "@/lib/utils";
 
 function GoalDetailContent() {
   const { goalId } = useParams();
@@ -317,7 +318,7 @@ function GoalDetailContent() {
                   ) : (
                     <p 
                       className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
-                      onClick={() => startEditing("deadline", goal.deadline ? goal.deadline.split('T')[0] : "")}
+                      onClick={() => startEditing("deadline", formatDateForInput(goal.deadline))}
                     >
                       {goal.deadline ? 
                         format(new Date(goal.deadline), "MMM dd, yyyy") : 

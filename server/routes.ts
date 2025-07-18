@@ -853,7 +853,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert date strings to Date objects for database compatibility
       const processedUpdates = { ...updates };
       if (processedUpdates.deadline && typeof processedUpdates.deadline === 'string') {
-        processedUpdates.deadline = new Date(processedUpdates.deadline + 'T00:00:00.000Z');
+        // Preserve local date without timezone conversion
+        processedUpdates.deadline = new Date(processedUpdates.deadline + 'T00:00:00');
       }
       
       // Update the appropriate entity based on type
