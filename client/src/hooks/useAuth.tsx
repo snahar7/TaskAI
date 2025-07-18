@@ -31,6 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (firebaseUser) {
         try {
+          // Clear any existing React Query cache when new user logs in
+          const { queryClient } = await import('@/lib/queryClient');
+          queryClient.clear();
+          
           // Sync with backend to get/create user profile
           const providerId = firebaseUser.providerData[0]?.providerId || 'email';
           const provider = providerId === 'google.com' ? 'google' : 'email';
@@ -55,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           if (response.ok) {
             const userData = await response.json();
-            // console.log('User sync successful:', userData.user);
+            console.log('🔐 Firebase user sync successful:', userData.user?.email, 'ID:', userData.user?.id);
             setUser(userData.user);
           } else {
             console.error('User sync failed:', response.status, response.statusText);
@@ -65,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(null);
+        // Clear cache when user logs out
+        const { queryClient } = await import('@/lib/queryClient');
+        queryClient.clear();
       }
       
       setLoading(false);
@@ -106,7 +113,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     const { logout: firebaseLogout } = await import('@/lib/firebase');
-    await firebaseLogout();
+    const { queryClient } = await import('@/lib/queryClient');
+    
+    try {
+      // 1. Clear React Query cache first to prevent stale data
+      queryClient.clear();
+      
+      // 2. Clear localStorage and sessionStorage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 3. Firebase logout
+      await firebaseLogout();
+      
+      // 4. Clear user state
+      setUser(null);
+      setFirebaseUser(null);
+      
+      // 5. Additional cache invalidation
+      queryClient.removeQueries();
+      
+      console.log('🔐 Firebase logout complete - all data cleared');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state even if Firebase logout fails
+      setUser(null);
+      setFirebaseUser(null);
+      queryClient.clear();
+    }
   };
 
   return (

@@ -25,19 +25,30 @@ export function NativeAuthProvider({ children }: { children: ReactNode }) {
       const response = await apiRequest('GET', '/api/auth/user');
       if (response.ok) {
         const userData = await response.json();
+        console.log('🔐 Native auth check successful:', userData?.email, 'ID:', userData?.id);
         setUser(userData);
       } else {
         setUser(null);
+        // Clear cache if auth check fails
+        const { queryClient } = await import('@/lib/queryClient');
+        queryClient.clear();
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
       setUser(null);
+      // Clear cache on auth error
+      const { queryClient } = await import('@/lib/queryClient');
+      queryClient.clear();
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
+    // Clear cache before login to prevent cross-user contamination
+    const { queryClient } = await import('@/lib/queryClient');
+    queryClient.clear();
+    
     const response = await apiRequest('POST', '/api/auth/email-login', { email, password });
     
     if (!response.ok) {
@@ -46,6 +57,7 @@ export function NativeAuthProvider({ children }: { children: ReactNode }) {
     }
     
     const data = await response.json();
+    console.log('🔐 Native login successful:', data.user?.email, 'ID:', data.user?.id);
     setUser(data.user);
   };
 
@@ -68,12 +80,35 @@ export function NativeAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    const response = await apiRequest('POST', '/api/auth/logout');
+    const { queryClient } = await import('@/lib/queryClient');
     
-    if (response.ok) {
+    try {
+      // 1. Clear React Query cache first to prevent stale data
+      queryClient.clear();
+      
+      // 2. Clear localStorage and sessionStorage  
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 3. Backend logout API call
+      const response = await apiRequest('POST', '/api/auth/logout');
+      
+      // 4. Clear user state regardless of API response
       setUser(null);
-    } else {
-      throw new Error('Logout failed');
+      
+      // 5. Additional cache invalidation
+      queryClient.removeQueries();
+      
+      if (!response.ok) {
+        console.warn('Backend logout failed, but local state cleared');
+      }
+      
+      console.log('🔐 Native logout complete - all data cleared');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state even if API fails
+      setUser(null);
+      queryClient.clear();
     }
   };
 

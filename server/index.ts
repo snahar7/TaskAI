@@ -62,15 +62,19 @@ app.use((req, res, next) => {
 // Auth middleware to extract user from session/cookies
 app.use(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Extract user from Firebase auth token or session in production
+    // Extract user from session for API routes (except auth routes)
     if (req.path.startsWith('/api/') && !req.path.includes('/auth/')) {
-      // Try to get user from session or authenticated context
-      // For now, use Shubham's user ID (4) since that's the authenticated user
-      // This should be replaced with proper Firebase token verification
-      req.headers['x-user-id'] = '4'; // Shubham Nahar's user ID
+      // Get user ID from session (set by auth routes)
+      const userId = (req.session as any)?.user?.id;
       
-      // Set userId on request for workspace middleware
-      (req as any).userId = 4;
+      if (userId) {
+        req.headers['x-user-id'] = userId.toString();
+        (req as any).userId = userId;
+        console.log(`🔐 SESSION AUTH: User ${userId} authenticated for ${req.method} ${req.path}`);
+      } else {
+        // No hardcoded fallback - let user middleware handle authentication requirement
+        console.log(`🔐 SESSION AUTH: No user session for ${req.method} ${req.path}`);
+      }
     }
     next();
   } catch (error) {

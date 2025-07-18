@@ -31,13 +31,24 @@ export function UserProfile() {
 
   const handleLogout = async () => {
     try {
+      // Clear React Query cache immediately
+      const { queryClient } = await import('@/lib/queryClient');
+      queryClient.clear();
+      
       if (nativeUser) {
         await nativeLogout();
       } else if (firebaseUser) {
         await firebaseLogout();
       }
+      
+      // Force page reload to ensure clean state
+      window.location.reload();
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if logout fails, clear cache and reload
+      const { queryClient } = await import('@/lib/queryClient');
+      queryClient.clear();
+      window.location.reload();
     }
   };
 

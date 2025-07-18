@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navigation } from "@/components/navigation";
 import { AuthProvider } from "@/hooks/useAuth";
 import { NativeAuthProvider } from "@/hooks/useNativeAuth";
+import { useEffect } from "react";
 
 import Home from "@/pages/home-simple";
 import Database from "@/pages/database-optimized";
@@ -33,6 +34,32 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    // Add global logout handler to clear cache on browser session end
+    const handleBeforeUnload = () => {
+      // Clear any cached data when user closes browser
+      sessionStorage.clear();
+    };
+
+    const handleVisibilityChange = () => {
+      // Clear query cache when user switches away and comes back to prevent stale data
+      if (document.visibilityState === 'visible') {
+        // Small delay to allow auth systems to synchronize
+        setTimeout(() => {
+          queryClient.invalidateQueries();
+        }, 100);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
