@@ -1,17 +1,28 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { extractUserContext } from "./user-middleware";
+import { neon } from '@neondatabase/serverless';
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Session configuration
+// Create PostgreSQL session store
+const PgSession = connectPgSimple(session);
+const sql = neon(process.env.DATABASE_URL!);
+
+// Session configuration with PostgreSQL store for persistence
 app.use(session({
+  store: new PgSession({
+    pool: sql as any,
+    tableName: 'session', // Use session table for session storage
+    createTableIfMissing: true,
+  }),
   secret: process.env.SESSION_SECRET || 'taflo-stealth-mode-secret',
   resave: false,
   saveUninitialized: false,

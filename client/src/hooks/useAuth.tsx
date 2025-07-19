@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayDomainInfo();
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('🔐 Firebase auth state changed:', firebaseUser ? `${firebaseUser.email} (${firebaseUser.uid})` : 'signed out');
       setFirebaseUser(firebaseUser);
       
       if (firebaseUser) {
@@ -68,10 +69,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Error syncing user:', error);
         }
       } else {
-        setUser(null);
-        // Clear cache when user logs out
-        const { queryClient } = await import('@/lib/queryClient');
-        queryClient.clear();
+        // Firebase user signed out, but check if backend session still exists
+        try {
+          console.log('🔐 Firebase user signed out, checking backend session...');
+          const response = await apiRequest('GET', '/api/auth/user');
+          if (response.ok) {
+            const userData = await response.json();
+            console.log('🔐 Backend session still active for user:', userData.email);
+            setUser(userData);
+          } else {
+            setUser(null);
+            // Clear cache when user logs out
+            const { queryClient } = await import('@/lib/queryClient');
+            queryClient.clear();
+          }
+        } catch (error) {
+          console.error('Error checking auth status:', error);
+          setUser(null);
+          // Clear cache on error
+          const { queryClient } = await import('@/lib/queryClient');
+          queryClient.clear();
+        }
       }
       
       setLoading(false);
