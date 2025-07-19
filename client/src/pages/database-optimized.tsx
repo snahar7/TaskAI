@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/AuthGuard";
 import { formatDateForInput, getTodayDateString } from "@/lib/utils";
+import { useReactiveDatabaseStats } from "@/hooks/useReactiveIntegration";
 
 export default function DatabaseOptimizedPage() {
   return (
@@ -38,6 +39,9 @@ function DatabaseContent() {
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
+  
+  // Reactive stats integration
+  const reactiveStats = useReactiveDatabaseStats();
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(true);
   
   // Editing state management

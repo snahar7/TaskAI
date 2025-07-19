@@ -43,8 +43,7 @@ import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
 import { cn, formatRelativeDate, calculateProgress, getPriorityColor, formatDateForInput, getTodayDateString } from "@/lib/utils";
-import { ReactiveDashboardStats, ReactiveTodayTasks } from "@/components/ReactiveDashboardStats";
-import { AdvancedReactiveDemo } from "@/components/AdvancedReactiveDemo";
+
 
 interface DashboardStats {
   todayTasks: any[];
@@ -407,101 +406,13 @@ function DashboardContent() {
       </div>
 
       <Tabs defaultValue="action" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-4 h-auto">
+        <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger value="action" className="text-xs sm:text-sm py-2 sm:py-3">Action Center</TabsTrigger>
-          <TabsTrigger value="reactive" className="text-xs sm:text-sm py-2 sm:py-3">🚀 Phase 1</TabsTrigger>
-          <TabsTrigger value="advanced" className="text-xs sm:text-sm py-2 sm:py-3">⚡ Phase 2+3</TabsTrigger>
           <TabsTrigger value="goals" className="text-xs sm:text-sm py-2 sm:py-3">Goal Overview</TabsTrigger>
         </TabsList>
 
         {/* Action-Oriented Dashboard */}
-        {/* NEW: Reactive State Demo Tab */}
-        <TabsContent value="reactive" className="space-y-4 sm:space-y-6">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Reactive State System Demo</h2>
-                <p className="text-muted-foreground">
-                  This tab demonstrates the new reactive architecture. Data updates automatically across all components.
-                </p>
-              </div>
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                Phase 1: Live
-              </Badge>
-            </div>
 
-            {/* Reactive Stats - Auto-updating */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Auto-Updating Statistics</h3>
-              <p className="text-sm text-muted-foreground">
-                These stats automatically update when any task changes anywhere in the app.
-              </p>
-              <ReactiveDashboardStats />
-            </div>
-
-            {/* Reactive Today's Tasks */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Live Today's Tasks</h3>
-              <p className="text-sm text-muted-foreground">
-                Changes here instantly reflect in all other components using the same data.
-              </p>
-              <ReactiveTodayTasks />
-            </div>
-
-            {/* Architecture Comparison */}
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader>
-                <CardTitle className="text-blue-900">Architecture Benefits</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <h4 className="font-medium text-blue-900">Old Way (React Query)</h4>
-                    <ul className="text-blue-700 space-y-1 mt-2">
-                      <li>• Manual cache invalidation</li>
-                      <li>• Loading states everywhere</li>
-                      <li>• Stale data issues</li>
-                      <li>• Complex state management</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-blue-900">New Way (Reactive Atoms)</h4>
-                    <ul className="text-blue-700 space-y-1 mt-2">
-                      <li>• Automatic updates everywhere</li>
-                      <li>• No loading states needed</li>
-                      <li>• Always fresh data</li>
-                      <li>• Simple, predictable state</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Advanced Reactive Demo - Phases 2 & 3 */}
-        <TabsContent value="advanced" className="space-y-4 sm:space-y-6">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Advanced Architecture Demo</h2>
-                <p className="text-muted-foreground">
-                  Event sourcing + Schema-driven generation = World-class system
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                  Phase 2: Events
-                </Badge>
-                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                  Phase 3: Schema
-                </Badge>
-              </div>
-            </div>
-
-            <AdvancedReactiveDemo />
-          </div>
-        </TabsContent>
 
         <TabsContent value="action" className="space-y-4 sm:space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

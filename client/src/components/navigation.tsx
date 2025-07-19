@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { NativeAuthModal } from '@/components/auth/NativeAuthModal';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserProfile } from "@/components/auth/UserProfile";
+import { ReactiveStatusBar } from "@/components/ReactiveStatusBar";
 
 export function Navigation() {
   const [location] = useLocation();
@@ -67,7 +68,8 @@ export function Navigation() {
                   </Button>
                 </Link>
               ))}
-              <div className="ml-4">
+              <div className="ml-4 flex items-center gap-4">
+                <ReactiveStatusBar />
                 <UserProfile />
               </div>
             </div>
