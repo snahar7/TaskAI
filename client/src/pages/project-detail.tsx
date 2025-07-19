@@ -17,7 +17,8 @@ import {
   Home,
   Target,
   Briefcase,
-  ClipboardList
+  ClipboardList,
+  Edit2
 } from "lucide-react";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -141,103 +142,67 @@ function ProjectDetailContent() {
                 <div className="space-y-4">
                   {/* Priority Badge at top */}
                   <div className="flex justify-start">
-                    {editingField === "priority" ? (
-                      <div className="flex items-center gap-2">
-                        <Select value={editValue} onValueChange={setEditValue}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="urgent">Urgent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge 
-                        className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
-                          project.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
-                          project.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
-                          project.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
-                          "bg-gray-500 hover:bg-gray-600"
-                        }`}
-                        onClick={() => startEditing("priority", project.priority)}
-                      >
-                        <Flag className="h-3 w-3 mr-1" />
-                        {
-                          project.priority === "urgent" ? "🔴 URGENT" :
-                          project.priority === "high" ? "🟠 HIGH" :
-                          project.priority === "medium" ? "🔵 MEDIUM" :
-                          "⚪ LOW"
-                        } PRIORITY
-                        <Edit2 className="h-3 w-3 ml-1" />
-                      </Badge>
-                    )}
+                    <EditableField
+                      type="projects"
+                      id={project.id}
+                      field="priority"
+                      value={project.priority}
+                      fieldType="select"
+                      options={["low", "medium", "high", "urgent"]}
+                      displayValue={
+                        <Badge 
+                          className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
+                            project.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
+                            project.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
+                            project.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
+                            "bg-gray-500 hover:bg-gray-600"
+                          }`}
+                        >
+                          <Flag className="h-3 w-3 mr-1" />
+                          {
+                            project.priority === "urgent" ? "🔴 URGENT" :
+                            project.priority === "high" ? "🟠 HIGH" :
+                            project.priority === "medium" ? "🔵 MEDIUM" :
+                            "⚪ LOW"
+                          } PRIORITY
+                          <Edit2 className="h-3 w-3 ml-1" />
+                        </Badge>
+                      }
+                    />
                   </div>
 
                   {/* Project Title */}
                   <div className="w-full">
-                    {editingField === "title" ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="text-2xl font-bold"
-                        />
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <CardTitle 
-                        className="text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
-                        onClick={() => startEditing("title", project.title)}
-                      >
-                        {project.title}
-                        <Edit2 className="h-4 w-4 ml-2 inline opacity-0 group-hover:opacity-100" />
-                      </CardTitle>
-                    )}
+                    <EditableField
+                      type="projects"
+                      id={project.id}
+                      field="title"
+                      value={project.title}
+                      fieldType="text"
+                      displayValue={
+                        <CardTitle className="text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors group">
+                          {project.title}
+                          <Edit2 className="h-4 w-4 ml-2 inline opacity-0 group-hover:opacity-100" />
+                        </CardTitle>
+                      }
+                    />
                   </div>
                   
                   {/* Project Description */}
                   <div className="w-full">
-                    {editingField === "description" ? (
-                      <div>
-                        <Textarea
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder="Add a description for this project..."
-                          rows={3}
-                        />
-                        <div className="flex gap-2 mt-2">
-                          <Button size="sm" onClick={saveEdit}>
-                            <Save className="h-3 w-3 mr-1" />
-                            Save
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={cancelEdit}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <CardDescription 
-                        className="cursor-pointer hover:bg-gray-50 p-2 rounded min-h-[60px] flex items-center"
-                        onClick={() => startEditing("description", project.description)}
-                      >
-                        {project.description || "Click to add a description..."}
-                      </CardDescription>
-                    )}
+                    <EditableField
+                      type="projects"
+                      id={project.id}
+                      field="description"
+                      value={project.description}
+                      fieldType="textarea"
+                      placeholder="Add a description for this project..."
+                      displayValue={
+                        <CardDescription className="cursor-pointer hover:bg-gray-50 p-2 rounded min-h-[60px] flex items-center">
+                          {project.description || "Click to add a description..."}
+                        </CardDescription>
+                      }
+                    />
                   </div>
                 </div>
 
