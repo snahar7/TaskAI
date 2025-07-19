@@ -1269,18 +1269,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const subtask = await storage.createSubtask({
             taskId: itemId,
             title: subItem.title,
-            name: subItem.title,
             description: subItem.description,
             timeEstimate: subItem.estimatedHours ? Math.round(subItem.estimatedHours * 60) : null,
-            estimatedHours: subItem.estimatedHours || null,
-            estimatedDays: subItem.estimatedDays || null,
             startDate: subItem.startDate ? new Date(subItem.startDate) : null,
             deadline: subItem.dueDate ? new Date(subItem.dueDate) : null,
             priority: subItem.urgency || "medium",
-            status: "pending",
+            status: "not_started",
             completed: false,
             approved: true,
-            assignedTo: userId // Automatically assign to authenticated user
+            assignedTo: userId, // Automatically assign to authenticated user
+            createdBy: userId   // Set creator to authenticated user
           });
           createdItems.push(subtask);
         }
