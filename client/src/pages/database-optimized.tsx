@@ -1168,11 +1168,11 @@ function DatabaseContent() {
                   className="font-medium text-sm cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Navigate to parent task with subtask ID to highlight specific subtask
+                    // Navigate to dedicated subtask detail page
                     if (subtask.goalId && subtask.projectId) {
-                      navigate(`/goal/${subtask.goalId}/project/${subtask.projectId}/task/${subtask.taskId}?subtaskId=${subtask.id}`);
+                      navigate(`/goal/${subtask.goalId}/project/${subtask.projectId}/task/${subtask.taskId}/subtask/${subtask.id}`);
                     } else {
-                      navigate(`/task/${subtask.taskId}?subtaskId=${subtask.id}`);
+                      navigate(`/task/${subtask.taskId}/subtask/${subtask.id}`);
                     }
                   }}
                 >

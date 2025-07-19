@@ -799,6 +799,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single subtask with hierarchical context - WITH PROPER ACCESS CONTROL
+  app.get("/api/subtasks/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = getCurrentUserId(req);
+      
+      // CRITICAL: No access without authentication
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const subtask = await storage.getSubtask(id);
+      if (!subtask) {
+        return res.status(404).json({ error: "Subtask not found" });
+      }
+      
+      // Check if user can access this subtask through task hierarchy
+      const hasAccess = await canUserAccess(userId, 'subtask', id);
+      if (!hasAccess) {
+        return res.status(404).json({ error: "Subtask not found or access denied" });
+      }
+      
+      res.json(subtask);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Update subtask completion with comprehensive progress cascading
   app.patch("/api/subtasks/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {

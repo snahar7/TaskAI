@@ -15,6 +15,7 @@ import Dashboard from "@/pages/dashboard";
 import TaskDetail from "@/pages/task-detail";
 import GoalDetail from "@/pages/goal-detail";
 import ProjectDetail from "@/pages/project-detail";
+import SubtaskDetail from "@/pages/subtask-detail";
 import { ProfilePage } from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/goal/:goalId" component={GoalDetail} />
       <Route path="/goal/:goalId/project/:projectId" component={ProjectDetail} />
       <Route path="/goal/:goalId/project/:projectId/task/:taskId" component={TaskDetail} />
+      <Route path="/goal/:goalId/project/:projectId/task/:taskId/subtask/:subtaskId" component={SubtaskDetail} />
       <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
