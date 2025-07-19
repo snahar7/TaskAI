@@ -126,103 +126,63 @@ function GoalDetailContent() {
                 <div className="space-y-4">
                   {/* Priority Badge at top */}
                   <div className="flex justify-start">
-                    {editingField === "priority" ? (
-                      <div className="flex items-center gap-2">
-                        <Select value={editValue} onValueChange={setEditValue}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="urgent">Urgent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge 
-                        className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
-                          goal.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
-                          goal.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
-                          goal.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
-                          "bg-gray-500 hover:bg-gray-600"
-                        }`}
-                        onClick={() => startEditing("priority", goal.priority)}
-                      >
-                        <Flag className="h-3 w-3 mr-1" />
-                        {
-                          goal.priority === "urgent" ? "🔴 URGENT" :
-                          goal.priority === "high" ? "🟠 HIGH" :
-                          goal.priority === "medium" ? "🔵 MEDIUM" :
-                          "⚪ LOW"
-                        } PRIORITY
-                        <Edit2 className="h-3 w-3 ml-1" />
-                      </Badge>
-                    )}
+                    <EditableField
+                      type="goals"
+                      id={Number(goalId)}
+                      field="priority"
+                      value={goal.priority || "medium"}
+                      displayValue={
+                        <Badge 
+                          className={`text-white font-semibold border-0 ${
+                            goal.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
+                            goal.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
+                            goal.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
+                            "bg-gray-500 hover:bg-gray-600"
+                          }`}
+                        >
+                          <Flag className="h-3 w-3 mr-1" />
+                          {
+                            goal.priority === "urgent" ? "🔴 URGENT" :
+                            goal.priority === "high" ? "🟠 HIGH" :
+                            goal.priority === "medium" ? "🔵 MEDIUM" :
+                            "⚪ LOW"
+                          } PRIORITY
+                        </Badge>
+                      }
+                      fieldType="select"
+                      options={["low", "medium", "high", "urgent"]}
+                      placeholder="Select priority"
+                    />
                   </div>
 
                   {/* Goal Title */}
                   <div className="w-full">
-                    {editingField === "title" ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="text-2xl font-bold"
-                        />
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <CardTitle 
-                        className="text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
-                        onClick={() => startEditing("title", goal.title)}
-                      >
-                        {goal.title}
-                        <Edit2 className="h-4 w-4 ml-2 inline opacity-0 group-hover:opacity-100" />
-                      </CardTitle>
-                    )}
+                    <EditableField
+                      type="goals"
+                      id={Number(goalId)}
+                      field="title"
+                      value={goal.title}
+                      displayValue={<CardTitle className="text-2xl font-bold">{goal.title}</CardTitle>}
+                      fieldType="text"
+                      placeholder="Goal title"
+                    />
                   </div>
                   
                   {/* Goal Description */}
                   <div className="w-full">
-                    {editingField === "description" ? (
-                      <div>
-                        <Textarea
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder="Add a description for this goal..."
-                          rows={3}
-                        />
-                        <div className="flex gap-2 mt-2">
-                          <Button size="sm" onClick={saveEdit}>
-                            <Save className="h-3 w-3 mr-1" />
-                            Save
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={cancelEdit}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <CardDescription 
-                        className="cursor-pointer hover:bg-gray-50 p-2 rounded min-h-[60px] flex items-center"
-                        onClick={() => startEditing("description", goal.description)}
-                      >
-                        {goal.description || "Click to add a description..."}
-                      </CardDescription>
-                    )}
+                    <EditableField
+                      type="goals"
+                      id={Number(goalId)}
+                      field="description"
+                      value={goal.description}
+                      displayValue={
+                        <CardDescription className="min-h-[60px] flex items-center">
+                          {goal.description || "Click to add a description..."}
+                        </CardDescription>
+                      }
+                      fieldType="textarea"
+                      placeholder="Add a description for this goal..."
+                    />
                   </div>
                 </div>
 
