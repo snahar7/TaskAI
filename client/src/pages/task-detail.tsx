@@ -101,8 +101,11 @@ function TaskDetailContent() {
     },
     onSuccess: (data) => {
       console.log('Breakdown result:', data);
-      if (data.breakdown && data.breakdown.length > 0) {
-        alert(`AI breakdown completed! Generated ${data.breakdown.length} subtasks. Check console for details.`);
+      if (data.breakdown && data.breakdown.subItems && data.breakdown.subItems.length > 0) {
+        alert(`AI breakdown completed! Generated ${data.breakdown.subItems.length} subtasks. Check console for details.`);
+        // Refresh subtasks list to show the new ones
+        queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}/subtasks`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`] });
       } else {
         alert('AI breakdown completed, but no subtasks were generated.');
       }

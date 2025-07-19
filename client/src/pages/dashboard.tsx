@@ -41,6 +41,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
+import { EditableField } from "@/components/EditableField";
 import { AuthGuard } from "@/components/AuthGuard";
 import { cn, formatRelativeDate, calculateProgress, getPriorityColor, formatDateForInput, getTodayDateString } from "@/lib/utils";
 
@@ -79,8 +80,7 @@ function DashboardContent() {
     enabled: !!taskDetailModal.task?.assignedTo,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+  // Removed old editing state - now using centralized EditableField components
   const [dependencyDialog, setDependencyDialog] = useState({
     isOpen: false,
     taskId: null as number | null,
@@ -273,27 +273,7 @@ function DashboardContent() {
     }
   };
 
-  // Function to handle inline editing
-  const startEditing = (field: string, currentValue: any) => {
-    setEditingField(field);
-    setEditValue(currentValue || "");
-  };
-
-  const saveEdit = () => {
-    if (!editingField || !taskDetailModal.task) return;
-    
-    editTaskMutation.mutate({
-      type: taskDetailModal.isSubtask ? "subtask" : "task",
-      id: taskDetailModal.task.id,
-      field: editingField,
-      value: editValue
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingField(null);
-    setEditValue("");
-  };
+  // Removed old editing functions - now using centralized EditableField components
 
   // Dialog handlers
   const openDependencyDialog = (taskId: number, currentDependencies: number[]) => {
@@ -919,72 +899,48 @@ function DashboardContent() {
                 {/* Task Title and Priority */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    {editingField === "title" ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="text-xl font-semibold"
-                          autoFocus
-                        />
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <DialogTitle 
-                        className="text-xl font-semibold cursor-pointer hover:bg-gray-50 p-2 rounded flex items-center gap-2"
-                        onClick={() => startEditing("title", taskDetailModal.task.title)}
-                      >
-                        <span className="truncate">{taskDetailModal.task.title}</span>
-                        <Edit2 className="h-4 w-4 text-muted-foreground" />
-                      </DialogTitle>
-                    )}
+                    <EditableField
+                      type={taskDetailModal.isSubtask ? "subtasks" : "tasks"}
+                      id={taskDetailModal.task.id}
+                      field="title"
+                      value={taskDetailModal.task.title}
+                      fieldType="text"
+                      displayValue={
+                        <DialogTitle className="text-xl font-semibold cursor-pointer hover:bg-gray-50 p-2 rounded flex items-center gap-2">
+                          <span className="truncate">{taskDetailModal.task.title}</span>
+                          <Edit2 className="h-4 w-4 text-muted-foreground" />
+                        </DialogTitle>
+                      }
+                    />
                     
                     <div className="flex items-center gap-2 mt-2">
-                      {editingField === "priority" ? (
-                        <div className="flex items-center gap-2">
-                          <Select value={editValue} onValueChange={setEditValue}>
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="urgent">🔴 Urgent</SelectItem>
-                              <SelectItem value="high">🟠 High</SelectItem>
-                              <SelectItem value="medium">🔵 Medium</SelectItem>
-                              <SelectItem value="low">⚪ Low</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button size="sm" onClick={saveEdit}>
-                            <Save className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={cancelEdit}>
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Badge 
-                          className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
-                            taskDetailModal.task.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
-                            taskDetailModal.task.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
-                            taskDetailModal.task.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
-                            "bg-gray-500 hover:bg-gray-600"
-                          }`}
-                          onClick={() => startEditing("priority", taskDetailModal.task.priority)}
-                        >
-                          <Flag className="h-3 w-3 mr-1" />
-                          {
-                            taskDetailModal.task.priority === "urgent" ? "🔴 URGENT" :
-                            taskDetailModal.task.priority === "high" ? "🟠 HIGH" :
-                            taskDetailModal.task.priority === "medium" ? "🔵 MEDIUM" :
-                            "⚪ LOW"
-                          } PRIORITY
-                          <Edit2 className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
+                      <EditableField
+                        type={taskDetailModal.isSubtask ? "subtasks" : "tasks"}
+                        id={taskDetailModal.task.id}
+                        field="priority"
+                        value={taskDetailModal.task.priority}
+                        fieldType="select"
+                        options={["low", "medium", "high", "urgent"]}
+                        displayValue={
+                          <Badge 
+                            className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
+                              taskDetailModal.task.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
+                              taskDetailModal.task.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
+                              taskDetailModal.task.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
+                              "bg-gray-500 hover:bg-gray-600"
+                            }`}
+                          >
+                            <Flag className="h-3 w-3 mr-1" />
+                            {
+                              taskDetailModal.task.priority === "urgent" ? "🔴 URGENT" :
+                              taskDetailModal.task.priority === "high" ? "🟠 HIGH" :
+                              taskDetailModal.task.priority === "medium" ? "🔵 MEDIUM" :
+                              "⚪ LOW"
+                            } PRIORITY
+                            <Edit2 className="h-3 w-3 ml-1" />
+                          </Badge>
+                        }
+                      />
                       <Badge variant="outline">
                         {taskDetailModal.isSubtask ? "Subtask" : "Task"}
                       </Badge>
@@ -995,31 +951,11 @@ function DashboardContent() {
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="text-sm font-medium">Assigned to</p>
-                      {editingField === "assignedTo" ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            placeholder="Assign to someone"
-                            className="w-32"
-                          />
-                          <Button size="sm" onClick={saveEdit}>
-                            <Save className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={cancelEdit}>
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <p 
-                          className="text-sm text-muted-foreground cursor-pointer hover:bg-gray-50 p-1 rounded"
-                          onClick={() => startEditing("assignedTo", taskDetailModal.task.assignedTo)}
-                        >
-                          {taskDetailModal.task.assignedTo ? 
-                            (assignedUser ? assignedUser.displayName || `${assignedUser.firstName} ${assignedUser.lastName}` : `User ID: ${taskDetailModal.task.assignedTo}`) 
-                            : "Unassigned"}
-                        </p>
-                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {taskDetailModal.task.assignedTo ? 
+                          (assignedUser ? assignedUser.displayName || `${assignedUser.firstName} ${assignedUser.lastName}` : `User ID: ${taskDetailModal.task.assignedTo}`) 
+                          : "Unassigned"}
+                      </p>
                     </div>
                     {taskDetailModal.task.assignedTo ? (
                       <UserAvatar userId={taskDetailModal.task.assignedTo} size="md" />
@@ -1043,31 +979,21 @@ function DashboardContent() {
                       <Calendar className="h-4 w-4" />
                       Deadline
                     </label>
-                    {editingField === "deadline" ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="date"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                        />
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <p 
-                        className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
-                        onClick={() => startEditing("deadline", formatDateForInput(taskDetailModal.task.deadline))}
-                      >
-                        {taskDetailModal.task.deadline ? 
-                          format(new Date(taskDetailModal.task.deadline), "MMM dd, yyyy") : 
-                          "No deadline set"
-                        }
-                      </p>
-                    )}
+                    <EditableField
+                      type={taskDetailModal.isSubtask ? "subtasks" : "tasks"}
+                      id={taskDetailModal.task.id}
+                      field="deadline"
+                      value={taskDetailModal.task.deadline}
+                      fieldType="date"
+                      displayValue={
+                        <p className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border">
+                          {taskDetailModal.task.deadline ? 
+                            format(new Date(taskDetailModal.task.deadline), "MMM dd, yyyy") : 
+                            "No deadline set"
+                          }
+                        </p>
+                      }
+                    />
                   </div>
 
                   {/* Estimated Hours */}
@@ -1076,29 +1002,18 @@ function DashboardContent() {
                       <Clock className="h-4 w-4" />
                       Estimated Hours
                     </label>
-                    {editingField === "estimatedHours" ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder="Hours"
-                        />
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <p 
-                        className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
-                        onClick={() => startEditing("estimatedHours", taskDetailModal.task.estimatedHours)}
-                      >
-                        {taskDetailModal.task.estimatedHours ? `${taskDetailModal.task.estimatedHours} hours` : "Not estimated"}
-                      </p>
-                    )}
+                    <EditableField
+                      type={taskDetailModal.isSubtask ? "subtasks" : "tasks"}
+                      id={taskDetailModal.task.id}
+                      field="estimatedHours"
+                      value={taskDetailModal.task.estimatedHours}
+                      fieldType="number"
+                      displayValue={
+                        <p className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border">
+                          {taskDetailModal.task.estimatedHours ? `${taskDetailModal.task.estimatedHours} hours` : "Not estimated"}
+                        </p>
+                      }
+                    />
                   </div>
 
                   {/* Status */}
@@ -1107,34 +1022,19 @@ function DashboardContent() {
                       <Target className="h-4 w-4" />
                       Status
                     </label>
-                    {editingField === "status" ? (
-                      <div className="flex items-center gap-2">
-                        <Select value={editValue} onValueChange={setEditValue}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="on_hold">On Hold</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <p 
-                        className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border capitalize"
-                        onClick={() => startEditing("status", taskDetailModal.task.status)}
-                      >
-                        {taskDetailModal.task.status || "Pending"}
-                      </p>
-                    )}
+                    <EditableField
+                      type={taskDetailModal.isSubtask ? "subtasks" : "tasks"}
+                      id={taskDetailModal.task.id}
+                      field="status"
+                      value={taskDetailModal.task.status}
+                      fieldType="select"
+                      options={["pending", "in_progress", "completed", "on_hold"]}
+                      displayValue={
+                        <p className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border capitalize">
+                          {taskDetailModal.task.status || "Pending"}
+                        </p>
+                      }
+                    />
                   </div>
                 </div>
 
@@ -1144,37 +1044,23 @@ function DashboardContent() {
                     <FileText className="h-4 w-4" />
                     Description
                   </label>
-                  {editingField === "description" ? (
-                    <div className="space-y-2">
-                      <Textarea
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        placeholder="Describe this task..."
-                        rows={4}
-                      />
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-4 w-4" />
-                          Save
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-4 w-4" />
-                          Cancel
-                        </Button>
+                  <EditableField
+                    type={taskDetailModal.isSubtask ? "subtasks" : "tasks"}
+                    id={taskDetailModal.task.id}
+                    field="description"
+                    value={taskDetailModal.task.description}
+                    fieldType="textarea"
+                    placeholder="Describe this task..."
+                    displayValue={
+                      <div className="text-sm cursor-pointer hover:bg-gray-50 p-3 rounded border min-h-[80px] flex items-start">
+                        {taskDetailModal.task.description ? (
+                          <p className="whitespace-pre-wrap">{taskDetailModal.task.description}</p>
+                        ) : (
+                          <span className="text-muted-foreground italic">Click to add description...</span>
+                        )}
                       </div>
-                    </div>
-                  ) : (
-                    <div 
-                      className="text-sm cursor-pointer hover:bg-gray-50 p-3 rounded border min-h-[80px] flex items-start"
-                      onClick={() => startEditing("description", taskDetailModal.task.description)}
-                    >
-                      {taskDetailModal.task.description ? (
-                        <p className="whitespace-pre-wrap">{taskDetailModal.task.description}</p>
-                      ) : (
-                        <span className="text-muted-foreground italic">Click to add description...</span>
-                      )}
-                    </div>
-                  )}
+                    }
+                  />
                 </div>
 
                 {/* Dependencies */}
