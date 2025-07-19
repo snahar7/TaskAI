@@ -8,7 +8,9 @@ export const userAtom = atom(null);
 export const goalsAtom = atomWithQuery((get) => ({
   queryKey: ['/api/goals'],
   queryFn: async () => {
-    const response = await fetch('/api/goals');
+    const response = await fetch('/api/goals', {
+      credentials: 'include' // Include session cookies
+    });
     if (!response.ok) throw new Error('Failed to fetch goals');
     return response.json();
   },
@@ -18,7 +20,9 @@ export const goalsAtom = atomWithQuery((get) => ({
 export const projectsAtom = atomWithQuery((get) => ({
   queryKey: ['/api/projects'],
   queryFn: async () => {
-    const response = await fetch('/api/projects');
+    const response = await fetch('/api/projects', {
+      credentials: 'include'
+    });
     if (!response.ok) throw new Error('Failed to fetch projects');
     return response.json();
   },
@@ -28,7 +32,9 @@ export const projectsAtom = atomWithQuery((get) => ({
 export const tasksAtom = atomWithQuery((get) => ({
   queryKey: ['/api/tasks'],
   queryFn: async () => {
-    const response = await fetch('/api/tasks');
+    const response = await fetch('/api/tasks', {
+      credentials: 'include'
+    });
     if (!response.ok) throw new Error('Failed to fetch tasks');
     return response.json();
   },

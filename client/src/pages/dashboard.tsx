@@ -44,6 +44,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
 import { cn, formatRelativeDate, calculateProgress, getPriorityColor, formatDateForInput, getTodayDateString } from "@/lib/utils";
 import { ReactiveDashboardStats, ReactiveTodayTasks } from "@/components/ReactiveDashboardStats";
+import { AdvancedReactiveDemo } from "@/components/AdvancedReactiveDemo";
 
 interface DashboardStats {
   todayTasks: any[];
@@ -406,9 +407,10 @@ function DashboardContent() {
       </div>
 
       <Tabs defaultValue="action" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-3 h-auto">
+        <TabsList className="grid w-full grid-cols-4 h-auto">
           <TabsTrigger value="action" className="text-xs sm:text-sm py-2 sm:py-3">Action Center</TabsTrigger>
-          <TabsTrigger value="reactive" className="text-xs sm:text-sm py-2 sm:py-3">🚀 Reactive Demo</TabsTrigger>
+          <TabsTrigger value="reactive" className="text-xs sm:text-sm py-2 sm:py-3">🚀 Phase 1</TabsTrigger>
+          <TabsTrigger value="advanced" className="text-xs sm:text-sm py-2 sm:py-3">⚡ Phase 2+3</TabsTrigger>
           <TabsTrigger value="goals" className="text-xs sm:text-sm py-2 sm:py-3">Goal Overview</TabsTrigger>
         </TabsList>
 
@@ -474,6 +476,30 @@ function DashboardContent() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        {/* Advanced Reactive Demo - Phases 2 & 3 */}
+        <TabsContent value="advanced" className="space-y-4 sm:space-y-6">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Advanced Architecture Demo</h2>
+                <p className="text-muted-foreground">
+                  Event sourcing + Schema-driven generation = World-class system
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  Phase 2: Events
+                </Badge>
+                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                  Phase 3: Schema
+                </Badge>
+              </div>
+            </div>
+
+            <AdvancedReactiveDemo />
           </div>
         </TabsContent>
 
