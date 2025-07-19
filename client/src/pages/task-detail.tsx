@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { 
   ArrowLeft,
   Calendar,
@@ -17,7 +18,9 @@ import {
   Home,
   Target,
   Briefcase,
-  Edit2
+  Edit2,
+  Zap,
+  Check
 } from "lucide-react";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -25,6 +28,7 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { EditableField } from "@/components/EditableField";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 function TaskDetailContent() {
   const { goalId, projectId, taskId } = useParams();
@@ -93,6 +97,12 @@ function TaskDetailContent() {
     },
   });
 
+  // State for breakdown dialog
+  const [breakdownDialog, setBreakdownDialog] = useState<{
+    isOpen: boolean;
+    breakdown: any;
+  }>({ isOpen: false, breakdown: null });
+
   // Breakdown mutation 
   const breakdownMutation = useMutation({
     mutationFn: async () => {
@@ -102,10 +112,8 @@ function TaskDetailContent() {
     onSuccess: (data) => {
       console.log('Breakdown result:', data);
       if (data.breakdown && data.breakdown.subItems && data.breakdown.subItems.length > 0) {
-        alert(`AI breakdown completed! Generated ${data.breakdown.subItems.length} subtasks. Check console for details.`);
-        // Refresh subtasks list to show the new ones
-        queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}/subtasks`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`] });
+        // Open breakdown dialog instead of showing alert
+        setBreakdownDialog({ isOpen: true, breakdown: data.breakdown.subItems });
       } else {
         alert('AI breakdown completed, but no subtasks were generated.');
       }
@@ -113,6 +121,28 @@ function TaskDetailContent() {
     onError: (error) => {
       console.error('Breakdown failed:', error);
       alert('Failed to break down task. Please try again.');
+    },
+  });
+
+  // Apply breakdown mutation
+  const applyBreakdownMutation = useMutation({
+    mutationFn: async ({ breakdown }: { breakdown: any }) => {
+      const endpoint = `/api/tasks/${taskId}/apply-breakdown`;
+      const response = await apiRequest("POST", endpoint, { subItems: breakdown });
+      return await response.json();
+    },
+    onSuccess: () => {
+      console.log('✅ Subtasks created successfully!');
+      // Refresh subtasks list to show the new ones
+      queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}/subtasks`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`] });
+      // Close dialog
+      setBreakdownDialog({ isOpen: false, breakdown: null });
+      alert('Subtasks created successfully!');
+    },
+    onError: (error) => {
+      console.error('Apply breakdown error:', error);
+      alert('Failed to create subtasks. Please try again.');
     },
   });
 
@@ -499,6 +529,74 @@ function TaskDetailContent() {
           </div>
         </div>
       </div>
+
+      {/* AI Breakdown Dialog */}
+      <Dialog open={breakdownDialog.isOpen} onOpenChange={(open) => setBreakdownDialog({ isOpen: open, breakdown: null })}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>AI-Generated Task Breakdown</DialogTitle>
+            <DialogDescription>
+              Review the suggested subtasks and click "Apply" to create them.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {breakdownDialog.breakdown && (
+            <div className="space-y-4">
+              {breakdownDialog.breakdown.map((item: any, index: number) => (
+                <Card key={index}>
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-semibold">{item.title}</h4>
+                        <Badge className={
+                          item.urgency === "High" ? "bg-red-500" :
+                          item.urgency === "Medium" ? "bg-yellow-500" :
+                          "bg-blue-500"
+                        }>
+                          {item.urgency}
+                        </Badge>
+                      </div>
+                      {item.description && (
+                        <p className="text-sm text-gray-600">{item.description}</p>
+                      )}
+                      <div className="flex gap-4 text-xs text-gray-500">
+                        {item.estimatedHours && <span>⏱️ {item.estimatedHours}h</span>}
+                        {item.dueDate && <span>📅 {format(new Date(item.dueDate), "MMM dd")}</span>}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setBreakdownDialog({ isOpen: false, breakdown: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => applyBreakdownMutation.mutate({ breakdown: breakdownDialog.breakdown })}
+              disabled={applyBreakdownMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {applyBreakdownMutation.isPending ? (
+                <>
+                  <Zap className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Apply & Create Subtasks
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
