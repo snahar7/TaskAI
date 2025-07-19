@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navigation } from "@/components/navigation";
 import { AuthProvider } from "@/hooks/useAuth";
 import { NativeAuthProvider } from "@/hooks/useNativeAuth";
+import { ReactiveStateProvider } from "@/store/provider";
 import { useEffect } from "react";
 
 import Home from "@/pages/home-simple";
@@ -55,17 +56,19 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <NativeAuthProvider>
-          <TooltipProvider>
-            <div className="min-h-screen bg-slate-50 pb-16 md:pb-0">
-              <Navigation />
-              <Router />
-            </div>
-            <Toaster />
-          </TooltipProvider>
-        </NativeAuthProvider>
-      </AuthProvider>
+      <ReactiveStateProvider>
+        <AuthProvider>
+          <NativeAuthProvider>
+            <TooltipProvider>
+              <div className="min-h-screen bg-slate-50 pb-16 md:pb-0">
+                <Navigation />
+                <Router />
+              </div>
+              <Toaster />
+            </TooltipProvider>
+          </NativeAuthProvider>
+        </AuthProvider>
+      </ReactiveStateProvider>
     </QueryClientProvider>
   );
 }
