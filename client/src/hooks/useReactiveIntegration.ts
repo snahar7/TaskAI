@@ -1,7 +1,8 @@
 // Integration layer: Makes reactive state work with existing React Query components
 import { useAtomValue } from 'jotai';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { goalsAtom, projectsAtom, tasksAtom, todayTasksAtom, overdueTasksAtom, dashboardStatsAtom } from '@/store/atoms';
+import { reactiveSyncService } from '@/services/reactiveSync';
 
 // Hook to seamlessly integrate reactive state with existing dashboard
 export function useReactiveGoalsWithFallback() {
@@ -99,4 +100,60 @@ export function useReactiveDatabaseStats() {
     completedTasks: tasks.data?.filter(task => task.completed).length || 0,
     isLoading: goals.isLoading || projects.isLoading || tasks.isLoading
   };
+}
+
+// Enhanced mutations that integrate with reactive system
+export function useReactiveTaskMutation() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ taskId, updates }: { taskId: number; updates: any }) => {
+      return await reactiveSyncService.updateTaskWithReactiveSync(taskId, updates);
+    },
+    onSuccess: () => {
+      // Also invalidate React Query cache for compatibility
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    }
+  });
+}
+
+export function useReactiveProjectMutation() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ projectId, updates }: { projectId: number; updates: any }) => {
+      return await reactiveSyncService.updateProjectWithReactiveSync(projectId, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+    }
+  });
+}
+
+export function useReactiveGoalMutation() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ goalId, updates }: { goalId: number; updates: any }) => {
+      return await reactiveSyncService.updateGoalWithReactiveSync(goalId, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+    }
+  });
+}
+
+export function useReactiveBreakdownApproval() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ pendingId, approved, editedBreakdown }: { pendingId: number; approved: boolean; editedBreakdown?: any }) => {
+      return await reactiveSyncService.approveBreakdownWithReactiveSync(pendingId, approved, editedBreakdown);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    }
+  });
 }

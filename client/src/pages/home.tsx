@@ -78,11 +78,16 @@ export default function Home() {
       const response = await apiRequest('POST', '/api/goals/approve', data);
       return response.json();
     },
-    onSuccess: (data: GoalWithProjects) => {
+    onSuccess: async (data: GoalWithProjects) => {
       setPendingBreakdown(null);
       setSelectedGoalId(data.id);
       setCurrentStep('display');
       queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+      
+      // CRITICAL FIX: Trigger reactive sync after AI approval
+      const { reactiveSyncService } = await import('@/services/reactiveSync');
+      await reactiveSyncService.syncAll();
+      
       toast({
         title: "Goal Created!",
         description: "Your goal has been created with all projects, tasks, and subtasks.",

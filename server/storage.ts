@@ -1088,23 +1088,99 @@ export class DatabaseStorage implements IStorage {
   }
   // Update methods for DatabaseStorage
   async updateGoal(id: number, updates: Partial<Goal>): Promise<Goal | undefined> {
-    const [updated] = await db.update(goals).set(updates).where(eq(goals.id, id)).returning();
-    return updated || undefined;
+    try {
+      console.log('Updating goal', id, 'with updates:', updates);
+      
+      // Sanitize updates to only include valid fields
+      const validUpdates: any = {};
+      const allowedFields = ['title', 'description', 'shareLevel', 'teamId', 'assignedTo', 'status', 'priority', 'percentComplete', 'deadline', 'timeEstimate', 'timeActual', 'estimatedDays'];
+      
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key) && value !== undefined) {
+          validUpdates[key] = value;
+        }
+      }
+      
+      console.log('Sanitized updates:', validUpdates);
+      
+      const [updated] = await db.update(goals).set(validUpdates).where(eq(goals.id, id)).returning();
+      return updated || undefined;
+    } catch (error) {
+      console.error('Error in updateGoal:', error);
+      throw error;
+    }
   }
 
   async updateProject(id: number, updates: Partial<Project>): Promise<Project | undefined> {
-    const [updated] = await db.update(projects).set(updates).where(eq(projects.id, id)).returning();
-    return updated || undefined;
+    try {
+      console.log('Updating project', id, 'with updates:', updates);
+      
+      // Sanitize updates to only include valid fields
+      const validUpdates: any = {};
+      const allowedFields = ['title', 'description', 'shareLevel', 'assignedTo', 'status', 'priority', 'percentComplete', 'deadline', 'timeEstimate', 'timeActual', 'estimatedDays', 'urgency'];
+      
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key) && value !== undefined) {
+          validUpdates[key] = value;
+        }
+      }
+      
+      console.log('Sanitized updates:', validUpdates);
+      
+      const [updated] = await db.update(projects).set(validUpdates).where(eq(projects.id, id)).returning();
+      return updated || undefined;
+    } catch (error) {
+      console.error('Error in updateProject:', error);
+      throw error;
+    }
   }
 
   async updateTask(id: number, updates: Partial<Task>): Promise<Task | undefined> {
-    const [updated] = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
-    return updated || undefined;
+    try {
+      console.log('Updating task', id, 'with updates:', updates);
+      
+      // Sanitize updates to only include valid fields
+      const validUpdates: any = {};
+      const allowedFields = ['title', 'description', 'shareLevel', 'assignedTo', 'status', 'priority', 'percentComplete', 'deadline', 'timeEstimate', 'timeActual', 'estimatedDays', 'dependencies', 'completed'];
+      
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key) && value !== undefined) {
+          validUpdates[key] = value;
+        }
+      }
+      
+      console.log('Sanitized updates:', validUpdates);
+      
+      const [updated] = await db.update(tasks).set(validUpdates).where(eq(tasks.id, id)).returning();
+      return updated || undefined;
+    } catch (error) {
+      console.error('Error in updateTask:', error);
+      throw error;
+    }
   }
 
   async updateSubtask(id: number, updates: Partial<Subtask>): Promise<Subtask | undefined> {
-    const [updated] = await db.update(subtasks).set(updates).where(eq(subtasks.id, id)).returning();
-    return updated || undefined;
+    try {
+      console.log('Updating subtask', id, 'with updates:', updates);
+      
+      // Sanitize updates to only include valid fields
+      const validUpdates: any = {};
+      const allowedFields = ['title', 'description', 'shareLevel', 'assignedTo', 'status', 'priority', 'percentComplete', 'deadline', 'timeEstimate', 'timeActual', 'estimatedDays', 'completed'];
+      
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key) && value !== undefined) {
+          validUpdates[key] = value;
+        }
+      }
+      
+      console.log('Sanitized updates:', validUpdates);
+      
+      const [updated] = await db.update(subtasks).set(validUpdates).where(eq(subtasks.id, id)).returning();
+      return updated || undefined;
+    } catch (error) {
+      console.error('Error in updateSubtask:', error);
+      throw error;
+    }
   }
 
   async getAllTasks(): Promise<Task[]> {
