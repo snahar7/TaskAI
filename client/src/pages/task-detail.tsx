@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,17 +16,22 @@ import {
   ChevronRight,
   Home,
   Target,
-  Briefcase
+  Briefcase,
+  Edit2
 } from "lucide-react";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
 import { EditableField } from "@/components/EditableField";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 function TaskDetailContent() {
   const { goalId, projectId, taskId } = useParams();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch task details with hierarchical context
   const { data: task, isLoading } = useQuery({
@@ -226,103 +231,67 @@ function TaskDetailContent() {
                 <div className="space-y-4">
                   {/* Priority Badge at top */}
                   <div className="flex justify-start">
-                    {editingField === "priority" ? (
-                      <div className="flex items-center gap-2">
-                        <Select value={editValue} onValueChange={setEditValue}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="urgent">Urgent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge 
-                        className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
-                          task.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
-                          task.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
-                          task.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
-                          "bg-gray-500 hover:bg-gray-600"
-                        }`}
-                        onClick={() => startEditing("priority", task.priority)}
-                      >
-                        <Flag className="h-3 w-3 mr-1" />
-                        {
-                          task.priority === "urgent" ? "🔴 URGENT" :
-                          task.priority === "high" ? "🟠 HIGH" :
-                          task.priority === "medium" ? "🔵 MEDIUM" :
-                          "⚪ LOW"
-                        } PRIORITY
-                        <Edit2 className="h-3 w-3 ml-1" />
-                      </Badge>
-                    )}
+                    <EditableField
+                      type="tasks"
+                      id={task.id}
+                      field="priority"
+                      value={task.priority}
+                      fieldType="select"
+                      options={["low", "medium", "high", "urgent"]}
+                      displayValue={
+                        <Badge 
+                          className={`cursor-pointer hover:opacity-80 transition-opacity text-white font-semibold border-0 ${
+                            task.priority === "urgent" ? "bg-red-500 hover:bg-red-600" :
+                            task.priority === "high" ? "bg-orange-500 hover:bg-orange-600" :
+                            task.priority === "medium" ? "bg-blue-500 hover:bg-blue-600" :
+                            "bg-gray-500 hover:bg-gray-600"
+                          }`}
+                        >
+                          <Flag className="h-3 w-3 mr-1" />
+                          {
+                            task.priority === "urgent" ? "🔴 URGENT" :
+                            task.priority === "high" ? "🟠 HIGH" :
+                            task.priority === "medium" ? "🔵 MEDIUM" :
+                            "⚪ LOW"
+                          } PRIORITY
+                          <Edit2 className="h-3 w-3 ml-1" />
+                        </Badge>
+                      }
+                    />
                   </div>
 
                   {/* Task Title */}
                   <div className="w-full">
-                    {editingField === "title" ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="text-2xl font-bold"
-                        />
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <CardTitle 
-                        className="text-xl sm:text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
-                        onClick={() => startEditing("title", task.title)}
-                      >
-                        {task.title}
-                        <Edit2 className="h-4 w-4 ml-2 inline opacity-0 group-hover:opacity-100" />
-                      </CardTitle>
-                    )}
+                    <EditableField
+                      type="tasks"
+                      id={task.id}
+                      field="title"
+                      value={task.title}
+                      fieldType="text"
+                      displayValue={
+                        <CardTitle className="text-xl sm:text-2xl font-bold cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors group">
+                          {task.title}
+                          <Edit2 className="h-4 w-4 ml-2 inline opacity-0 group-hover:opacity-100" />
+                        </CardTitle>
+                      }
+                    />
                   </div>
                   
                   {/* Task Description */}
                   <div className="w-full">
-                    {editingField === "description" ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder="Add a description for this task..."
-                          rows={3}
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={saveEdit}>
-                            <Save className="h-3 w-3 mr-1" />
-                            Save
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={cancelEdit}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <CardDescription 
-                        className="cursor-pointer hover:bg-gray-50 p-2 rounded min-h-[60px] flex items-center w-full"
-                        onClick={() => startEditing("description", task.description)}
-                      >
-                        {task.description || "Click to add a description..."}
-                      </CardDescription>
-                    )}
+                    <EditableField
+                      type="tasks"
+                      id={task.id}
+                      field="description"
+                      value={task.description}
+                      fieldType="textarea"
+                      placeholder="Add a description for this task..."
+                      displayValue={
+                        <CardDescription className="cursor-pointer hover:bg-gray-50 p-2 rounded min-h-[60px] flex items-center w-full">
+                          {task.description || "Click to add a description..."}
+                        </CardDescription>
+                      }
+                    />
                   </div>
                 </div>
 
