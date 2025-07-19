@@ -100,6 +100,11 @@ function DatabaseContent() {
     // For date fields, use timezone-safe conversion to prevent "one day ahead" issue
     let editValue = currentValue;
     if (field === 'deadline' && currentValue) {
+      console.log(`🐛 DEBUG startEditing deadline:`, {
+        currentValue,
+        type: typeof currentValue,
+        formatDateForInputResult: formatDateForInput(currentValue)
+      });
       editValue = formatDateForInput(currentValue);
     }
     
