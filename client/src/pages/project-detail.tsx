@@ -7,10 +7,10 @@ import { DetailPageTemplate } from "@/components/DetailPageTemplate";
 function ProjectDetailContent() {
   const { goalId, projectId } = useParams();
 
-  // Fetch project details
+  // Fetch project details - use hierarchical endpoint if goalId is available
   const { data: project, isLoading } = useQuery({
-    queryKey: [`/api/goals/${goalId}/projects/${projectId}`],
-    enabled: !!goalId && !!projectId,
+    queryKey: goalId ? [`/api/goals/${goalId}/projects/${projectId}`] : [`/api/projects/${projectId}`],
+    enabled: !!projectId,
   });
 
   // Fetch tasks for this project
@@ -19,7 +19,7 @@ function ProjectDetailContent() {
     enabled: !!projectId,
   });
 
-  // Fetch goal details for breadcrumb
+  // Fetch goal details for breadcrumb if goalId is available
   const { data: goal } = useQuery({
     queryKey: [`/api/goals/${goalId}`],
     enabled: !!goalId,
@@ -41,11 +41,11 @@ function ProjectDetailContent() {
       path: '/dashboard',
       icon: Home,
     },
-    {
-      label: goal?.title || 'Goal',
+    ...(goal && goalId ? [{
+      label: goal.title,
       path: `/goal/${goalId}`,
       icon: Target,
-    }
+    }] : [])
   ];
 
   return (

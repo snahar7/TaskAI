@@ -153,28 +153,41 @@ export function DetailPageTemplate({
   };
 
   const getBackPath = () => {
-    if (config.parentType && parentIds.goalId) {
-      if (config.parentType === 'projects' && parentIds.projectId) {
-        return `/goal/${parentIds.goalId}/project/${parentIds.projectId}`;
-      } else if (config.parentType === 'tasks' && parentIds.projectId && parentIds.taskId) {
-        return `/goal/${parentIds.goalId}/project/${parentIds.projectId}/task/${parentIds.taskId}`;
-      } else if (config.parentType === 'goals') {
-        return `/goal/${parentIds.goalId}`;
-      }
+    const goalId = parentIds.goalId;
+    const projectId = parentIds.projectId;
+    const taskId = parentIds.taskId;
+    
+    // Only use hierarchical navigation if we have valid parent IDs
+    if (config.parentType === 'tasks' && goalId && projectId && taskId) {
+      return `/goal/${goalId}/project/${projectId}/task/${taskId}`;
+    } else if (config.parentType === 'projects' && goalId && projectId) {
+      return `/goal/${goalId}/project/${projectId}`;
+    } else if (config.parentType === 'goals' && goalId) {
+      return `/goal/${goalId}`;
     }
+    
     return "/dashboard";
   };
 
   const getChildPath = (childId: number) => {
-    const baseUrl = `/goal/${parentIds.goalId || data?.goalId}`;
+    const goalId = parentIds.goalId || data?.goalId;
+    const projectId = parentIds.projectId || data?.projectId;
+    const taskId = parentIds.taskId || data?.taskId;
     
-    if (config.childType === 'projects') {
-      return `${baseUrl}/project/${childId}`;
-    } else if (config.childType === 'tasks') {
-      return `${baseUrl}/project/${parentIds.projectId || data?.projectId}/task/${childId}`;
-    } else if (config.childType === 'subtasks') {
-      return `${baseUrl}/project/${parentIds.projectId || data?.projectId}/task/${parentIds.taskId || data?.taskId}/subtask/${childId}`;
+    // Only generate URLs if we have all required parent IDs
+    if (config.childType === 'projects' && goalId) {
+      return `/goal/${goalId}/project/${childId}`;
+    } else if (config.childType === 'tasks' && goalId && projectId) {
+      return `/goal/${goalId}/project/${projectId}/task/${childId}`;
+    } else if (config.childType === 'subtasks' && goalId && projectId && taskId) {
+      return `/goal/${goalId}/project/${projectId}/task/${taskId}/subtask/${childId}`;
     }
+    
+    // Fallback to simple paths if hierarchy is incomplete
+    if (config.childType === 'projects') return `/project/${childId}`;
+    if (config.childType === 'tasks') return `/task/${childId}`;
+    if (config.childType === 'subtasks') return `/subtask/${childId}`;
+    
     return "#";
   };
 

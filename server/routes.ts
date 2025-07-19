@@ -556,6 +556,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get individual project by ID
+  app.get("/api/projects/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Get related goal information if available
+      let enrichedProject = { ...project };
+      
+      if (project.goalId) {
+        const goal = await storage.getGoal(project.goalId);
+        if (goal) {
+          enrichedProject.goal = goal;
+        }
+      }
+      
+      res.json(enrichedProject);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Hierarchical endpoints for proper navigation context
   
   // Get goal by ID with full hierarchy context

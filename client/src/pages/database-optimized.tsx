@@ -813,7 +813,11 @@ function DatabaseContent() {
                     className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/goal/${project.goalId}/project/${project.id}`);
+                      if (project.goalId) {
+                        navigate(`/goal/${project.goalId}/project/${project.id}`);
+                      } else {
+                        navigate(`/project/${project.id}`);
+                      }
                     }}
                   >
                     {project.title}
@@ -1169,10 +1173,12 @@ function DatabaseContent() {
                   onClick={(e) => {
                     e.stopPropagation();
                     // Navigate to dedicated subtask detail page
-                    if (subtask.goalId && subtask.projectId) {
+                    if (subtask.goalId && subtask.projectId && subtask.taskId) {
                       navigate(`/goal/${subtask.goalId}/project/${subtask.projectId}/task/${subtask.taskId}/subtask/${subtask.id}`);
-                    } else {
+                    } else if (subtask.taskId) {
                       navigate(`/task/${subtask.taskId}/subtask/${subtask.id}`);
+                    } else {
+                      navigate(`/subtask/${subtask.id}`);
                     }
                   }}
                 >
