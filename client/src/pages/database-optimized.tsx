@@ -96,10 +96,17 @@ function DatabaseContent() {
   // Helper functions for editing
   const startEditing = (type: string, id: number, field: string, currentValue: any) => {
     const key = `${type}-${id}-${field}`;
+    
+    // For date fields, use timezone-safe conversion to prevent "one day ahead" issue
+    let editValue = currentValue;
+    if (field === 'deadline' && currentValue) {
+      editValue = formatDateForInput(currentValue);
+    }
+    
     setEditingItems(prev => ({
       ...prev,
       [key]: {
-        value: currentValue,
+        value: editValue,
         originalValue: currentValue
       }
     }));
