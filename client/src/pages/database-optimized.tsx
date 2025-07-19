@@ -875,7 +875,7 @@ function DatabaseContent() {
                     id={project.id}
                     field="deadline"
                     value={project.deadline}
-                    displayValue={project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}
+                    displayValue={project.deadline ? format(new Date(project.deadline.split('T')[0] + 'T12:00:00'), "MMM dd") : "No deadline"}
                     fieldType="date"
                     placeholder="Set deadline"
                   />
@@ -1075,7 +1075,7 @@ function DatabaseContent() {
                     id={task.id}
                     field="deadline"
                     value={task.deadline}
-                    displayValue={task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}
+                    displayValue={task.deadline ? format(new Date(task.deadline.split('T')[0] + 'T12:00:00'), "MMM dd") : "No deadline"}
                     fieldType="date"
                     placeholder="Set deadline"
                   />
@@ -1237,7 +1237,7 @@ function DatabaseContent() {
                   id={subtask.id}
                   field="deadline"
                   value={subtask.deadline}
-                  displayValue={subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}
+                  displayValue={subtask.deadline ? format(new Date(subtask.deadline.split('T')[0] + 'T12:00:00'), "MMM dd") : "No deadline"}
                   fieldType="date"
                   placeholder="Set deadline"
                 />
@@ -1436,7 +1436,7 @@ function DatabaseContent() {
                             id={goal.id}
                             field="deadline"
                             value={goal.deadline}
-                            displayValue={goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}
+                            displayValue={goal.deadline ? format(new Date(goal.deadline.split('T')[0] + 'T12:00:00'), "MMM dd") : "No deadline"}
                             fieldType="date"
                             placeholder="Set deadline"
                           />
