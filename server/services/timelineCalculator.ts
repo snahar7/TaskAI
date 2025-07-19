@@ -322,15 +322,24 @@ class TimelineCalculator {
       }
       
     } else if (type === "goals") {
+      const goal = await storage.getGoal(id);
+      if (!goal) return;
+
       if (field === "estimatedDays") {
-        const deadlineStr = this.calculateDeadlineFromEstimatedDays(Number(value));
-        const newDeadline = new Date(deadlineStr + 'T00:00:00.000Z');
-        await storage.updateGoal(id, { deadline: newDeadline });
+        // Don't overwrite manually set deadlines
+        if (!goal.deadline) {
+          const deadlineStr = this.calculateDeadlineFromEstimatedDays(Number(value));
+          const newDeadline = new Date(deadlineStr + 'T00:00:00.000Z');
+          await storage.updateGoal(id, { deadline: newDeadline });
+        }
         
       } else if (field === "deadline") {
-        const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(value);
-        console.log(`User set goal deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
-        await storage.updateGoal(id, { estimatedDays: newEstimatedDays });
+        // Don't overwrite manually set estimated days
+        if (!goal.estimatedDays) {
+          const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(value);
+          console.log(`User set goal deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
+          await storage.updateGoal(id, { estimatedDays: newEstimatedDays });
+        }
         // Don't cascade when user explicitly sets deadline
       }
     }

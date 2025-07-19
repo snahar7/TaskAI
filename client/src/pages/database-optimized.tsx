@@ -869,7 +869,7 @@ function DatabaseContent() {
                     type="projects"
                     id={project.id}
                     field="deadline"
-                    value={project.deadline ? project.deadline.split('T')[0] : ""}
+                    value={project.deadline}
                     displayValue={project.deadline ? format(new Date(project.deadline), "MMM dd") : "No deadline"}
                     fieldType="date"
                     placeholder="Set deadline"
@@ -1069,7 +1069,7 @@ function DatabaseContent() {
                     type="tasks"
                     id={task.id}
                     field="deadline"
-                    value={task.deadline ? task.deadline.split('T')[0] : ""}
+                    value={task.deadline}
                     displayValue={task.deadline ? format(new Date(task.deadline), "MMM dd") : "No deadline"}
                     fieldType="date"
                     placeholder="Set deadline"
@@ -1231,7 +1231,7 @@ function DatabaseContent() {
                   type="subtasks"
                   id={subtask.id}
                   field="deadline"
-                  value={subtask.deadline ? subtask.deadline.split('T')[0] : ""}
+                  value={subtask.deadline}
                   displayValue={subtask.deadline ? format(new Date(subtask.deadline), "MMM dd") : "No deadline"}
                   fieldType="date"
                   placeholder="Set deadline"
@@ -1430,7 +1430,7 @@ function DatabaseContent() {
                             type="goals"
                             id={goal.id}
                             field="deadline"
-                            value={goal.deadline ? goal.deadline.split('T')[0] : ""}
+                            value={goal.deadline}
                             displayValue={goal.deadline ? format(new Date(goal.deadline), "MMM dd") : "No deadline"}
                             fieldType="date"
                             placeholder="Set deadline"
