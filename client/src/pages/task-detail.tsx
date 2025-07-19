@@ -34,6 +34,10 @@ function TaskDetailContent() {
   const { goalId, projectId, taskId } = useParams();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  
+  // Get subtaskId from URL query parameters to highlight specific subtask
+  const urlParams = new URLSearchParams(window.location.search);
+  const highlightSubtaskId = urlParams.get('subtaskId') ? parseInt(urlParams.get('subtaskId')!) : null;
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -429,7 +433,11 @@ function TaskDetailContent() {
                     subtasks.map((subtask: any) => (
                       <div 
                         key={subtask.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                        className={`flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors ${
+                          highlightSubtaskId === subtask.id 
+                            ? 'border-blue-500 bg-blue-50 shadow-md' 
+                            : ''
+                        }`}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <Button
