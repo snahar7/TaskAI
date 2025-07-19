@@ -1,5 +1,6 @@
 // Phase 2: Event Sourcing System
 import { atom } from 'jotai';
+import { tasksAtom } from './atoms';
 
 // Event types for full audit trail
 export type TaskEvent = 
@@ -60,7 +61,6 @@ function applyEventToState(get: any, set: any, event: TaskEvent) {
   switch (event.type) {
     case 'TASK_COMPLETED':
       // Update tasks atom optimistically
-      const { tasksAtom } = require('./atoms');
       const currentTasks = get(tasksAtom);
       if (currentTasks.data) {
         const updatedTasks = currentTasks.data.map((task: any) => 
@@ -73,7 +73,16 @@ function applyEventToState(get: any, set: any, event: TaskEvent) {
       break;
       
     case 'DEADLINE_CHANGED':
-      // Similar logic for deadline changes
+      // Update deadline in tasks atom
+      const currentTasksForDeadline = get(tasksAtom);
+      if (currentTasksForDeadline.data) {
+        const updatedTasksForDeadline = currentTasksForDeadline.data.map((task: any) => 
+          task.id === event.payload.taskId 
+            ? { ...task, deadline: event.payload.newDeadline }
+            : task
+        );
+        set(tasksAtom, { ...currentTasksForDeadline, data: updatedTasksForDeadline });
+      }
       break;
       
     // Add more event handlers as needed

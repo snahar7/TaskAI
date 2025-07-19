@@ -54,9 +54,16 @@ const { data, isLoading } = useReactiveTasks();
 
 ## Testing the System
 
-1. Go to Dashboard → "🚀 Reactive Demo" tab
-2. See auto-updating statistics
-3. Try completing tasks - watch instant updates across all components
-4. Compare with old Action Center tab behavior
+1. Go to Dashboard → "🚀 Phase 1" tab - See basic reactive system with your live data
+2. Go to Dashboard → "⚡ Phase 2+3" tab - See advanced event sourcing and schema generation
+3. Try clicking "Complete Task (Demo Event)" - watch events being published in real-time
+4. See auto-updating statistics and event analytics
+5. Compare with old Action Center tab behavior
 
 The reactive system preserves all existing functionality while adding next-generation capabilities.
+
+## Recent Fixes
+
+- Fixed `require()` error in browser environment by using proper ES6 imports
+- Event sourcing system now working with proper module imports
+- All phases (1, 2, 3) now functional and demonstrable
