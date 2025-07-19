@@ -1,24 +1,16 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ArrowLeft,
   Calendar,
   Clock,
   Flag,
   User,
-  Edit2,
-  Save,
-  X,
   CheckCircle2,
   Circle,
   ChevronRight,
@@ -26,18 +18,15 @@ import {
   Target,
   Briefcase
 } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AuthGuard } from "@/components/AuthGuard";
-import { formatDateForInput, createLocalDateString } from "@/lib/utils";
+import { EditableField } from "@/components/EditableField";
 
 function TaskDetailContent() {
   const { goalId, projectId, taskId } = useParams();
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
 
   // Fetch task details with hierarchical context
   const { data: task, isLoading } = useQuery({
@@ -64,20 +53,6 @@ function TaskDetailContent() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Task update mutation
-  const updateTaskMutation = useMutation({
-    mutationFn: async (updates: any) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/edit`, updates);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      setEditingField(null);
-      setEditValue("");
-    },
-  });
-
   // Subtask completion mutation
   const toggleSubtaskMutation = useMutation({
     mutationFn: async ({ subtaskId, completed }: { subtaskId: number; completed: boolean }) => {
@@ -90,33 +65,6 @@ function TaskDetailContent() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
   });
-
-  const startEditing = (field: string, currentValue: any) => {
-    setEditingField(field);
-    setEditValue(currentValue || "");
-  };
-
-  const cancelEdit = () => {
-    setEditingField(null);
-    setEditValue("");
-  };
-
-  const saveEdit = () => {
-    if (!editingField) return;
-
-    let value: any = editValue;
-    
-    // Type conversions based on field
-    if (editingField === "estimatedHours") {
-      value = editValue ? parseFloat(editValue) : null;
-    } else if (editingField === "assignedTo") {
-      value = editValue ? parseInt(editValue) : null;
-    } else if (editingField === "deadline") {
-      value = editValue ? createLocalDateString(editValue) : null;
-    }
-
-    updateTaskMutation.mutate({ [editingField]: value });
-  };
 
   const toggleSubtask = (subtaskId: number, completed: boolean) => {
     toggleSubtaskMutation.mutate({ subtaskId, completed: !completed });
@@ -402,33 +350,15 @@ function TaskDetailContent() {
                     <Calendar className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">Deadline</span>
                   </div>
-                  {editingField === "deadline" ? (
-                    <div className="space-y-2">
-                      <Input
-                        type="date"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p 
-                      className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
-                      onClick={() => startEditing("deadline", formatDateForInput(task.deadline))}
-                    >
-                      {task.deadline ? 
-                        format(new Date(task.deadline), "MMM dd, yyyy") : 
-                        "No deadline set"
-                      }
-                    </p>
-                  )}
+                  <EditableField
+                    type="tasks"
+                    id={Number(taskId)}
+                    field="deadline"
+                    value={task.deadline}
+                    displayValue={task.deadline ? format(new Date(task.deadline.split('T')[0] + 'T12:00:00'), "MMM dd, yyyy") : "No deadline set"}
+                    fieldType="date"
+                    placeholder="Set deadline"
+                  />
                 </CardContent>
               </Card>
 
@@ -439,31 +369,15 @@ function TaskDetailContent() {
                     <Clock className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">Estimated Hours</span>
                   </div>
-                  {editingField === "estimatedHours" ? (
-                    <div className="space-y-2">
-                      <Input
-                        type="number"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        placeholder="Hours"
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p 
-                      className="text-sm cursor-pointer hover:bg-gray-50 p-2 rounded border"
-                      onClick={() => startEditing("estimatedHours", task.estimatedHours)}
-                    >
-                      {task.estimatedHours ? `${task.estimatedHours} hours` : "Not estimated"}
-                    </p>
-                  )}
+                  <EditableField
+                    type="tasks"
+                    id={Number(taskId)}
+                    field="estimatedHours"
+                    value={task.estimatedHours}
+                    displayValue={task.estimatedHours ? `${task.estimatedHours} hours` : "Not estimated"}
+                    fieldType="number"
+                    placeholder="Hours"
+                  />
                 </CardContent>
               </Card>
 
@@ -474,51 +388,26 @@ function TaskDetailContent() {
                     <User className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">Assigned to</span>
                   </div>
-                  {editingField === "assignedTo" ? (
-                    <div className="space-y-2">
-                      <Select value={editValue} onValueChange={setEditValue}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select user" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
-                          {allUsers.map((user: any) => (
-                            <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.displayName || `${user.firstName} ${user.lastName}` || user.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEdit}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
+                  <EditableField
+                    type="tasks"
+                    id={Number(taskId)}
+                    field="assignedTo"
+                    value={task.assignedTo?.toString() || ""}
+                    displayValue={task.assignedTo ? (
+                      <div className="flex items-center gap-2">
+                        <UserAvatar userId={task.assignedTo} size="sm" />
+                        <span className="text-sm">
+                          {assignedUser ? 
+                            assignedUser.displayName || `${assignedUser.firstName} ${assignedUser.lastName}` : 
+                            `User ID: ${task.assignedTo}`
+                          }
+                        </span>
                       </div>
-                    </div>
-                  ) : (
-                    <div 
-                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded border"
-                      onClick={() => startEditing("assignedTo", task.assignedTo?.toString() || "")}
-                    >
-                      {task.assignedTo ? (
-                        <>
-                          <UserAvatar userId={task.assignedTo} size="sm" />
-                          <span className="text-sm">
-                            {assignedUser ? 
-                              assignedUser.displayName || `${assignedUser.firstName} ${assignedUser.lastName}` : 
-                              `User ID: ${task.assignedTo}`
-                            }
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-sm text-gray-500">Click to assign</span>
-                      )}
-                      <Edit2 className="h-3 w-3 ml-auto text-gray-400" />
-                    </div>
-                  )}
+                    ) : "Click to assign"}
+                    fieldType="select"
+                    options={["", ...allUsers.map((user: any) => user.id.toString())]}
+                    placeholder="Select user"
+                  />
                 </CardContent>
               </Card>
             </div>
