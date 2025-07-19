@@ -821,7 +821,7 @@ function DashboardContent() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             
             {/* Goal Progress Rings */}
-            {(dashboardGoals as any[]).map((goal: any) => (
+            {(goals as any[]).map((goal: any) => (
               <Card key={goal.id} className="cursor-pointer hover:shadow-md transition-shadow">
                 <CardHeader>
                   <CardTitle className="text-lg">{goal.title}</CardTitle>
