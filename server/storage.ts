@@ -12,7 +12,7 @@ import {
   type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, and, or, isNull } from "drizzle-orm";
+import { eq, sql, and, or, isNull, getTableColumns } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -69,7 +69,7 @@ export interface IStorage {
   
   // Subtasks
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
-  getSubtasksByTaskId(taskId: number): Promise<Subtask[]>;
+  getSubtasksByTaskId(taskId: number): Promise<(Subtask & { goalId?: number; projectId?: number })[]>;
 
   getSubtask(id: number): Promise<Subtask | undefined>;
   updateSubtaskCompletion(id: number, completed: boolean): Promise<void>;
@@ -397,8 +397,29 @@ export class MemStorage implements IStorage {
     return subtask;
   }
 
-  async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
-    return Array.from(this.subtasks.values()).filter(s => s.taskId === taskId);
+  async getSubtasksByTaskId(taskId: number): Promise<(Subtask & { goalId?: number; projectId?: number })[]> {
+    // For MemStorage, we need to manually join the data to get goalId and projectId
+    const taskSubtasks = Array.from(this.subtasks.values()).filter(s => s.taskId === taskId);
+    
+    // Get the parent task and project info for navigation
+    const task = this.tasks.get(taskId);
+    let goalId: number | undefined;
+    let projectId: number | undefined;
+    
+    if (task) {
+      projectId = task.projectId;
+      const project = this.projects.get(task.projectId);
+      if (project) {
+        goalId = project.goalId;
+      }
+    }
+    
+    // Add goalId and projectId to each subtask for navigation
+    return taskSubtasks.map(subtask => ({
+      ...subtask,
+      goalId,
+      projectId
+    }));
   }
 
 
@@ -986,8 +1007,20 @@ export class DatabaseStorage implements IStorage {
     return subtask;
   }
 
-  async getSubtasksByTaskId(taskId: number): Promise<Subtask[]> {
-    return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
+  async getSubtasksByTaskId(taskId: number): Promise<(Subtask & { goalId?: number; projectId?: number })[]> {
+    // Get subtasks with parent hierarchy info for navigation
+    const result = await db
+      .select({
+        ...getTableColumns(subtasks),
+        goalId: projects.goalId,
+        projectId: tasks.projectId,
+      })
+      .from(subtasks)
+      .innerJoin(tasks, eq(subtasks.taskId, tasks.id))
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .where(eq(subtasks.taskId, taskId));
+    
+    return result;
   }
 
 
