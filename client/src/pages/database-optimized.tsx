@@ -47,6 +47,42 @@ function DatabaseContent() {
   const taskMutation = useReactiveTaskMutation();
   const projectMutation = useReactiveProjectMutation();
   const goalMutation = useReactiveGoalMutation();
+  
+  const editItemMutation = useMutation({
+    mutationFn: async ({ type, id, updates }: { type: string; id: number; updates: any }) => {
+      console.log(`🚀 Editing ${type} ${id} with updates:`, updates);
+      
+      // Use enhanced reactive mutations when available
+      if (type === 'tasks' && taskMutation) {
+        return taskMutation.mutateAsync({ taskId: id, updates });
+      } else if (type === 'projects' && projectMutation) {
+        return projectMutation.mutateAsync({ projectId: id, updates });
+      } else if (type === 'goals' && goalMutation) {
+        return goalMutation.mutateAsync({ goalId: id, updates });
+      }
+      
+      // Fallback to direct API call
+      const response = await apiRequest('PATCH', `/api/database/${type}/${id}/edit`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      
+      toast({
+        title: "Success",
+        description: "Item updated successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update item",
+        variant: "destructive",
+      });
+    },
+  });
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(true);
   
   // Editing state management

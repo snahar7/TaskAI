@@ -59,6 +59,7 @@ export const goals = pgTable("goals", {
   deadline: timestamp("deadline"),
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
+  estimatedDays: integer("estimated_days"), // CRITICAL FIX: Added missing field that exists in database
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   approved: boolean("approved").default(false).notNull(),
@@ -80,6 +81,7 @@ export const projects = pgTable("projects", {
   deadline: timestamp("deadline"),
   timeEstimate: integer("time_estimate"),
   timeActual: integer("time_actual"),
+  estimatedDays: integer("estimated_days"), // CRITICAL FIX: Added missing field that exists in database
   startDate: timestamp("start_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
