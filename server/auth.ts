@@ -7,6 +7,37 @@ import { z } from "zod";
 
 export function registerAuthRoutes(app: Express) {
   
+  // DEV: Quick login bypass for development (existing user)
+  app.post("/api/auth/dev-login", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "userId required" });
+      }
+      
+      const user = await storage.getUserById(parseInt(userId));
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Set session for dev login
+      req.session.authenticated = true;
+      req.session.userId = user.id;
+      (req.session as any).user = { id: user.id, email: user.email };
+      
+      req.session.save((err) => {
+        if (err) console.error('Session save error:', err);
+      });
+      
+      console.log(`🔐 DEV LOGIN: User ${user.id} (${user.email}) session created`);
+      
+      res.json({ user: { ...user, password: undefined } });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // Sync Firebase user with backend
   app.post("/api/auth/sync", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -75,6 +106,11 @@ export function registerAuthRoutes(app: Express) {
       req.session.userId = user.id;
       (req.session as any).user = { id: user.id, email: user.email };
       
+      // Force session save to ensure persistence
+      req.session.save((err) => {
+        if (err) console.error('Session save error:', err);
+      });
+      
       console.log(`🔐 FIREBASE SYNC: User ${user.id} (${user.email}) session updated`);
 
       res.json({ user });
@@ -131,6 +167,12 @@ export function registerAuthRoutes(app: Express) {
       // Set fresh session  
       req.session.authenticated = true;
       req.session.userId = newUser.id;
+      (req.session as any).user = { id: newUser.id, email: newUser.email };
+      
+      // Force session save
+      req.session.save((err) => {
+        if (err) console.error('Session save error:', err);
+      });
       
       console.log(`🔐 EMAIL SIGNUP: User ${newUser.id} (${newUser.email}) session created`);
       
@@ -168,6 +210,12 @@ export function registerAuthRoutes(app: Express) {
       // Set session for authenticated user
       req.session.authenticated = true;
       req.session.userId = user.id;
+      (req.session as any).user = { id: user.id, email: user.email };
+      
+      // Force session save
+      req.session.save((err) => {
+        if (err) console.error('Session save error:', err);
+      });
       
       console.log(`🔐 EMAIL LOGIN: User ${user.id} (${user.email}) session created`);
       

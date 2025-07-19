@@ -10,7 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { emailLoginSchema, emailSignupSchema, type EmailLogin, type EmailSignup } from '@shared/schema';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Chrome } from 'lucide-react';
+import { Chrome, Zap } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
 
 interface AuthModalProps {
   open: boolean;
@@ -104,6 +105,31 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     }
   };
 
+  const handleDevLogin = async () => {
+    setLoading(true);
+    try {
+      const response = await apiRequest('POST', '/api/auth/dev-login', { userId: 3 });
+      if (response.ok) {
+        const data = await response.json();
+        toast({ title: "Development login successful", description: "You're now signed in as a test user." });
+        onOpenChange(false);
+        // Refresh page to trigger auth state update
+        window.location.reload();
+      } else {
+        throw new Error('Development login failed');
+      }
+    } catch (error) {
+      console.error('Dev login error:', error);
+      toast({
+        title: "Development login failed",
+        description: "Please try regular sign-in.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -130,6 +156,19 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
             <Chrome className="w-4 h-4 mr-2" />
             Continue with Google
           </Button>
+
+          {/* Development Login Button (only in development) */}
+          {process.env.NODE_ENV === 'development' && (
+            <Button
+              variant="outline"
+              className="w-full border-yellow-200 text-yellow-700 hover:bg-yellow-50"
+              onClick={handleDevLogin}
+              disabled={loading}
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Quick Dev Login (Test User)
+            </Button>
+          )}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
