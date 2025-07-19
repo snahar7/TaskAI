@@ -1097,7 +1097,18 @@ export class DatabaseStorage implements IStorage {
       
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.includes(key) && value !== undefined) {
-          validUpdates[key] = value;
+          // Special handling for date fields
+          if (key === 'deadline' && typeof value === 'string') {
+            // Validate and convert date string to proper Date object
+            const dateObj = new Date(value);
+            if (isNaN(dateObj.getTime())) {
+              console.error(`Invalid date value for ${key}:`, value);
+              continue; // Skip invalid dates
+            }
+            validUpdates[key] = dateObj;
+          } else {
+            validUpdates[key] = value;
+          }
         }
       }
       
@@ -1121,7 +1132,18 @@ export class DatabaseStorage implements IStorage {
       
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.includes(key) && value !== undefined) {
-          validUpdates[key] = value;
+          // Special handling for date fields
+          if (key === 'deadline' && typeof value === 'string') {
+            // Validate and convert date string to proper Date object
+            const dateObj = new Date(value);
+            if (isNaN(dateObj.getTime())) {
+              console.error(`Invalid date value for ${key}:`, value);
+              continue; // Skip invalid dates
+            }
+            validUpdates[key] = dateObj;
+          } else {
+            validUpdates[key] = value;
+          }
         }
       }
       
@@ -1145,7 +1167,18 @@ export class DatabaseStorage implements IStorage {
       
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.includes(key) && value !== undefined) {
-          validUpdates[key] = value;
+          // Special handling for date fields
+          if (key === 'deadline' && typeof value === 'string') {
+            // Validate and convert date string to proper Date object
+            const dateObj = new Date(value);
+            if (isNaN(dateObj.getTime())) {
+              console.error(`Invalid date value for ${key}:`, value);
+              continue; // Skip invalid dates
+            }
+            validUpdates[key] = dateObj;
+          } else {
+            validUpdates[key] = value;
+          }
         }
       }
       
@@ -1169,7 +1202,18 @@ export class DatabaseStorage implements IStorage {
       
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.includes(key) && value !== undefined) {
-          validUpdates[key] = value;
+          // Special handling for date fields
+          if (key === 'deadline' && typeof value === 'string') {
+            // Validate and convert date string to proper Date object
+            const dateObj = new Date(value);
+            if (isNaN(dateObj.getTime())) {
+              console.error(`Invalid date value for ${key}:`, value);
+              continue; // Skip invalid dates
+            }
+            validUpdates[key] = dateObj;
+          } else {
+            validUpdates[key] = value;
+          }
         }
       }
       

@@ -246,8 +246,10 @@ class TimelineCalculator {
         
       } else if (field === "deadline") {
         // When deadline changes, recalculate estimated days
-        const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(value);
-        console.log(`User set deadline to ${value}, calculated ${newEstimatedDays} estimated days`);
+        // Ensure we're working with a proper date string
+        const deadlineStr = typeof value === 'string' ? value : value.toISOString().split('T')[0];
+        const newEstimatedDays = this.calculateEstimatedDaysFromDeadline(deadlineStr);
+        console.log(`User set deadline to ${deadlineStr}, calculated ${newEstimatedDays} estimated days`);
         await storage.updateTask(id, { estimatedDays: newEstimatedDays });
         
         // Update dependent tasks when this task's timeline changes
