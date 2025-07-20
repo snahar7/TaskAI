@@ -246,30 +246,77 @@ export function DetailPageTemplate({
       </Button>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
+      <div className="flex items-center gap-2 text-sm text-gray-600 mb-6 overflow-hidden">
         <button
           onClick={() => navigate("/")}
-          className="hover:text-blue-600 transition-colors"
+          className="hover:text-blue-600 transition-colors flex-shrink-0"
         >
           <Home className="h-4 w-4" />
         </button>
-        {breadcrumbPath.map((crumb, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <ChevronRight className="h-4 w-4" />
-            <button
-              onClick={() => navigate(crumb.path)}
-              className="hover:text-blue-600 transition-colors flex items-center gap-1"
-            >
-              <crumb.icon className="h-4 w-4" />
-              {crumb.label}
-            </button>
-          </div>
-        ))}
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-gray-900 font-medium flex items-center gap-1">
-          <IconComponent className="h-4 w-4" />
-          {data.title}
-        </span>
+        
+        {/* Mobile: Show ... if more than 1 breadcrumb, then only last one */}
+        <div className="md:hidden flex items-center gap-2">
+          {breadcrumbPath.length > 1 && (() => {
+            const lastCrumb = breadcrumbPath[breadcrumbPath.length - 1];
+            const LastIcon = lastCrumb.icon;
+            return (
+              <>
+                <ChevronRight className="h-4 w-4" />
+                <span className="text-gray-400">...</span>
+                <ChevronRight className="h-4 w-4" />
+                <button
+                  onClick={() => navigate(lastCrumb.path)}
+                  className="hover:text-blue-600 transition-colors flex items-center gap-1"
+                >
+                  <LastIcon className="h-4 w-4" />
+                  <span className="truncate max-w-[120px]">{lastCrumb.label}</span>
+                </button>
+              </>
+            );
+          })()}
+          {breadcrumbPath.length === 1 && (() => {
+            const firstCrumb = breadcrumbPath[0];
+            const FirstIcon = firstCrumb.icon;
+            return (
+              <>
+                <ChevronRight className="h-4 w-4" />
+                <button
+                  onClick={() => navigate(firstCrumb.path)}
+                  className="hover:text-blue-600 transition-colors flex items-center gap-1"
+                >
+                  <FirstIcon className="h-4 w-4" />
+                  <span className="truncate max-w-[120px]">{firstCrumb.label}</span>
+                </button>
+              </>
+            );
+          })()}
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-gray-900 font-medium flex items-center gap-1">
+            <IconComponent className="h-4 w-4" />
+            <span className="truncate max-w-[100px]">{data.title}</span>
+          </span>
+        </div>
+
+        {/* Desktop: Show full breadcrumb path */}
+        <div className="hidden md:flex items-center gap-2">
+          {breadcrumbPath.map((crumb, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <ChevronRight className="h-4 w-4" />
+              <button
+                onClick={() => navigate(crumb.path)}
+                className="hover:text-blue-600 transition-colors flex items-center gap-1"
+              >
+                <crumb.icon className="h-4 w-4" />
+                {crumb.label}
+              </button>
+            </div>
+          ))}
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-gray-900 font-medium flex items-center gap-1">
+            <IconComponent className="h-4 w-4" />
+            {data.title}
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
