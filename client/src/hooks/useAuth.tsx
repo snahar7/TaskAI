@@ -26,6 +26,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Display domain info for Firebase configuration
     displayDomainInfo();
     
+    // Check for redirect result on app initialization (for Replit environment)
+    const checkRedirectResult = async () => {
+      try {
+        const { handleRedirectResult } = await import('@/lib/firebase');
+        await handleRedirectResult();
+      } catch (error) {
+        console.error('Error handling redirect result:', error);
+      }
+    };
+    
+    checkRedirectResult();
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('🔐 Firebase auth state changed:', firebaseUser ? `${firebaseUser.email} (${firebaseUser.uid})` : 'signed out');
       setFirebaseUser(firebaseUser);
@@ -126,7 +138,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem('pendingInviteCode', inviteCode);
     }
     
-    await firebaseGoogleSignIn();
+    const result = await firebaseGoogleSignIn();
+    
+    // If result is null, it means redirect was initiated (Replit environment)
+    if (result === null) {
+      console.log('🔐 Redirect initiated for Google sign-in');
+      // The redirect will handle the rest automatically
+    }
   };
 
   const logout = async () => {

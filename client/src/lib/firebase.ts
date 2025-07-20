@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User, setPersistence, browserLocalPersistence } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBmtrCysYltZr_9wESwyu1EJ4f-1yayQA0",
@@ -32,13 +32,45 @@ if (typeof window !== 'undefined') {
 
 export { analytics };
 
+// Check if running in Replit environment (where popups are blocked)
+const isReplit = () => {
+  return typeof window !== 'undefined' && 
+         (window.location.hostname.includes('replit.dev') || 
+          window.location.hostname.includes('repl.co') ||
+          window.location.hostname.includes('picard.replit.dev'));
+};
+
 // Auth helper functions
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    // Use redirect method in Replit environment to avoid popup blocking
+    if (isReplit()) {
+      console.log('🔐 Using redirect method for Replit environment');
+      await signInWithRedirect(auth, googleProvider);
+      // The redirect will happen and result will be handled by getRedirectResult
+      return null;
+    } else {
+      console.log('🔐 Using popup method for standard environment');
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    }
   } catch (error) {
     console.error("Google sign-in error:", error);
+    throw error;
+  }
+};
+
+// Handle redirect result (call this on app initialization)
+export const handleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      console.log('🔐 Redirect sign-in successful:', result.user.email);
+      return result.user;
+    }
+    return null;
+  } catch (error) {
+    console.error("Redirect result error:", error);
     throw error;
   }
 };
