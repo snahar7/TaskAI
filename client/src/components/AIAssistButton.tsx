@@ -65,9 +65,10 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
       console.log('🤖 AI ASSIST: Request payload:', payload);
       
       const response = await apiRequest('POST', `/api/ai-assist/suggestions`, payload);
+      const data = await response.json();
       
-      console.log('🤖 AI ASSIST: API response:', response);
-      return response;
+      console.log('🤖 AI ASSIST: API response:', data);
+      return data;
     },
     onSuccess: (data) => {
       console.log('🤖 AI ASSIST: Success! Got suggestions:', data);
@@ -92,7 +93,8 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
         // Legacy support for existing API
         taskId: entityType === 'tasks' ? entityId : undefined 
       });
-      return response;
+      const data = await response.json();
+      return data;
     },
     onSuccess: (result: AIAssistResult) => {
       setCompletionResult(result);
