@@ -1665,5 +1665,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // AI ASSIST ENDPOINTS
+  
+  // Get AI Assist suggestions for a task
+  app.post("/api/ai-assist/suggestions", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { taskId } = z.object({ taskId: z.number() }).parse(req.body);
+      
+      // Check if user can access this task
+      if (!(await canUserAccess(userId, 'task', taskId))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get task with full context
+      const task = await storage.getTask(taskId);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const project = await storage.getProject(task.projectId);
+      const goal = project ? await storage.getGoal(project.goalId) : null;
+
+      // Build AI context
+      const context = {
+        taskId,
+        taskTitle: task.title,
+        taskDescription: task.description,
+        parentProject: project ? {
+          id: project.id,
+          title: project.title,
+          description: project.description
+        } : undefined,
+        parentGoal: goal ? {
+          id: goal.id,
+          title: goal.title,
+          description: goal.description
+        } : undefined,
+        deadline: task.deadline,
+        priority: task.priority,
+        estimatedHours: task.estimatedHours
+      };
+
+      // Get AI suggestions
+      const { aiAssistService } = await import("../src/services/ai-assist/index");
+      const suggestions = await aiAssistService.generateAssistSuggestions(context);
+
+      res.json({ suggestions });
+    } catch (error) {
+      console.error('AI Assist suggestions failed:', error);
+      next(error);
+    }
+  });
+
+  // Execute AI Assist task completion
+  app.post("/api/ai-assist/complete", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { taskId } = z.object({ taskId: z.number() }).parse(req.body);
+      
+      // Check if user can access this task
+      if (!(await canUserAccess(userId, 'task', taskId))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get task with full context
+      const task = await storage.getTask(taskId);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const project = await storage.getProject(task.projectId);
+      const goal = project ? await storage.getGoal(project.goalId) : null;
+
+      // Build AI context
+      const context = {
+        taskId,
+        taskTitle: task.title,
+        taskDescription: task.description,
+        parentProject: project ? {
+          id: project.id,
+          title: project.title,
+          description: project.description
+        } : undefined,
+        parentGoal: goal ? {
+          id: goal.id,
+          title: goal.title,
+          description: goal.description
+        } : undefined,
+        deadline: task.deadline,
+        priority: task.priority,
+        estimatedHours: task.estimatedHours
+      };
+
+      // Execute AI completion
+      const { aiAssistService } = await import("../src/services/ai-assist/index");
+      const result = await aiAssistService.completeTask(context);
+
+      // If successful, create follow-up tasks
+      if (result.success && result.followUpTasks && result.followUpTasks.length > 0) {
+        for (const followUpTask of result.followUpTasks) {
+          await storage.createTask({
+            projectId: task.projectId,
+            title: followUpTask.title,
+            description: followUpTask.description,
+            priority: followUpTask.priority || 'medium',
+            estimatedHours: followUpTask.estimatedHours || null,
+            assignedTo: userId,
+            createdBy: userId,
+            deadline: null,
+            completed: false,
+            startDate: null,
+            dependencies: null,
+            tags: null,
+            category: null,
+            comments: null,
+            customFields: null
+          });
+        }
+      }
+
+      // Mark original task as completed if AI was successful
+      if (result.success) {
+        await storage.updateTaskCompletion(taskId, true);
+        
+        // Update task progress cascading
+        const progressUpdaterModule = await import("./services/progressUpdater");
+        await progressUpdaterModule.progressUpdater.updateTaskProgress(taskId, true);
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('AI Assist completion failed:', error);
+      next(error);
+    }
+  });
+
+  // Get AI Assist deliverables for a task
+  app.get("/api/ai-assist/deliverables/:taskId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const taskId = parseInt(req.params.taskId);
+      
+      // Check if user can access this task
+      if (!(await canUserAccess(userId, 'task', taskId))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get deliverables from AI service
+      const { DeliverableManager } = await import("../src/services/ai-assist/deliverable-manager");
+      const deliverableManager = new DeliverableManager();
+      const summary = deliverableManager.exportTaskSummary(taskId);
+
+      res.json(summary);
+    } catch (error) {
+      console.error('Get AI deliverables failed:', error);
+      next(error);
+    }
+  });
+
   return httpServer;
 }

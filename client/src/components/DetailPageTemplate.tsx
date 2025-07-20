@@ -26,6 +26,7 @@ import {
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { EditableField } from "@/components/EditableField";
+import { AIAssistButton } from "@/components/AIAssistButton";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -520,6 +521,15 @@ export function DetailPageTemplate({
               <CardTitle className="text-lg">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* AI Assist - Only show for tasks */}
+              {config.type === 'tasks' && !data?.completed && (
+                <AIAssistButton 
+                  taskId={parseInt(itemId)}
+                  taskTitle={data?.title || ""}
+                  disabled={data?.completed}
+                />
+              )}
+              
               <Button 
                 className="w-full" 
                 onClick={handleMarkComplete}
