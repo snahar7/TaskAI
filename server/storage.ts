@@ -1,5 +1,5 @@
 import { 
-  users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags,
+  users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags, files,
   type User, type InsertUser,
   type Goal, type InsertGoal,
   type Project, type InsertProject, 
@@ -9,6 +9,7 @@ import {
   type Team, type InsertTeam,
   type Category, type InsertCategory,
   type Tag, type InsertTag,
+  type File, type InsertFile,
   type ProjectWithTasks, type TaskWithSubtasks
 } from "@shared/schema";
 import { db } from "./db";
@@ -82,6 +83,12 @@ export interface IStorage {
   getPendingBreakdown(id: number): Promise<PendingBreakdown | undefined>;
   deletePendingBreakdown(id: number): Promise<void>;
   
+  // Files
+  createFile(file: InsertFile): Promise<number>;
+  getFile(id: number): Promise<File | undefined>;
+  getFilesForEntity(entityType: string, entityId: number): Promise<File[]>;
+  deleteFile(id: number): Promise<void>;
+  
   // Optimized data fetching
   getOptimizedDashboardData(userIds: number[]): Promise<{
     allTasks: any[];
@@ -96,12 +103,14 @@ export class MemStorage implements IStorage {
   private tasks: Map<number, Task>;
   private subtasks: Map<number, Subtask>;
   private pendingBreakdowns: Map<number, PendingBreakdown>;
+  private files: Map<number, File>;
   private currentUserId: number;
   private currentGoalId: number;
   private currentProjectId: number;
   private currentTaskId: number;
   private currentSubtaskId: number;
   private currentPendingId: number;
+  private currentFileId: number;
 
   constructor() {
     this.users = new Map();
@@ -110,12 +119,14 @@ export class MemStorage implements IStorage {
     this.tasks = new Map();
     this.subtasks = new Map();
     this.pendingBreakdowns = new Map();
+    this.files = new Map();
     this.currentUserId = 1;
     this.currentGoalId = 1;
     this.currentProjectId = 1;
     this.currentTaskId = 1;
     this.currentSubtaskId = 1;
     this.currentPendingId = 1;
+    this.currentFileId = 1;
   }
 
   // Users
@@ -516,6 +527,32 @@ export class MemStorage implements IStorage {
 
   async deleteSubtask(id: number): Promise<void> {
     this.subtasks.delete(id);
+  }
+
+  // Files
+  async createFile(insertFile: InsertFile): Promise<number> {
+    const id = this.currentFileId++;
+    const file: File = { 
+      ...insertFile, 
+      id,
+      createdAt: new Date()
+    };
+    this.files.set(id, file);
+    return id;
+  }
+
+  async getFile(id: number): Promise<File | undefined> {
+    return this.files.get(id);
+  }
+
+  async getFilesForEntity(entityType: string, entityId: number): Promise<File[]> {
+    return Array.from(this.files.values()).filter(
+      file => file.entityType === entityType && file.entityId === entityId
+    );
+  }
+
+  async deleteFile(id: number): Promise<void> {
+    this.files.delete(id);
   }
 
   async getOptimizedDashboardData(userIds: number[]): Promise<{
@@ -1618,6 +1655,30 @@ export class DatabaseStorage implements IStorage {
     
     // Team goal: user must be in same team
     return user.teamId === goal.teamId;
+  }
+
+  // Files
+  async createFile(insertFile: InsertFile): Promise<number> {
+    const [created] = await db.insert(files).values({
+      ...insertFile,
+      createdAt: new Date()
+    }).returning({ id: files.id });
+    return created.id;
+  }
+
+  async getFile(id: number): Promise<File | undefined> {
+    const [result] = await db.select().from(files).where(eq(files.id, id));
+    return result;
+  }
+
+  async getFilesForEntity(entityType: string, entityId: number): Promise<File[]> {
+    return await db.select().from(files).where(
+      and(eq(files.entityType, entityType), eq(files.entityId, entityId))
+    );
+  }
+
+  async deleteFile(id: number): Promise<void> {
+    await db.delete(files).where(eq(files.id, id));
   }
 }
 

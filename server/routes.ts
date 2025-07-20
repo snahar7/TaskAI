@@ -1836,5 +1836,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // FILE MANAGEMENT ENDPOINTS
+  
+  // Upload a file
+  app.post("/api/files/upload", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      // In a real implementation, you'd use multer or similar for file uploads
+      // For now, we'll simulate file storage and return a mock file URL
+      const { entityType, entityId } = req.body;
+      
+      if (!entityType || !entityId) {
+        return res.status(400).json({ error: "entityType and entityId are required" });
+      }
+
+      // Validate entity type
+      if (!['goal', 'project', 'task', 'subtask'].includes(entityType)) {
+        return res.status(400).json({ error: "Invalid entity type" });
+      }
+
+      // Check if user can access this entity
+      if (!(await canUserAccess(userId, entityType, parseInt(entityId)))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Simulate file upload - in real implementation you'd save to cloud storage
+      const mockFile = {
+        fileName: `uploaded-file-${Date.now()}.txt`,
+        fileUrl: `https://example.com/files/uploaded-file-${Date.now()}.txt`,
+        fileSize: 1024,
+        mimeType: 'text/plain',
+        entityType,
+        entityId: parseInt(entityId),
+        uploadedBy: userId
+      };
+
+      const fileId = await storage.createFile(mockFile);
+      const file = await storage.getFile(fileId);
+
+      res.json(file);
+    } catch (error) {
+      console.error('File upload failed:', error);
+      next(error);
+    }
+  });
+
+  // Get files for an entity
+  app.get("/api/files/:entityType/:entityId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { entityType, entityId } = req.params;
+      
+      // Validate entity type
+      if (!['goal', 'project', 'task', 'subtask'].includes(entityType)) {
+        return res.status(400).json({ error: "Invalid entity type" });
+      }
+
+      // Check if user can access this entity
+      if (!(await canUserAccess(userId, entityType as any, parseInt(entityId)))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const files = await storage.getFilesForEntity(entityType, parseInt(entityId));
+      res.json(files);
+    } catch (error) {
+      console.error('Get files failed:', error);
+      next(error);
+    }
+  });
+
+  // Delete a file
+  app.delete("/api/files/:fileId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const fileId = parseInt(req.params.fileId);
+      const file = await storage.getFile(fileId);
+      
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      // Check if user can access the entity this file belongs to
+      if (!(await canUserAccess(userId, file.entityType as any, file.entityId))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await storage.deleteFile(fileId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete file failed:', error);
+      next(error);
+    }
+  });
+
   return httpServer;
 }
