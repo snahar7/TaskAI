@@ -960,7 +960,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTasksByProjectId(projectId: number): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.projectId, projectId));
+    // Get tasks with complete hierarchy information
+    const tasksWithHierarchy = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        projectId: tasks.projectId,
+        assignedTo: tasks.assignedTo,
+        createdBy: tasks.createdBy,
+        status: tasks.status,
+        priority: tasks.priority,
+        percentComplete: tasks.percentComplete,
+        deadline: tasks.deadline,
+        timeEstimate: tasks.timeEstimate,
+        timeActual: tasks.timeActual,
+        estimatedDays: tasks.estimatedDays,
+        shareLevel: tasks.shareLevel,
+        urgency: tasks.urgency,
+        dependencies: tasks.dependencies,
+        createdAt: tasks.createdAt,
+        updatedAt: tasks.updatedAt,
+        // Include hierarchy information
+        goalId: projects.goalId,
+      })
+      .from(tasks)
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
+      .where(eq(tasks.projectId, projectId));
+
+    return tasksWithHierarchy;
   }
 
   async getTask(id: number): Promise<Task | undefined> {
@@ -1457,10 +1485,35 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
     
-    // Get tasks for accessible projects
-    const projectTasks = await db.select().from(tasks).where(
-      sql`${tasks.projectId} IN (${sql.join(projectIds.map(id => sql`${id}`), sql`, `)})`
-    );
+    // Get tasks for accessible projects with hierarchy information
+    const projectTasks = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        projectId: tasks.projectId,
+        assignedTo: tasks.assignedTo,
+        createdBy: tasks.createdBy,
+        status: tasks.status,
+        priority: tasks.priority,
+        percentComplete: tasks.percentComplete,
+        deadline: tasks.deadline,
+        timeEstimate: tasks.timeEstimate,
+        timeActual: tasks.timeActual,
+        estimatedDays: tasks.estimatedDays,
+        shareLevel: tasks.shareLevel,
+        urgency: tasks.urgency,
+        dependencies: tasks.dependencies,
+        createdAt: tasks.createdAt,
+        updatedAt: tasks.updatedAt,
+        // Include hierarchy information
+        goalId: projects.goalId,
+      })
+      .from(tasks)
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
+      .where(
+        sql`${tasks.projectId} IN (${sql.join(projectIds.map(id => sql`${id}`), sql`, `)})`
+      );
     
     // Filter tasks by hierarchical share level (may override project/goal share level)
     const accessibleTasks: Task[] = [];
