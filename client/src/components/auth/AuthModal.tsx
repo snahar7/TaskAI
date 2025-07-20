@@ -156,6 +156,11 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
             <Chrome className="w-4 h-4 mr-2" />
             Continue with Google
           </Button>
+          
+          {/* Domain authorization notice for mobile/Replit */}
+          <div className="text-xs text-amber-700 dark:text-amber-300 text-center bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-200 dark:border-amber-800">
+            <strong>Mobile users:</strong> If Google sign-in fails, use email/password below or add domain to Firebase
+          </div>
 
           {/* Development Login Button (only in development) */}
           {process.env.NODE_ENV === 'development' && (
