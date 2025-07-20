@@ -21,12 +21,14 @@ import {
   ListTodo,
   Edit2,
   Zap,
-  Check
+  Check,
+  Paperclip
 } from "lucide-react";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/UserAvatar";
 import { EditableField } from "@/components/EditableField";
 import { AIAssistButton } from "@/components/AIAssistButton";
+import { FileUpload } from "@/components/FileUpload";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -442,6 +444,24 @@ export function DetailPageTemplate({
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Files Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Files & Attachments
+              </CardTitle>
+              <CardDescription>Upload and manage files for this {config.displayName.toLowerCase()}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FileUpload 
+                entityType={config.type.slice(0, -1) as 'goal' | 'project' | 'task' | 'subtask'}
+                entityId={parseInt(itemId)}
+                disabled={false}
+              />
             </CardContent>
           </Card>
 
