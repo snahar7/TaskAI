@@ -1734,7 +1734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get attached files for context
-      const files = await storage.getFilesByEntity(type.slice(0, -1), id);
+      const files = await storage.getFilesForEntity(type.slice(0, -1), id);
 
       // Build AI context
       const context = {
@@ -1866,7 +1866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get attached files for context
-      const files = await storage.getFilesByEntity(type.slice(0, -1), id);
+      const files = await storage.getFilesForEntity(type.slice(0, -1), id);
 
       // Build AI context
       const context = {
