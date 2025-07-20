@@ -33,14 +33,19 @@ export class ContentGenerator {
   }
 
   async generateCode(context: AIAssistContext, analysis: TaskAnalysis): Promise<GeneratedContent[]> {
-    const prompt = `Generate complete, production-ready code for this task:
+    let prompt = `Generate complete, production-ready code for this task:
 
 TASK: ${context.taskTitle}
 DESCRIPTION: ${context.taskDescription || 'No description provided'}
 
 PROJECT CONTEXT:
 ${context.parentProject ? `Project: ${context.parentProject.title}` : ''}
-${context.parentGoal ? `Goal: ${context.parentGoal.title}` : ''}
+${context.parentGoal ? `Goal: ${context.parentGoal.title}` : ''}`;
+
+    // Add file context
+    prompt += this.buildFileContextPrompt(context);
+
+    prompt += `
 
 REQUIREMENTS:
 - Write clean, well-documented code
@@ -48,6 +53,7 @@ REQUIREMENTS:
 - Add comprehensive comments
 - Follow best practices
 - Include usage examples if applicable
+- Use attached files as reference/requirements when applicable
 
 Please provide:
 1. Main implementation code
@@ -98,7 +104,7 @@ Format as complete, ready-to-use code files.`;
   }
 
   async generateCommunication(context: AIAssistContext, analysis: TaskAnalysis): Promise<GeneratedContent[]> {
-    const prompt = `Draft professional communication for this task:
+    let prompt = `Draft professional communication for this task:
 
 TASK: ${context.taskTitle}
 DESCRIPTION: ${context.taskDescription || 'No description provided'}
@@ -107,7 +113,12 @@ CONTEXT:
 ${context.parentProject ? `Project: ${context.parentProject.title}` : ''}
 ${context.parentGoal ? `Goal: ${context.parentGoal.title}` : ''}
 ${context.deadline ? `Deadline: ${context.deadline}` : ''}
-${context.priority ? `Priority: ${context.priority}` : ''}
+${context.priority ? `Priority: ${context.priority}` : ''}`;
+
+    // Add file context
+    prompt += this.buildFileContextPrompt(context);
+
+    prompt += `
 
 Please create appropriate communication (email, message, update, etc.) that:
 - Is professional and clear
@@ -115,6 +126,7 @@ Please create appropriate communication (email, message, update, etc.) that:
 - Has appropriate tone for the situation
 - Includes next steps or call-to-action if needed
 - Is ready to send with minimal editing
+- References attached files when relevant
 
 Determine the most appropriate communication type and format.`;
 
@@ -223,14 +235,19 @@ Focus on providing practical, actionable value that truly completes the task.`;
   }
 
   private async generateSpecificContent(context: AIAssistContext, analysis: TaskAnalysis, outputType: string): Promise<GeneratedContent | null> {
-    const prompt = `Generate ${outputType} for this task:
+    let prompt = `Generate ${outputType} for this task:
 
 TASK: ${context.taskTitle}
 DESCRIPTION: ${context.taskDescription || 'No description provided'}
 
 CONTEXT:
 ${context.parentProject ? `Project: ${context.parentProject.title}` : ''}
-${context.parentGoal ? `Goal: ${context.parentGoal.title}` : ''}
+${context.parentGoal ? `Goal: ${context.parentGoal.title}` : ''}`;
+
+    // Add file context
+    prompt += this.buildFileContextPrompt(context);
+
+    prompt += `
 
 Create a comprehensive ${outputType} that:
 - Directly addresses the task requirements
@@ -238,6 +255,7 @@ Create a comprehensive ${outputType} that:
 - Includes relevant details and analysis
 - Is ready for immediate use
 - Follows best practices for this type of deliverable
+- Uses attached files as reference material when applicable
 
 Focus on quality and completeness.`;
 
@@ -300,6 +318,33 @@ Next Steps:
 Note: This is a fallback analysis. For better results, provide more specific task details.`,
       filename: 'task_analysis.txt'
     };
+  }
+
+  private buildFileContextPrompt(context: AIAssistContext): string {
+    if (!context.files || context.files.length === 0) {
+      return '';
+    }
+
+    let fileContext = `\n\nATTACHED FILES (${context.files.length} total):`;
+    
+    context.files.forEach(file => {
+      fileContext += `\n- ${file.fileName}`;
+      if (file.mimeType) {
+        fileContext += ` (${file.mimeType})`;
+      }
+      
+      // Include content snippet for text files
+      if (file.content) {
+        const snippet = file.content.length > 500 ? 
+          file.content.substring(0, 500) + '...' : 
+          file.content;
+        fileContext += `\n  Content: "${snippet}"`;
+      }
+    });
+    
+    fileContext += `\n\nIMPORTANT: Use attached files as reference material for generating content. Consider file content when creating outputs.`;
+    
+    return fileContext;
   }
 
   private determineContentType(outputType: string): GeneratedContent['type'] {

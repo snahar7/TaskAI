@@ -70,7 +70,7 @@ Respond with JSON in this exact format:
   }
 
   private buildAnalysisPrompt(context: AIAssistContext): string {
-    return `Analyze this task to determine the best AI completion strategy:
+    let prompt = `Analyze this task to determine the best AI completion strategy:
 
 TASK DETAILS:
 Title: ${context.taskTitle}
@@ -85,7 +85,33 @@ Goal Description: ${context.parentGoal?.description || 'Not provided'}
 CONSTRAINTS:
 Deadline: ${context.deadline || 'Not specified'}
 Priority: ${context.priority || 'Not specified'}
-Estimated Hours: ${context.estimatedHours || 'Not specified'}
+Estimated Hours: ${context.estimatedHours || 'Not specified'}`;
+
+    // Include file context
+    if (context.files && context.files.length > 0) {
+      prompt += `\n\nATTACHED FILES (${context.files.length} total):`;
+      
+      context.files.forEach(file => {
+        prompt += `\n- ${file.fileName}`;
+        if (file.mimeType) {
+          prompt += ` (${file.mimeType})`;
+        }
+        if (file.fileSize) {
+          const size = this.formatFileSize(file.fileSize);
+          prompt += ` [${size}]`;
+        }
+        
+        // Include content snippet for text files
+        if (file.content) {
+          const snippet = file.content.substring(0, 300);
+          prompt += `\n  Content preview: "${snippet}${file.content.length > 300 ? '...' : ''}"`;
+        }
+      });
+      
+      prompt += `\n\nIMPORTANT: Use attached file content as reference material when determining completion strategy and generating outputs. Consider how files relate to the task.`;
+    }
+
+    prompt += `
 
 Based on this information, determine:
 1. The most appropriate completion strategy
@@ -103,6 +129,16 @@ COMPLETION STRATEGIES:
 - code_implementation: Writing code, scripts, technical implementations
 - communication_draft: Writing emails, messages, correspondence
 - generic_completion: General task completion when strategy is unclear`;
+
+    return prompt;
+  }
+
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
   private validateCompletionStrategy(strategy: string): TaskAnalysis['completionStrategy'] {

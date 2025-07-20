@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { TaskAnalyzer } from "./task-analyzer";
 import { ContentGenerator } from "./content-generator";
 import { ResearchAgent } from "./research-agent";
@@ -9,6 +11,17 @@ import { DeliverableManager } from "./deliverable-manager";
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY 
 });
+
+export interface FileContext {
+  id: number;
+  fileName: string;
+  fileUrl: string;
+  mimeType?: string;
+  fileSize?: number;
+  content?: string; // For text files that can be read
+  entityType: 'goal' | 'project' | 'task' | 'subtask';
+  entityId: number;
+}
 
 export interface AIAssistContext {
   taskId: number;
@@ -27,6 +40,7 @@ export interface AIAssistContext {
   deadline?: string;
   priority?: string;
   estimatedHours?: number;
+  files?: FileContext[]; // Attached files with context
 }
 
 export interface AIAssistResult {
@@ -70,30 +84,33 @@ export class AIAssistService {
     const startTime = Date.now();
     
     try {
-      // Step 1: Analyze task to determine completion strategy
-      const analysis = await this.taskAnalyzer.analyzeTask(context);
+      // Step 1: Enrich context with file content
+      const enrichedContext = await this.enrichContextWithFiles(context);
       
-      // Step 2: Execute appropriate completion strategy
+      // Step 2: Analyze task to determine completion strategy
+      const analysis = await this.taskAnalyzer.analyzeTask(enrichedContext);
+      
+      // Step 3: Execute appropriate completion strategy
       let result: AIAssistResult;
       
       switch (analysis.completionStrategy) {
         case 'content_generation':
-          result = await this.handleContentGeneration(context, analysis);
+          result = await this.handleContentGeneration(enrichedContext, analysis);
           break;
         case 'research_analysis':
-          result = await this.handleResearchAnalysis(context, analysis);
+          result = await this.handleResearchAnalysis(enrichedContext, analysis);
           break;
         case 'planning_breakdown':
-          result = await this.handlePlanningBreakdown(context, analysis);
+          result = await this.handlePlanningBreakdown(enrichedContext, analysis);
           break;
         case 'code_implementation':
-          result = await this.handleCodeImplementation(context, analysis);
+          result = await this.handleCodeImplementation(enrichedContext, analysis);
           break;
         case 'communication_draft':
-          result = await this.handleCommunicationDraft(context, analysis);
+          result = await this.handleCommunicationDraft(enrichedContext, analysis);
           break;
         default:
-          result = await this.handleGenericCompletion(context, analysis);
+          result = await this.handleGenericCompletion(enrichedContext, analysis);
       }
 
       result.processingTime = Date.now() - startTime;
@@ -107,6 +124,129 @@ export class AIAssistService {
         confidence: 0,
         processingTime: Date.now() - startTime
       };
+    }
+  }
+
+  /**
+   * Enriches context with file content from attached files
+   */
+  private async enrichContextWithFiles(context: AIAssistContext): Promise<AIAssistContext> {
+    try {
+      // Fetch files from the storage layer
+      const files = await this.fetchFilesForTask(context.taskId);
+      
+      if (!files || files.length === 0) {
+        return { ...context, files: [] };
+      }
+
+      // Process files to extract content where possible
+      const enrichedFiles: FileContext[] = [];
+      
+      for (const file of files) {
+        const enrichedFile: FileContext = {
+          id: file.id,
+          fileName: file.fileName,
+          fileUrl: file.fileUrl,
+          mimeType: file.mimeType,
+          fileSize: file.fileSize,
+          entityType: 'task', // Default to task, could be determined from file path
+          entityId: context.taskId
+        };
+
+        // Try to read file content for text-based files
+        if (this.isTextFile(file.mimeType || file.fileName)) {
+          try {
+            const content = await this.readFileContent(file.fileUrl);
+            enrichedFile.content = content;
+          } catch (error) {
+            console.warn(`Could not read content for file ${file.fileName}:`, error.message);
+          }
+        }
+
+        enrichedFiles.push(enrichedFile);
+      }
+
+      return {
+        ...context,
+        files: enrichedFiles
+      };
+
+    } catch (error) {
+      console.error('Failed to enrich context with files:', error);
+      return { ...context, files: [] };
+    }
+  }
+
+  /**
+   * Fetches files attached to a specific task
+   */
+  private async fetchFilesForTask(taskId: number): Promise<any[]> {
+    try {
+      // Import storage interface to fetch files
+      const { dbStorage } = await import('../../server/storage');
+      return await dbStorage.getFilesForEntity('task', taskId);
+    } catch (error) {
+      console.error('Failed to fetch files for task:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Determines if a file is text-based and can be read for content
+   */
+  private isTextFile(mimeTypeOrFilename: string): boolean {
+    const textMimeTypes = [
+      'text/plain',
+      'text/markdown',
+      'text/csv',
+      'text/html',
+      'text/css',
+      'text/javascript',
+      'application/json',
+      'application/xml',
+      'text/xml'
+    ];
+
+    const textExtensions = [
+      '.txt', '.md', '.csv', '.json', '.xml', '.html', '.css', '.js', '.ts',
+      '.py', '.java', '.cpp', '.c', '.h', '.yml', '.yaml', '.toml', '.ini',
+      '.log', '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.gitignore'
+    ];
+
+    // Check MIME type
+    if (textMimeTypes.some(type => mimeTypeOrFilename.includes(type))) {
+      return true;
+    }
+
+    // Check file extension
+    return textExtensions.some(ext => 
+      mimeTypeOrFilename.toLowerCase().endsWith(ext)
+    );
+  }
+
+  /**
+   * Reads content from a file URL (local file system)
+   */
+  private async readFileContent(fileUrl: string): Promise<string> {
+    try {
+      // If it's a local file path, read directly
+      if (fileUrl.startsWith('./') || fileUrl.startsWith('/') || !fileUrl.includes('://')) {
+        const filePath = fileUrl.startsWith('./') ? join(process.cwd(), fileUrl.slice(2)) : fileUrl;
+        return readFileSync(filePath, 'utf-8');
+      }
+      
+      // For HTTP URLs, fetch the content
+      if (fileUrl.startsWith('http')) {
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return await response.text();
+      }
+
+      throw new Error('Unsupported file URL format');
+    } catch (error) {
+      throw new Error(`Failed to read file content: ${error.message}`);
     }
   }
 
