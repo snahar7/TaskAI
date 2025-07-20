@@ -162,7 +162,7 @@ Format as JSON array:
         messages: [
           {
             role: "system",
-            content: "You are a project management expert. Generate practical, actionable follow-up tasks based on research findings."
+            content: "You are a project management expert. Generate practical, actionable follow-up tasks based on research findings. Always return valid JSON with 'tasks' array."
           },
           {
             role: "user",
@@ -170,11 +170,17 @@ Format as JSON array:
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.4
+        temperature: 0.4,
+        max_tokens: 1000 // Ensure complete response
       });
 
-      const result = JSON.parse(response.choices[0].message.content);
-      return Array.isArray(result.tasks) ? result.tasks : result.length ? result : [];
+      const content = response.choices[0].message.content;
+      if (!content || content.trim() === '') {
+        throw new Error('Empty response from OpenAI');
+      }
+
+      const result = JSON.parse(content);
+      return Array.isArray(result.tasks) ? result.tasks : Array.isArray(result) ? result : [];
 
     } catch (error) {
       console.error('Follow-up task generation failed:', error);

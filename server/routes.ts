@@ -1937,6 +1937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           await storage.createFile({
             fileName: filename,
+            fileUrl: `data:text/plain;base64,${Buffer.from(deliverable.content, 'utf8').toString('base64')}`,
             mimeType: 'text/plain',
             fileSize: Buffer.byteLength(deliverable.content, 'utf8'),
             fileData: Buffer.from(deliverable.content, 'utf8'),
