@@ -1930,22 +1930,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store AI deliverables as files with proper naming
       if (result.success && result.deliverables && result.deliverables.length > 0) {
         const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        console.log('🤖 AI ASSIST: Creating files for', result.deliverables.length, 'deliverables');
         
         for (const deliverable of result.deliverables) {
           // Create file with "AI assist" + date naming convention
           const filename = `AI assist ${currentDate} - ${deliverable.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+          console.log('🤖 AI ASSIST: Creating file:', filename, 'for entity', type, id);
           
-          await storage.createFile({
-            fileName: filename,
-            fileUrl: `data:text/plain;base64,${Buffer.from(deliverable.content, 'utf8').toString('base64')}`,
-            mimeType: 'text/plain',
-            fileSize: Buffer.byteLength(deliverable.content, 'utf8'),
-            fileData: Buffer.from(deliverable.content, 'utf8'),
-            entityType: type.slice(0, -1),
-            entityId: id,
-            uploadedBy: userId
-          });
+          try {
+            const fileId = await storage.createFile({
+              fileName: filename,
+              fileUrl: `data:text/plain;base64,${Buffer.from(deliverable.content, 'utf8').toString('base64')}`,
+              mimeType: 'text/plain',
+              fileSize: Buffer.byteLength(deliverable.content, 'utf8'),
+              entityType: type.slice(0, -1),
+              entityId: id,
+              uploadedBy: userId
+            });
+            console.log('🤖 AI ASSIST: File created successfully with ID:', fileId);
+          } catch (fileError) {
+            console.error('🤖 AI ASSIST: File creation failed:', fileError);
+          }
         }
+      } else {
+        console.log('🤖 AI ASSIST: No deliverables to save as files');
       }
 
       // Create follow-up items in appropriate hierarchy level
