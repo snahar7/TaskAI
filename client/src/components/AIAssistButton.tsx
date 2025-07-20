@@ -181,7 +181,7 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-500" />
-            AI Assist: {taskTitle}
+            AI Assist: {entityTitle}
           </DialogTitle>
         </DialogHeader>
 

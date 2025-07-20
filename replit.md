@@ -92,6 +92,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 20, 2025: **🤖 UNIVERSAL AI ASSIST - Complete Cross-Entity Implementation**
+  - **✅ AI Assist on All Entity Types**: AI Assist button now works on goals, projects, tasks, and subtasks pages
+    - Updated AIAssistButton component to accept entityId, entityType, and entityTitle instead of task-specific props
+    - AI automatically adapts completion strategies based on entity type (goals create projects, projects create tasks, etc.)
+    - Fixed runtime error where taskTitle was not defined on non-task entity pages
+  - **✅ Proper File Naming Convention**: AI outputs now saved with "AI assist" + date format as requested
+    - Format: "AI assist YYYY-MM-DD - Content Title.txt" for all AI-generated deliverables
+    - Files automatically attached to the correct entity in the hierarchy
+    - Consistent naming across all AI completion types (content, code, research, analysis)
+  - **✅ Enhanced Backend Support**: Updated AI Assist API endpoints to handle all entity types
+    - Modified /api/ai-assist/suggestions and /api/ai-assist/complete to accept entityId and entityType
+    - Maintained backward compatibility with legacy taskId parameter for existing integrations
+    - Added proper access control checking for all entity types using hierarchical security model
+  - **✅ Smart Follow-Up Creation**: AI creates appropriate child items based on entity type
+    - Goals → AI creates projects as follow-up tasks
+    - Projects → AI creates tasks as follow-up tasks  
+    - Tasks → AI creates subtasks as follow-up tasks
+    - Subtasks → No further subdivision (lowest hierarchy level)
+
 - July 20, 2025: **📎 ENHANCED AI ASSIST WITH FILE CONTEXT INTEGRATION**
   - **✅ File Context Processing**: AI Assist now automatically includes attached file content in task analysis and completion
     - Reads text-based files (.txt, .md, .json, .csv, .js, .py, etc.) and includes content in AI prompts
