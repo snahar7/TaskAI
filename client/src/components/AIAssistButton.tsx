@@ -64,10 +64,7 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
       };
       console.log('🤖 AI ASSIST: Request payload:', payload);
       
-      const response = await apiRequest(`/api/ai-assist/suggestions`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const response = await apiRequest('POST', `/api/ai-assist/suggestions`, payload);
       
       console.log('🤖 AI ASSIST: API response:', response);
       return response;
@@ -89,14 +86,11 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
   // Execute AI completion
   const completionMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/ai-assist/complete`, {
-        method: 'POST',
-        body: JSON.stringify({ 
-          entityId, 
-          entityType,
-          // Legacy support for existing API
-          taskId: entityType === 'tasks' ? entityId : undefined 
-        })
+      const response = await apiRequest('POST', `/api/ai-assist/complete`, { 
+        entityId, 
+        entityType,
+        // Legacy support for existing API
+        taskId: entityType === 'tasks' ? entityId : undefined 
       });
       return response;
     },
