@@ -1902,6 +1902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filesCount: files?.length || 0
       });
 
+      let result;
       try {
         console.log('🤖 AI ASSIST: Importing AI service for completion...');
         const aiAssistModule = await import("../src/services/ai-assist/index");
@@ -1913,7 +1914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         console.log('🤖 AI ASSIST: AI service available, calling completeTask...');
-        const result = await aiAssistService.completeTask(context);
+        result = await aiAssistService.completeTask(context);
         console.log('🤖 AI ASSIST: Task completion result:', result.success);
       } catch (importError) {
         console.error('🤖 AI ASSIST: Failed to import or call AI service:', importError);
