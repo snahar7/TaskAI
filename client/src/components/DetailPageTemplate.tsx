@@ -169,10 +169,23 @@ export function DetailPageTemplate({
     return "/dashboard";
   };
 
-  const getChildPath = (childId: number) => {
-    const goalId = parentIds.goalId || data?.goalId;
-    const projectId = parentIds.projectId || data?.projectId;
-    const taskId = parentIds.taskId || data?.taskId;
+  const getChildPath = (childId: number, child?: any) => {
+    // Get hierarchy IDs from multiple sources for maximum compatibility
+    const goalId = parentIds.goalId || data?.goalId || child?.goalId;
+    const projectId = parentIds.projectId || data?.projectId || child?.projectId || itemId;
+    const taskId = parentIds.taskId || data?.taskId || child?.taskId || itemId;
+    
+    // Debug logging to help troubleshoot navigation issues
+    console.log('getChildPath debug:', {
+      childId,
+      childType: config.childType,
+      goalId,
+      projectId, 
+      taskId,
+      parentIds,
+      dataIds: { goalId: data?.goalId, projectId: data?.projectId, taskId: data?.taskId },
+      childIds: { goalId: child?.goalId, projectId: child?.projectId, taskId: child?.taskId }
+    });
     
     // Enforce strict hierarchical paths - no fallbacks
     if (config.childType === 'projects' && goalId) {
@@ -184,6 +197,7 @@ export function DetailPageTemplate({
     }
     
     // Return # if hierarchy is incomplete - don't allow broken navigation
+    console.warn('Incomplete hierarchy for child navigation:', { childId, config: config.childType, goalId, projectId, taskId });
     return "#";
   };
 
@@ -395,12 +409,21 @@ export function DetailPageTemplate({
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {children.map((child: any) => (
-                    <div 
-                      key={child.id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => navigate(getChildPath(child.id))}
-                    >
+                  {children.map((child: any) => {
+                    const childPath = getChildPath(child.id, child);
+                    const isNavigable = childPath !== "#";
+                    
+                    return (
+                      <div 
+                        key={child.id}
+                        className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                          isNavigable 
+                            ? 'hover:bg-gray-50 cursor-pointer' 
+                            : 'opacity-50 cursor-not-allowed bg-gray-50'
+                        }`}
+                        onClick={() => isNavigable && navigate(childPath)}
+                        title={isNavigable ? `Open ${config.childType?.slice(0, -1)}` : 'Complete parent hierarchy required for navigation'}
+                      >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <Button
                           size="sm"
@@ -432,10 +455,10 @@ export function DetailPageTemplate({
                             Due: {new Date(child.deadline).toLocaleDateString()}
                           </span>
                         )}
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                        <ChevronRight className={`h-4 w-4 ${isNavigable ? 'text-gray-400' : 'text-gray-300'}`} />
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </CardContent>
             </Card>
