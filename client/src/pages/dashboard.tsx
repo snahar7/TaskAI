@@ -268,8 +268,8 @@ function DashboardContent() {
     if (item.goalId && item.projectId) {
       navigate(`/goal/${item.goalId}/project/${item.projectId}/task/${item.id}`);
     } else {
-      // Fallback to old navigation if hierarchy is missing
-      navigate(`/task/${item.id}`);
+      // Don't navigate if hierarchy is incomplete
+      console.warn(`Task ${item.id} missing required hierarchy (goalId: ${item.goalId}, projectId: ${item.projectId})`);
     }
   };
 

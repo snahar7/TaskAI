@@ -43,21 +43,21 @@ function SubtaskDetailContent() {
       path: '/dashboard',
       icon: Home,
     },
-    ...(goal && goalId ? [{
-      label: goal.title,
+    {
+      label: goal?.title || 'Goal',
       path: `/goal/${goalId}`,
       icon: Target,
-    }] : []),
-    ...(project && goalId && projectId ? [{
-      label: project.title,
+    },
+    {
+      label: project?.title || 'Project',
       path: `/goal/${goalId}/project/${projectId}`,
       icon: Briefcase,
-    }] : []),
-    ...(task && goalId && projectId && taskId ? [{
-      label: task.title,
+    },
+    {
+      label: task?.title || 'Task',
       path: `/goal/${goalId}/project/${projectId}/task/${taskId}`,
       icon: ListTodo,
-    }] : [])
+    }
   ];
 
   return (

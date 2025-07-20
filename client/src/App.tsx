@@ -25,9 +25,6 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/database" component={Database} />
       <Route path="/dashboard" component={Dashboard} />
-      <Route path="/task/:taskId" component={TaskDetail} />
-      <Route path="/project/:projectId" component={ProjectDetail} />
-      <Route path="/subtask/:subtaskId" component={SubtaskDetail} />
       <Route path="/goal/:goalId" component={GoalDetail} />
       <Route path="/goal/:goalId/project/:projectId" component={ProjectDetail} />
       <Route path="/goal/:goalId/project/:projectId/task/:taskId" component={TaskDetail} />

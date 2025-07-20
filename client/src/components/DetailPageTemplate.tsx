@@ -174,7 +174,7 @@ export function DetailPageTemplate({
     const projectId = parentIds.projectId || data?.projectId;
     const taskId = parentIds.taskId || data?.taskId;
     
-    // Only generate URLs if we have all required parent IDs
+    // Enforce strict hierarchical paths - no fallbacks
     if (config.childType === 'projects' && goalId) {
       return `/goal/${goalId}/project/${childId}`;
     } else if (config.childType === 'tasks' && goalId && projectId) {
@@ -183,11 +183,7 @@ export function DetailPageTemplate({
       return `/goal/${goalId}/project/${projectId}/task/${taskId}/subtask/${childId}`;
     }
     
-    // Fallback to simple paths if hierarchy is incomplete
-    if (config.childType === 'projects') return `/project/${childId}`;
-    if (config.childType === 'tasks') return `/task/${childId}`;
-    if (config.childType === 'subtasks') return `/subtask/${childId}`;
-    
+    // Return # if hierarchy is incomplete - don't allow broken navigation
     return "#";
   };
 

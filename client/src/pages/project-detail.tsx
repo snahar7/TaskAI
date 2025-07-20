@@ -7,10 +7,10 @@ import { DetailPageTemplate } from "@/components/DetailPageTemplate";
 function ProjectDetailContent() {
   const { goalId, projectId } = useParams();
 
-  // Fetch project details - use hierarchical endpoint if goalId is available
+  // Fetch project details - require goalId for hierarchical navigation
   const { data: project, isLoading } = useQuery({
-    queryKey: goalId ? [`/api/goals/${goalId}/projects/${projectId}`] : [`/api/projects/${projectId}`],
-    enabled: !!projectId,
+    queryKey: [`/api/goals/${goalId}/projects/${projectId}`],
+    enabled: !!goalId && !!projectId,
   });
 
   // Fetch tasks for this project
@@ -41,11 +41,11 @@ function ProjectDetailContent() {
       path: '/dashboard',
       icon: Home,
     },
-    ...(goal && goalId ? [{
-      label: goal.title,
+    {
+      label: goal?.title || 'Goal',
       path: `/goal/${goalId}`,
       icon: Target,
-    }] : [])
+    }
   ];
 
   return (

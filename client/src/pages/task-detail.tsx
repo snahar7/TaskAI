@@ -7,10 +7,10 @@ import { DetailPageTemplate } from "@/components/DetailPageTemplate";
 function TaskDetailContent() {
   const { goalId, projectId, taskId } = useParams();
 
-  // Fetch task details - use hierarchical endpoint if all IDs are available
+  // Fetch task details - require full hierarchy for navigation
   const { data: task, isLoading } = useQuery({
-    queryKey: (goalId && projectId) ? [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`] : [`/api/tasks/${taskId}`],
-    enabled: !!taskId,
+    queryKey: [`/api/goals/${goalId}/projects/${projectId}/tasks/${taskId}`],
+    enabled: !!goalId && !!projectId && !!taskId,
   });
 
   // Fetch subtasks for this task
@@ -26,8 +26,8 @@ function TaskDetailContent() {
   });
 
   const { data: project } = useQuery({
-    queryKey: (goalId && projectId) ? [`/api/goals/${goalId}/projects/${projectId}`] : [`/api/projects/${projectId}`],
-    enabled: !!projectId,
+    queryKey: [`/api/goals/${goalId}/projects/${projectId}`],
+    enabled: !!goalId && !!projectId,
   });
 
   const config = {
@@ -46,16 +46,16 @@ function TaskDetailContent() {
       path: '/dashboard',
       icon: Home,
     },
-    ...(goal && goalId ? [{
-      label: goal.title,
+    {
+      label: goal?.title || 'Goal',
       path: `/goal/${goalId}`,
       icon: Target,
-    }] : []),
-    ...(project && goalId && projectId ? [{
-      label: project.title,
+    },
+    {
+      label: project?.title || 'Project',
       path: `/goal/${goalId}/project/${projectId}`,
       icon: Briefcase,
-    }] : [])
+    }
   ];
 
   return (

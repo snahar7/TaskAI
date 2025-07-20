@@ -810,15 +810,14 @@ function DatabaseContent() {
                   </button>
                   <FolderOpen className="h-4 w-4 text-blue-600" />
                   <span 
-                    className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                    className={`font-medium ${project.goalId ? 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline' : 'cursor-not-allowed text-gray-400'}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (project.goalId) {
                         navigate(`/goal/${project.goalId}/project/${project.id}`);
-                      } else {
-                        navigate(`/project/${project.id}`);
                       }
                     }}
+                    title={!project.goalId ? "Project must have a parent goal to view details" : ""}
                   >
                     {project.title}
                   </span>
@@ -985,16 +984,14 @@ function DatabaseContent() {
                   </button>
                   <CheckSquare className="h-4 w-4 text-green-600" />
                   <span 
-                    className="font-medium cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                    className={`font-medium ${task.goalId && task.projectId ? 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline' : 'cursor-not-allowed text-gray-400'}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Use hierarchical navigation if available, otherwise fallback to direct route
                       if (task.goalId && task.projectId) {
                         navigate(`/goal/${task.goalId}/project/${task.projectId}/task/${task.id}`);
-                      } else {
-                        navigate(`/task/${task.id}`);
                       }
                     }}
+                    title={!task.goalId || !task.projectId ? "Task must have complete parent hierarchy (goal > project) to view details" : ""}
                   >
                     {task.title}
                   </span>
@@ -1169,18 +1166,14 @@ function DatabaseContent() {
               <div className="flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-yellow-600" />
                 <span 
-                  className="font-medium text-sm cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                  className={`font-medium text-sm ${subtask.goalId && subtask.projectId && subtask.taskId ? 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline' : 'cursor-not-allowed text-gray-400'}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Navigate to dedicated subtask detail page
                     if (subtask.goalId && subtask.projectId && subtask.taskId) {
                       navigate(`/goal/${subtask.goalId}/project/${subtask.projectId}/task/${subtask.taskId}/subtask/${subtask.id}`);
-                    } else if (subtask.taskId) {
-                      navigate(`/task/${subtask.taskId}/subtask/${subtask.id}`);
-                    } else {
-                      navigate(`/subtask/${subtask.id}`);
                     }
                   }}
+                  title={!subtask.goalId || !subtask.projectId || !subtask.taskId ? "Subtask must have complete parent hierarchy (goal > project > task) to view details" : ""}
                 >
                   {subtask.title}
                 </span>
