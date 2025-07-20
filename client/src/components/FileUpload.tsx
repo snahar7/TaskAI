@@ -44,8 +44,8 @@ export function FileUpload({ entityType, entityId, disabled = false }: FileUploa
   const { data: files = [], isLoading } = useQuery({
     queryKey: [`/api/files/${entityType}/${entityId}`],
     queryFn: async () => {
-      const response = await apiRequest(`/api/files/${entityType}/${entityId}`);
-      return response as FileItem[];
+      const response = await apiRequest('GET', `/api/files/${entityType}/${entityId}`);
+      return response.json() as Promise<FileItem[]>;
     }
   });
 
@@ -89,9 +89,7 @@ export function FileUpload({ entityType, entityId, disabled = false }: FileUploa
   // Delete file mutation
   const deleteMutation = useMutation({
     mutationFn: async (fileId: number) => {
-      await apiRequest(`/api/files/${fileId}`, {
-        method: 'DELETE'
-      });
+      await apiRequest('DELETE', `/api/files/${fileId}`);
     },
     onSuccess: () => {
       toast({
