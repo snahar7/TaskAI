@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 
 interface AIAssistButtonProps {
-  taskId: number;
-  taskTitle: string;
+  entityId: number;
+  entityType: 'goals' | 'projects' | 'tasks' | 'subtasks';
+  entityTitle: string;
   disabled?: boolean;
 }
 
@@ -41,7 +42,7 @@ interface AIAssistResult {
   processingTime: number;
 }
 
-export function AIAssistButton({ taskId, taskTitle, disabled = false }: AIAssistButtonProps) {
+export function AIAssistButton({ entityId, entityType, entityTitle, disabled = false }: AIAssistButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<AIAssistSuggestion[]>([]);
   const [selectedSuggestion, setSelectedSuggestion] = useState<AIAssistSuggestion | null>(null);
@@ -56,7 +57,12 @@ export function AIAssistButton({ taskId, taskTitle, disabled = false }: AIAssist
     mutationFn: async () => {
       const response = await apiRequest(`/api/ai-assist/suggestions`, {
         method: 'POST',
-        body: JSON.stringify({ taskId })
+        body: JSON.stringify({ 
+          entityId, 
+          entityType,
+          // Legacy support for existing API
+          taskId: entityType === 'tasks' ? entityId : undefined 
+        })
       });
       return response;
     },
@@ -77,7 +83,12 @@ export function AIAssistButton({ taskId, taskTitle, disabled = false }: AIAssist
     mutationFn: async () => {
       const response = await apiRequest(`/api/ai-assist/complete`, {
         method: 'POST',
-        body: JSON.stringify({ taskId })
+        body: JSON.stringify({ 
+          entityId, 
+          entityType,
+          // Legacy support for existing API
+          taskId: entityType === 'tasks' ? entityId : undefined 
+        })
       });
       return response;
     },
@@ -93,8 +104,14 @@ export function AIAssistButton({ taskId, taskTitle, disabled = false }: AIAssist
         
         // Invalidate related queries to refresh UI
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/subtasks'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
         queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
-        queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/${entityType}/${entityId}`] });
+        if (entityType === 'tasks') {
+          queryClient.invalidateQueries({ queryKey: [`/api/tasks/${entityId}/subtasks`] });
+        }
         
       } else {
         toast({

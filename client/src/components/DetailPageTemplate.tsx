@@ -541,11 +541,12 @@ export function DetailPageTemplate({
               <CardTitle className="text-lg">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* AI Assist - Only show for tasks */}
-              {config.type === 'tasks' && !data?.completed && (
+              {/* AI Assist - Available for all entity types */}
+              {!data?.completed && (
                 <AIAssistButton 
-                  taskId={parseInt(itemId)}
-                  taskTitle={data?.title || ""}
+                  entityId={parseInt(itemId)}
+                  entityType={config.type}
+                  entityTitle={data?.title || ""}
                   disabled={data?.completed}
                 />
               )}

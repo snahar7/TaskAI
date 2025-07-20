@@ -1667,7 +1667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // AI ASSIST ENDPOINTS
   
-  // Get AI Assist suggestions for a task
+  // Get AI Assist suggestions for any entity
   app.post("/api/ai-assist/suggestions", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getCurrentUserId(req);
@@ -1675,40 +1675,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      const { taskId } = z.object({ taskId: z.number() }).parse(req.body);
+      const { entityId, entityType, taskId } = z.object({ 
+        entityId: z.number().optional(),
+        entityType: z.enum(['goals', 'projects', 'tasks', 'subtasks']).optional(),
+        taskId: z.number().optional() // Legacy support
+      }).parse(req.body);
+
+      // Use legacy taskId if provided, otherwise use entityId/entityType
+      const id = entityId || taskId;
+      const type = entityType || 'tasks';
       
-      // Check if user can access this task
-      if (!(await canUserAccess(userId, 'task', taskId))) {
+      if (!id) {
+        return res.status(400).json({ error: "entityId or taskId is required" });
+      }
+      
+      // Convert type to singular for access check
+      const accessType = type.slice(0, -1) as 'goal' | 'project' | 'task' | 'subtask';
+      
+      // Check if user can access this entity
+      if (!(await canUserAccess(userId, accessType, id))) {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Get task with full context
-      const task = await storage.getTask(taskId);
-      if (!task) {
-        return res.status(404).json({ error: "Task not found" });
+      // Get entity with full context
+      let entity: any;
+      let parentProject: any = undefined;
+      let parentGoal: any = undefined;
+      let parentTask: any = undefined;
+
+      if (type === 'goals') {
+        entity = await storage.getGoal(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Goal not found" });
+        }
+      } else if (type === 'projects') {
+        entity = await storage.getProject(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+        parentGoal = await storage.getGoal(entity.goalId);
+      } else if (type === 'tasks') {
+        entity = await storage.getTask(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Task not found" });
+        }
+        parentProject = await storage.getProject(entity.projectId);
+        parentGoal = parentProject ? await storage.getGoal(parentProject.goalId) : null;
+      } else if (type === 'subtasks') {
+        entity = await storage.getSubtask(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Subtask not found" });
+        }
+        parentTask = await storage.getTask(entity.taskId);
+        if (parentTask) {
+          parentProject = await storage.getProject(parentTask.projectId);
+          parentGoal = parentProject ? await storage.getGoal(parentProject.goalId) : null;
+        }
       }
 
-      const project = await storage.getProject(task.projectId);
-      const goal = project ? await storage.getGoal(project.goalId) : null;
+      // Get attached files for context
+      const files = await storage.getFilesByEntity(type.slice(0, -1), id);
 
       // Build AI context
       const context = {
-        taskId,
-        taskTitle: task.title,
-        taskDescription: task.description,
-        parentProject: project ? {
-          id: project.id,
-          title: project.title,
-          description: project.description
+        taskId: type === 'tasks' ? id : undefined, // Legacy support
+        taskTitle: entity.title,
+        taskDescription: entity.description,
+        parentTask: parentTask ? {
+          id: parentTask.id,
+          title: parentTask.title,
+          description: parentTask.description
         } : undefined,
-        parentGoal: goal ? {
-          id: goal.id,
-          title: goal.title,
-          description: goal.description
+        parentProject: parentProject ? {
+          id: parentProject.id,
+          title: parentProject.title,
+          description: parentProject.description
         } : undefined,
-        deadline: task.deadline,
-        priority: task.priority,
-        estimatedHours: task.estimatedHours
+        parentGoal: parentGoal ? {
+          id: parentGoal.id,
+          title: parentGoal.title,
+          description: parentGoal.description
+        } : undefined,
+        deadline: entity.deadline,
+        priority: entity.priority,
+        estimatedHours: entity.estimatedHours,
+        files: files
       };
 
       // Get AI suggestions
@@ -1722,7 +1773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Execute AI Assist task completion
+  // Execute AI Assist completion for any entity
   app.post("/api/ai-assist/complete", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getCurrentUserId(req);
@@ -1730,76 +1781,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      const { taskId } = z.object({ taskId: z.number() }).parse(req.body);
+      const { entityId, entityType, taskId } = z.object({ 
+        entityId: z.number().optional(),
+        entityType: z.enum(['goals', 'projects', 'tasks', 'subtasks']).optional(),
+        taskId: z.number().optional() // Legacy support
+      }).parse(req.body);
+
+      // Use legacy taskId if provided, otherwise use entityId/entityType
+      const id = entityId || taskId;
+      const type = entityType || 'tasks';
       
-      // Check if user can access this task
-      if (!(await canUserAccess(userId, 'task', taskId))) {
+      if (!id) {
+        return res.status(400).json({ error: "entityId or taskId is required" });
+      }
+      
+      // Convert type to singular for access check
+      const accessType = type.slice(0, -1) as 'goal' | 'project' | 'task' | 'subtask';
+      
+      // Check if user can access this entity
+      if (!(await canUserAccess(userId, accessType, id))) {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Get task with full context
-      const task = await storage.getTask(taskId);
-      if (!task) {
-        return res.status(404).json({ error: "Task not found" });
+      // Get entity with full context
+      let entity: any;
+      let parentProject: any = undefined;
+      let parentGoal: any = undefined;
+      let parentTask: any = undefined;
+
+      if (type === 'goals') {
+        entity = await storage.getGoal(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Goal not found" });
+        }
+      } else if (type === 'projects') {
+        entity = await storage.getProject(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+        parentGoal = await storage.getGoal(entity.goalId);
+      } else if (type === 'tasks') {
+        entity = await storage.getTask(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Task not found" });
+        }
+        parentProject = await storage.getProject(entity.projectId);
+        parentGoal = parentProject ? await storage.getGoal(parentProject.goalId) : null;
+      } else if (type === 'subtasks') {
+        entity = await storage.getSubtask(id);
+        if (!entity) {
+          return res.status(404).json({ error: "Subtask not found" });
+        }
+        parentTask = await storage.getTask(entity.taskId);
+        if (parentTask) {
+          parentProject = await storage.getProject(parentTask.projectId);
+          parentGoal = parentProject ? await storage.getGoal(parentProject.goalId) : null;
+        }
       }
 
-      const project = await storage.getProject(task.projectId);
-      const goal = project ? await storage.getGoal(project.goalId) : null;
+      // Get attached files for context
+      const files = await storage.getFilesByEntity(type.slice(0, -1), id);
 
       // Build AI context
       const context = {
-        taskId,
-        taskTitle: task.title,
-        taskDescription: task.description,
-        parentProject: project ? {
-          id: project.id,
-          title: project.title,
-          description: project.description
+        taskId: type === 'tasks' ? id : undefined, // Legacy support
+        taskTitle: entity.title,
+        taskDescription: entity.description,
+        parentTask: parentTask ? {
+          id: parentTask.id,
+          title: parentTask.title,
+          description: parentTask.description
         } : undefined,
-        parentGoal: goal ? {
-          id: goal.id,
-          title: goal.title,
-          description: goal.description
+        parentProject: parentProject ? {
+          id: parentProject.id,
+          title: parentProject.title,
+          description: parentProject.description
         } : undefined,
-        deadline: task.deadline,
-        priority: task.priority,
-        estimatedHours: task.estimatedHours
+        parentGoal: parentGoal ? {
+          id: parentGoal.id,
+          title: parentGoal.title,
+          description: parentGoal.description
+        } : undefined,
+        deadline: entity.deadline,
+        priority: entity.priority,
+        estimatedHours: entity.estimatedHours,
+        files: files
       };
 
       // Execute AI completion
       const { aiAssistService } = await import("../src/services/ai-assist/index");
       const result = await aiAssistService.completeTask(context);
 
-      // If successful, create follow-up tasks
-      if (result.success && result.followUpTasks && result.followUpTasks.length > 0) {
-        for (const followUpTask of result.followUpTasks) {
-          await storage.createTask({
-            projectId: task.projectId,
-            title: followUpTask.title,
-            description: followUpTask.description,
-            priority: followUpTask.priority || 'medium',
-            estimatedHours: followUpTask.estimatedHours || null,
-            assignedTo: userId,
-            createdBy: userId,
-            deadline: null,
-            completed: false,
-            startDate: null,
-            dependencies: null,
-            tags: null,
-            category: null,
-            comments: null,
-            customFields: null
+      // Store AI deliverables as files with proper naming
+      if (result.success && result.deliverables && result.deliverables.length > 0) {
+        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        for (const deliverable of result.deliverables) {
+          // Create file with "AI assist" + date naming convention
+          const filename = `AI assist ${currentDate} - ${deliverable.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+          
+          await storage.createFile({
+            fileName: filename,
+            mimeType: 'text/plain',
+            fileSize: Buffer.byteLength(deliverable.content, 'utf8'),
+            fileData: Buffer.from(deliverable.content, 'utf8'),
+            entityType: type.slice(0, -1),
+            entityId: id,
+            uploadedBy: userId
           });
         }
       }
 
-      // Mark original task as completed if AI was successful
+      // Create follow-up items in appropriate hierarchy level
+      if (result.success && result.followUpTasks && result.followUpTasks.length > 0) {
+        for (const followUpTask of result.followUpTasks) {
+          if (type === 'goals') {
+            // Create projects under the goal
+            await storage.createProject({
+              goalId: id,
+              title: followUpTask.title,
+              description: followUpTask.description,
+              priority: followUpTask.priority || 'medium',
+              estimatedHours: followUpTask.estimatedHours || null,
+              assignedTo: userId,
+              createdBy: userId,
+              deadline: null,
+              completed: false
+            });
+          } else if (type === 'projects') {
+            // Create tasks under the project
+            await storage.createTask({
+              projectId: id,
+              title: followUpTask.title,
+              description: followUpTask.description,
+              priority: followUpTask.priority || 'medium',
+              estimatedHours: followUpTask.estimatedHours || null,
+              assignedTo: userId,
+              createdBy: userId,
+              deadline: null,
+              completed: false,
+              startDate: null,
+              dependencies: null,
+              tags: null,
+              category: null,
+              comments: null,
+              customFields: null
+            });
+          } else if (type === 'tasks') {
+            // Create subtasks under the task
+            await storage.createSubtask({
+              taskId: id,
+              title: followUpTask.title,
+              description: followUpTask.description,
+              priority: followUpTask.priority || 'medium',
+              timeEstimate: followUpTask.estimatedHours ? Math.round(followUpTask.estimatedHours * 60) : null,
+              assignedTo: userId,
+              createdBy: userId,
+              deadline: null,
+              completed: false,
+              startDate: null
+            });
+          }
+          // Note: subtasks don't create further sub-items as they're the lowest level
+        }
+      }
+
+      // Mark original entity as completed if AI was successful
       if (result.success) {
-        await storage.updateTaskCompletion(taskId, true);
-        
-        // Update task progress cascading
-        const progressUpdaterModule = await import("./services/progressUpdater");
-        await progressUpdaterModule.progressUpdater.updateTaskProgress(taskId, true);
+        if (type === 'tasks') {
+          await storage.updateTaskCompletion(id, true);
+          // Update task progress cascading
+          const progressUpdaterModule = await import("./services/progressUpdater");
+          await progressUpdaterModule.progressUpdater.updateTaskProgress(id, true);
+        } else if (type === 'subtasks') {
+          await storage.updateSubtaskCompletion(id, true);
+          // Update subtask progress cascading
+          const progressUpdaterModule = await import("./services/progressUpdater");
+          await progressUpdaterModule.progressUpdater.updateSubtaskProgress(id, true);
+        }
+        // Goals and projects don't auto-complete as they contain sub-items
       }
 
       res.json(result);
