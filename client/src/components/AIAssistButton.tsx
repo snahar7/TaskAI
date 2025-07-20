@@ -55,21 +55,29 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
   // Get AI suggestions
   const suggestionsMutation = useMutation({
     mutationFn: async () => {
+      console.log('🤖 AI ASSIST: Making API request to /api/ai-assist/suggestions');
+      const payload = { 
+        entityId, 
+        entityType,
+        // Legacy support for existing API
+        taskId: entityType === 'tasks' ? entityId : undefined 
+      };
+      console.log('🤖 AI ASSIST: Request payload:', payload);
+      
       const response = await apiRequest(`/api/ai-assist/suggestions`, {
         method: 'POST',
-        body: JSON.stringify({ 
-          entityId, 
-          entityType,
-          // Legacy support for existing API
-          taskId: entityType === 'tasks' ? entityId : undefined 
-        })
+        body: JSON.stringify(payload)
       });
+      
+      console.log('🤖 AI ASSIST: API response:', response);
       return response;
     },
     onSuccess: (data) => {
+      console.log('🤖 AI ASSIST: Success! Got suggestions:', data);
       setSuggestions(data.suggestions || []);
     },
     onError: (error) => {
+      console.error('🤖 AI ASSIST: Error getting suggestions:', error);
       toast({
         title: "Failed to get AI suggestions",
         description: error.message,
@@ -131,6 +139,7 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
   });
 
   const handleOpenDialog = () => {
+    console.log('🤖 AI ASSIST: Button clicked', { entityId, entityType, entityTitle });
     setIsOpen(true);
     setShowResults(false);
     setCompletionResult(null);
@@ -138,6 +147,7 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
     setSelectedSuggestion(null);
     
     // Load suggestions immediately
+    console.log('🤖 AI ASSIST: Calling suggestionsMutation.mutate()');
     suggestionsMutation.mutate();
   };
 

@@ -1770,11 +1770,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filesCount: files?.length || 0
       });
 
-      const { aiAssistService } = await import("../src/services/ai-assist/index");
-      const suggestions = await aiAssistService.generateAssistSuggestions(context);
+      try {
+        console.log('🤖 AI ASSIST: Importing AI service...');
+        const aiAssistModule = await import("../src/services/ai-assist/index");
+        console.log('🤖 AI ASSIST: Module imported successfully, keys:', Object.keys(aiAssistModule));
+        
+        const { aiAssistService } = aiAssistModule;
+        if (!aiAssistService) {
+          throw new Error("aiAssistService not found in module exports");
+        }
+        
+        console.log('🤖 AI ASSIST: AI service available, calling generateAssistSuggestions...');
+        const suggestions = await aiAssistService.generateAssistSuggestions(context);
 
-      console.log('🤖 AI ASSIST: Generated suggestions:', suggestions?.length || 0);
-      res.json({ suggestions });
+        console.log('🤖 AI ASSIST: Generated suggestions:', suggestions?.length || 0);
+        res.json({ suggestions });
+      } catch (importError) {
+        console.error('🤖 AI ASSIST: Failed to import or call AI service:', importError);
+        throw new Error(`AI service import failed: ${importError.message}`);
+      }
     } catch (error) {
       console.error('🤖 AI ASSIST: Suggestions failed:', error);
       res.status(500).json({ 
@@ -1888,8 +1902,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filesCount: files?.length || 0
       });
 
-      const { aiAssistService } = await import("../src/services/ai-assist/index");
-      const result = await aiAssistService.completeTask(context);
+      try {
+        console.log('🤖 AI ASSIST: Importing AI service for completion...');
+        const aiAssistModule = await import("../src/services/ai-assist/index");
+        console.log('🤖 AI ASSIST: Module imported successfully');
+        
+        const { aiAssistService } = aiAssistModule;
+        if (!aiAssistService) {
+          throw new Error("aiAssistService not found in module exports");
+        }
+        
+        console.log('🤖 AI ASSIST: AI service available, calling completeTask...');
+        const result = await aiAssistService.completeTask(context);
+        console.log('🤖 AI ASSIST: Task completion result:', result.success);
+      } catch (importError) {
+        console.error('🤖 AI ASSIST: Failed to import or call AI service:', importError);
+        throw new Error(`AI service import failed: ${importError.message}`);
+      }
 
       console.log('🤖 AI ASSIST: Completion result:', {
         success: result.success,
