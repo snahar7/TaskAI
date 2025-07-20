@@ -1763,13 +1763,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Get AI suggestions
+      console.log('🤖 AI ASSIST: Getting suggestions for', type, id, 'with context:', {
+        title: entity.title,
+        hasParentProject: !!parentProject,
+        hasParentGoal: !!parentGoal,
+        filesCount: files?.length || 0
+      });
+
       const { aiAssistService } = await import("../src/services/ai-assist/index");
       const suggestions = await aiAssistService.generateAssistSuggestions(context);
 
+      console.log('🤖 AI ASSIST: Generated suggestions:', suggestions?.length || 0);
       res.json({ suggestions });
     } catch (error) {
-      console.error('AI Assist suggestions failed:', error);
-      next(error);
+      console.error('🤖 AI ASSIST: Suggestions failed:', error);
+      res.status(500).json({ 
+        error: "AI Assist suggestions failed", 
+        details: error.message,
+        type: "ai_assist_error"
+      });
     }
   });
 
@@ -1869,8 +1881,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Execute AI completion
+      console.log('🤖 AI ASSIST: Starting completion for', type, id, 'with context:', {
+        title: entity.title,
+        hasParentProject: !!parentProject,
+        hasParentGoal: !!parentGoal,
+        filesCount: files?.length || 0
+      });
+
       const { aiAssistService } = await import("../src/services/ai-assist/index");
       const result = await aiAssistService.completeTask(context);
+
+      console.log('🤖 AI ASSIST: Completion result:', {
+        success: result.success,
+        deliverablesCount: result.deliverables?.length || 0,
+        followUpCount: result.followUpTasks?.length || 0
+      });
 
       // Store AI deliverables as files with proper naming
       if (result.success && result.deliverables && result.deliverables.length > 0) {
@@ -1964,8 +1989,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(result);
     } catch (error) {
-      console.error('AI Assist completion failed:', error);
-      next(error);
+      console.error('🤖 AI ASSIST: Completion failed:', error);
+      res.status(500).json({ 
+        error: "AI Assist completion failed", 
+        details: error.message,
+        type: "ai_assist_error"
+      });
     }
   });
 

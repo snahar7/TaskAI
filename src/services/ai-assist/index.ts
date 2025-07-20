@@ -132,43 +132,17 @@ export class AIAssistService {
    */
   private async enrichContextWithFiles(context: AIAssistContext): Promise<AIAssistContext> {
     try {
-      // Fetch files from the storage layer
-      const files = await this.fetchFilesForTask(context.taskId);
+      // Files are already provided in the context from the API endpoint
+      const files = context.files || [];
       
       if (!files || files.length === 0) {
         return { ...context, files: [] };
       }
 
-      // Process files to extract content where possible
-      const enrichedFiles: FileContext[] = [];
-      
-      for (const file of files) {
-        const enrichedFile: FileContext = {
-          id: file.id,
-          fileName: file.fileName,
-          fileUrl: file.fileUrl,
-          mimeType: file.mimeType,
-          fileSize: file.fileSize,
-          entityType: 'task', // Default to task, could be determined from file path
-          entityId: context.taskId
-        };
-
-        // Try to read file content for text-based files
-        if (this.isTextFile(file.mimeType || file.fileName)) {
-          try {
-            const content = await this.readFileContent(file.fileUrl);
-            enrichedFile.content = content;
-          } catch (error) {
-            console.warn(`Could not read content for file ${file.fileName}:`, error.message);
-          }
-        }
-
-        enrichedFiles.push(enrichedFile);
-      }
-
+      // Files are already enriched with content by the API endpoint
       return {
         ...context,
-        files: enrichedFiles
+        files: files
       };
 
     } catch (error) {
@@ -177,19 +151,7 @@ export class AIAssistService {
     }
   }
 
-  /**
-   * Fetches files attached to a specific task
-   */
-  private async fetchFilesForTask(taskId: number): Promise<any[]> {
-    try {
-      // Import storage interface to fetch files
-      const { dbStorage } = await import('../../server/storage');
-      return await dbStorage.getFilesForEntity('task', taskId);
-    } catch (error) {
-      console.error('Failed to fetch files for task:', error);
-      return [];
-    }
-  }
+  // Note: File fetching is now handled by the API endpoint, not here
 
   /**
    * Determines if a file is text-based and can be read for content
