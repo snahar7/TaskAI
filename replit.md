@@ -98,6 +98,7 @@ Preferred communication style: Simple, everyday language.
   - **✅ AI Assist Fixed**: File context processing now works properly with content column available
   - **✅ Universal Compatibility**: File collaboration confirmed working on ALL entity pages (goals, projects, tasks, subtasks)
   - **✅ Production Ready**: Database migration completed, all file operations and AI assist functionality restored
+  - **✅ Cache Invalidation Fix**: Added missing file cache invalidation to AIAssistButton so AI-generated files appear immediately in UI across all entity pages
 
 - July 21, 2025: **🔄 COMPLETE FILE COLLABORATION SYSTEM - Interactive File Viewer & Real-time Collaboration**
   - **✅ Full-Featured FileViewer Component**: Interactive file viewer modal with multi-format support

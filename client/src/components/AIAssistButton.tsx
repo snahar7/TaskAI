@@ -113,6 +113,8 @@ export function AIAssistButton({ entityId, entityType, entityTitle, disabled = f
         queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
         queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
         queryClient.invalidateQueries({ queryKey: [`/api/${entityType}/${entityId}`] });
+        // CRITICAL: Invalidate file cache so AI-generated files appear immediately
+        queryClient.invalidateQueries({ queryKey: [`/api/files/${entityType}/${entityId}`] });
         if (entityType === 'tasks') {
           queryClient.invalidateQueries({ queryKey: [`/api/tasks/${entityId}/subtasks`] });
         }
