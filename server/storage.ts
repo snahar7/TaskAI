@@ -1705,22 +1705,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFileComments(fileId: number): Promise<any[]> {
-    return await db
-      .select({
-        id: fileComments.id,
-        content: fileComments.content,
-        mentions: fileComments.mentions,
-        createdAt: fileComments.createdAt,
-        user: {
-          id: users.id,
-          displayName: users.displayName,
-          email: users.email,
-        },
-      })
-      .from(fileComments)
-      .leftJoin(users, eq(fileComments.userId, users.id))
-      .where(eq(fileComments.fileId, fileId))
-      .orderBy(fileComments.createdAt);
+    try {
+      console.log('STORAGE: Getting comments for fileId:', fileId);
+      const result = await db
+        .select({
+          id: fileComments.id,
+          content: fileComments.content,
+          mentions: fileComments.mentions,
+          createdAt: fileComments.createdAt,
+          user: {
+            id: users.id,
+            displayName: users.displayName,
+            email: users.email,
+          },
+        })
+        .from(fileComments)
+        .leftJoin(users, eq(fileComments.userId, users.id))
+        .where(eq(fileComments.fileId, fileId))
+        .orderBy(fileComments.createdAt);
+      console.log('STORAGE: Found comments:', result.length);
+      return result;
+    } catch (error) {
+      console.error('STORAGE ERROR in getFileComments:', error);
+      return [];
+    }
   }
 
   async logFileActivity(activity: { fileId: number; userId: number; type: string; content?: string; metadata?: any }): Promise<void> {
@@ -1728,23 +1736,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFileActivity(fileId: number): Promise<any[]> {
-    return await db
-      .select({
-        id: fileActivity.id,
-        type: fileActivity.type,
-        content: fileActivity.content,
-        metadata: fileActivity.metadata,
-        createdAt: fileActivity.createdAt,
-        user: {
-          id: users.id,
-          displayName: users.displayName,
-          email: users.email,
-        },
-      })
-      .from(fileActivity)
-      .leftJoin(users, eq(fileActivity.userId, users.id))
-      .where(eq(fileActivity.fileId, fileId))
-      .orderBy(fileActivity.createdAt);
+    try {
+      console.log('STORAGE: Getting activity for fileId:', fileId);
+      const result = await db
+        .select({
+          id: fileActivity.id,
+          type: fileActivity.type,
+          content: fileActivity.content,
+          metadata: fileActivity.metadata,
+          createdAt: fileActivity.createdAt,
+          user: {
+            id: users.id,
+            displayName: users.displayName,
+            email: users.email,
+          },
+        })
+        .from(fileActivity)
+        .leftJoin(users, eq(fileActivity.userId, users.id))
+        .where(eq(fileActivity.fileId, fileId))
+        .orderBy(fileActivity.createdAt);
+      console.log('STORAGE: Found activities:', result.length);
+      return result;
+    } catch (error) {
+      console.error('STORAGE ERROR in getFileActivity:', error);
+      return [];
+    }
   }
 }
 
