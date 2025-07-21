@@ -167,6 +167,8 @@ export const files = pgTable("files", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+
+
 // File comments table - for collaborative discussion on files
 export const fileComments = pgTable("file_comments", {
   id: serial("id").primaryKey(),
