@@ -1,5 +1,5 @@
 import { 
-  users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags, files,
+  users, goals, projects, tasks, subtasks, pendingBreakdowns, teams, categories, tags, files, fileComments, fileActivity,
   type User, type InsertUser,
   type Goal, type InsertGoal,
   type Project, type InsertProject, 
@@ -84,10 +84,18 @@ export interface IStorage {
   deletePendingBreakdown(id: number): Promise<void>;
   
   // Files
-  createFile(file: InsertFile): Promise<number>;
+  createFile(file: InsertFile): Promise<File>;
+  getFileById(id: number): Promise<File | undefined>;
   getFile(id: number): Promise<File | undefined>;
-  getFilesForEntity(entityType: string, entityId: number): Promise<File[]>;
+  getFilesForEntity(entityType: string, entityId: number, userId?: number): Promise<File[]>;
+  updateFile(id: number, updates: Partial<InsertFile>): Promise<void>;
   deleteFile(id: number): Promise<void>;
+  
+  // File collaboration
+  createFileComment(comment: { fileId: number; userId: number; content: string; mentions?: number[] }): Promise<any>;
+  getFileComments(fileId: number): Promise<any[]>;
+  logFileActivity(activity: { fileId: number; userId: number; type: string; content?: string; metadata?: any }): Promise<void>;
+  getFileActivity(fileId: number): Promise<any[]>;
   
   // Optimized data fetching
   getOptimizedDashboardData(userIds: number[]): Promise<{
@@ -1658,12 +1666,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Files
-  async createFile(insertFile: InsertFile): Promise<number> {
+  async createFile(insertFile: InsertFile): Promise<File> {
     const [created] = await db.insert(files).values({
       ...insertFile,
       createdAt: new Date()
-    }).returning({ id: files.id });
-    return created.id;
+    }).returning();
+    return created;
+  }
+
+  async getFileById(id: number): Promise<File | undefined> {
+    const [result] = await db.select().from(files).where(eq(files.id, id));
+    return result;
   }
 
   async getFile(id: number): Promise<File | undefined> {
@@ -1671,14 +1684,67 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getFilesForEntity(entityType: string, entityId: number): Promise<File[]> {
+  async getFilesForEntity(entityType: string, entityId: number, userId?: number): Promise<File[]> {
     return await db.select().from(files).where(
       and(eq(files.entityType, entityType), eq(files.entityId, entityId))
     );
   }
 
+  async updateFile(id: number, updates: Partial<InsertFile>): Promise<void> {
+    await db.update(files).set(updates).where(eq(files.id, id));
+  }
+
   async deleteFile(id: number): Promise<void> {
     await db.delete(files).where(eq(files.id, id));
+  }
+
+  // File collaboration methods
+  async createFileComment(comment: { fileId: number; userId: number; content: string; mentions?: number[] }): Promise<any> {
+    const result = await db.insert(fileComments).values(comment).returning();
+    return result[0];
+  }
+
+  async getFileComments(fileId: number): Promise<any[]> {
+    return await db
+      .select({
+        id: fileComments.id,
+        content: fileComments.content,
+        mentions: fileComments.mentions,
+        createdAt: fileComments.createdAt,
+        user: {
+          id: users.id,
+          displayName: users.displayName,
+          email: users.email,
+        },
+      })
+      .from(fileComments)
+      .leftJoin(users, eq(fileComments.userId, users.id))
+      .where(eq(fileComments.fileId, fileId))
+      .orderBy(fileComments.createdAt);
+  }
+
+  async logFileActivity(activity: { fileId: number; userId: number; type: string; content?: string; metadata?: any }): Promise<void> {
+    await db.insert(fileActivity).values(activity);
+  }
+
+  async getFileActivity(fileId: number): Promise<any[]> {
+    return await db
+      .select({
+        id: fileActivity.id,
+        type: fileActivity.type,
+        content: fileActivity.content,
+        metadata: fileActivity.metadata,
+        createdAt: fileActivity.createdAt,
+        user: {
+          id: users.id,
+          displayName: users.displayName,
+          email: users.email,
+        },
+      })
+      .from(fileActivity)
+      .leftJoin(users, eq(fileActivity.userId, users.id))
+      .where(eq(fileActivity.fileId, fileId))
+      .orderBy(fileActivity.createdAt);
   }
 }
 

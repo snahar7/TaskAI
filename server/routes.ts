@@ -2138,10 +2138,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('📁 FILE UPLOAD: Mock file data created');
       }
 
-      const fileId = await storage.createFile(fileData);
-      const file = await storage.getFile(fileId);
+      const file = await storage.createFile(fileData);
       
-      console.log('📁 FILE UPLOAD: File created successfully with ID:', fileId);
+      console.log('📁 FILE UPLOAD: File created successfully with ID:', file.id);
       res.json(file);
     } catch (error) {
       console.error('📁 FILE UPLOAD: Upload failed:', error);
@@ -2173,6 +2172,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(files);
     } catch (error) {
       console.error('Get files failed:', error);
+      next(error);
+    }
+  });
+
+  // Individual file endpoints for file viewer
+  app.get('/api/files/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const fileId = parseInt(req.params.id);
+      const file = await storage.getFileById(fileId);
+      
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      // Log view activity
+      await storage.logFileActivity({
+        fileId: fileId,
+        userId: userId,
+        type: 'view',
+      });
+
+      res.json(file);
+    } catch (error) {
+      console.error('Error fetching file:', error);
+      next(error);
+    }
+  });
+
+  app.get('/api/files/:id/content', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const fileId = parseInt(req.params.id);
+      const file = await storage.getFileById(fileId);
+      
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      // For text files, return content from database or decode from fileUrl
+      if (file.content) {
+        res.send(file.content);
+      } else if (file.fileUrl && file.fileUrl.startsWith('data:text/')) {
+        // Decode base64 content
+        const base64Data = file.fileUrl.split(',')[1];
+        const content = Buffer.from(base64Data, 'base64').toString('utf-8');
+        res.send(content);
+      } else {
+        res.status(400).json({ error: 'File content not available' });
+      }
+    } catch (error) {
+      console.error('Error fetching file content:', error);
+      next(error);
+    }
+  });
+
+  app.put('/api/files/:id/content', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const fileId = parseInt(req.params.id);
+      const { content } = req.body;
+      
+      const file = await storage.getFileById(fileId);
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      // Update file content and create data URI
+      const dataUri = `data:${file.mimeType || 'text/plain'};base64,${Buffer.from(content).toString('base64')}`;
+      
+      await storage.updateFile(fileId, {
+        content,
+        fileUrl: dataUri,
+        updatedAt: new Date(),
+      });
+
+      // Log edit activity
+      await storage.logFileActivity({
+        fileId: fileId,
+        userId: userId,
+        type: 'edit',
+        content: 'File content updated',
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating file content:', error);
+      next(error);
+    }
+  });
+
+  app.get('/api/files/:id/comments', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const fileId = parseInt(req.params.id);
+      const comments = await storage.getFileComments(fileId);
+      res.json(comments);
+    } catch (error) {
+      console.error('Error fetching file comments:', error);
+      next(error);
+    }
+  });
+
+  app.post('/api/files/:id/comments', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const fileId = parseInt(req.params.id);
+      const { content, mentions } = req.body;
+      
+      const comment = await storage.createFileComment({
+        fileId: fileId,
+        userId: userId,
+        content,
+        mentions: mentions || [],
+      });
+
+      // Log comment activity
+      await storage.logFileActivity({
+        fileId: fileId,
+        userId: userId,
+        type: 'comment',
+        content,
+      });
+
+      res.json(comment);
+    } catch (error) {
+      console.error('Error creating file comment:', error);
+      next(error);
+    }
+  });
+
+  app.get('/api/files/:id/activity', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const fileId = parseInt(req.params.id);
+      const activities = await storage.getFileActivity(fileId);
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching file activity:', error);
       next(error);
     }
   });

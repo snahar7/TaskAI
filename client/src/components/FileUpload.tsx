@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { FileViewer } from "./FileViewer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,8 @@ import {
   File as FileIcon, 
   Download, 
   Trash2, 
-  Loader2 
+  Loader2,
+  Eye 
 } from "lucide-react";
 
 interface FileUploadProps {
@@ -35,6 +37,7 @@ interface FileItem {
 
 export function FileUpload({ entityType, entityId, disabled = false }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { toast } = useToast();
@@ -171,6 +174,7 @@ export function FileUpload({ entityType, entityId, disabled = false }: FileUploa
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
@@ -267,8 +271,19 @@ export function FileUpload({ entityType, entityId, disabled = false }: FileUploa
                   <Button 
                     variant="ghost" 
                     size="sm"
+                    onClick={() => setSelectedFileId(file.id)}
+                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
+                    title="View and collaborate on file"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
                     onClick={() => window.open(file.fileUrl, '_blank')}
                     className="h-8 w-8 p-0"
+                    title="Download file"
                   >
                     <Download className="h-3 w-3" />
                   </Button>
@@ -280,6 +295,7 @@ export function FileUpload({ entityType, entityId, disabled = false }: FileUploa
                       onClick={() => deleteMutation.mutate(file.id)}
                       disabled={deleteMutation.isPending}
                       className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                      title="Delete file"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -296,5 +312,12 @@ export function FileUpload({ entityType, entityId, disabled = false }: FileUploa
         )}
       </CardContent>
     </Card>
+
+    {/* File Viewer Modal */}
+    <FileViewer
+      fileId={selectedFileId}
+      onClose={() => setSelectedFileId(null)}
+    />
+  </>
   );
 }

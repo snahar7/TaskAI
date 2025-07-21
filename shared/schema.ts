@@ -162,6 +162,29 @@ export const files = pgTable("files", {
   entityType: text("entity_type").notNull(), // goal, project, task, subtask
   entityId: integer("entity_id").notNull(),
   uploadedBy: integer("uploaded_by").references(() => users.id),
+  content: text("content"), // For text files that can be edited
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// File comments table - for collaborative discussion on files
+export const fileComments = pgTable("file_comments", {
+  id: serial("id").primaryKey(),
+  fileId: integer("file_id").references(() => files.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  mentions: json("mentions").$type<number[]>().default([]), // Array of mentioned user IDs
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// File activity log table - track all file interactions
+export const fileActivity = pgTable("file_activity", {
+  id: serial("id").primaryKey(),
+  fileId: integer("file_id").references(() => files.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  type: text("type").notNull(), // 'view', 'edit', 'comment', 'share', 'download'
+  content: text("content"), // Optional content for comment/edit activities
+  metadata: json("metadata"), // Additional metadata about the activity
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -243,8 +266,41 @@ export const usersRelations = relations(users, ({ many }) => ({
   assignedSubtasks: many(subtasks),
   comments: many(comments),
   uploadedFiles: many(files),
+  fileComments: many(fileComments),
+  fileActivities: many(fileActivity),
   teamMemberships: many(teamMembers),
   followedEntities: many(followers),
+}));
+
+export const filesRelations = relations(files, ({ one, many }) => ({
+  uploader: one(users, {
+    fields: [files.uploadedBy],
+    references: [users.id],
+  }),
+  comments: many(fileComments),
+  activities: many(fileActivity),
+}));
+
+export const fileCommentsRelations = relations(fileComments, ({ one }) => ({
+  file: one(files, {
+    fields: [fileComments.fileId],
+    references: [files.id],
+  }),
+  user: one(users, {
+    fields: [fileComments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const fileActivityRelations = relations(fileActivity, ({ one }) => ({
+  file: one(files, {
+    fields: [fileActivity.fileId],
+    references: [files.id],
+  }),
+  user: one(users, {
+    fields: [fileActivity.userId],
+    references: [users.id],
+  }),
 }));
 
 export const teamsRelations = relations(teams, ({ many }) => ({
