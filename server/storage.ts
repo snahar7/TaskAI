@@ -1695,7 +1695,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFile(id: number): Promise<void> {
+    console.log('STORAGE: Deleting file', id, 'with cascade cleanup');
+    
+    // Delete file activity records first (foreign key dependency)
+    await db.delete(fileActivity).where(eq(fileActivity.fileId, id));
+    console.log('STORAGE: Deleted file activity records for file', id);
+    
+    // Delete file comments (foreign key dependency)  
+    await db.delete(fileComments).where(eq(fileComments.fileId, id));
+    console.log('STORAGE: Deleted file comments for file', id);
+    
+    // Now delete the file itself
     await db.delete(files).where(eq(files.id, id));
+    console.log('STORAGE: Successfully deleted file', id);
   }
 
   // File collaboration methods

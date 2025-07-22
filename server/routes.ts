@@ -2148,30 +2148,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get files for an entity
-  app.get("/api/files/:entityType/:entityId", async (req: Request, res: Response, next: NextFunction) => {
+  // SPECIFIC FILE ENDPOINTS (must come BEFORE general /:entityType/:entityId route)
+  
+  // File download endpoint
+  app.get('/api/files/:id/download', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getCurrentUserId(req);
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      const { entityType, entityId } = req.params;
+      const fileId = parseInt(req.params.id);
+      const file = await storage.getFileById(fileId);
       
-      // Validate entity type
-      if (!['goal', 'project', 'task', 'subtask'].includes(entityType)) {
-        return res.status(400).json({ error: "Invalid entity type" });
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
       }
 
-      // Check if user can access this entity
-      if (!(await canUserAccess(userId, entityType as any, parseInt(entityId)))) {
+      // Check access control
+      if (!(await canUserAccess(userId, file.entityType as any, file.entityId))) {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const files = await storage.getFilesForEntity(entityType, parseInt(entityId));
-      res.json(files);
+      // Log download activity
+      await storage.logFileActivity({
+        fileId: fileId,
+        userId: userId,
+        type: 'download',
+      });
+
+      // Extract base64 data from data URI
+      if (file.fileUrl && file.fileUrl.startsWith('data:')) {
+        const base64Data = file.fileUrl.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+        res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Length', buffer.length);
+        res.send(buffer);
+      } else {
+        res.status(400).json({ error: 'File content not available for download' });
+      }
     } catch (error) {
-      console.error('Get files failed:', error);
+      console.error('Error downloading file:', error);
       next(error);
     }
   });
@@ -2363,6 +2382,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       console.error('Delete file failed:', error);
+      next(error);
+    }
+  });
+
+  // Get files for an entity (MUST come AFTER specific file endpoints)
+  app.get("/api/files/:entityType/:entityId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { entityType, entityId } = req.params;
+      
+      // Validate entity type
+      if (!['goal', 'project', 'task', 'subtask'].includes(entityType)) {
+        return res.status(400).json({ error: "Invalid entity type" });
+      }
+
+      // Check if user can access this entity
+      if (!(await canUserAccess(userId, entityType as any, parseInt(entityId)))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const files = await storage.getFilesForEntity(entityType, parseInt(entityId));
+      res.json(files);
+    } catch (error) {
+      console.error('Get files failed:', error);
       next(error);
     }
   });
