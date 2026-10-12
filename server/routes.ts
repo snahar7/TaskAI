@@ -270,7 +270,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           startDate: aiProject.startDate ? new Date(aiProject.startDate) : null,
           deadline: aiProject.dueDate ? new Date(aiProject.dueDate) : null,
           approved: true,
-          assignedTo: currentUserId
+          assignedTo: currentUserId,
+          createdBy: currentUserId
         });
         
         // Create tasks under each project
