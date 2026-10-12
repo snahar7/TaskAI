@@ -24,29 +24,34 @@ const REQUIRED_FIREBASE_VARS = [
   "VITE_FIREBASE_APP_ID",
 ] as const;
 
-const missingFirebaseVars = REQUIRED_FIREBASE_VARS.filter((name) => !env[name]);
-if (missingFirebaseVars.length > 0) {
-  const message =
-    `Firebase is not configured. Missing env vars: ${missingFirebaseVars.join(", ")}. ` +
-    `Copy .env.example to .env and fill in your own Firebase web app config (see README: "Set up your own Firebase").`;
-  console.error(message);
-  throw new Error(message);
-}
+export const missingFirebaseVars: string[] = REQUIRED_FIREBASE_VARS.filter((name) => !env[name]);
+export const firebaseConfigured = missingFirebaseVars.length === 0;
+export const firebaseConfigError =
+  `Firebase is not configured. Missing env vars: ${missingFirebaseVars.join(", ")}. ` +
+  `Copy .env.example to .env and fill in your own Firebase web app config (see README: "Set up your own Firebase"), ` +
+  `or run in demo mode (npm run demo).`;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+// Firebase is only initialized when configured. In demo mode the app uses a
+// local server-side login instead and never touches these exports.
+const app = firebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const db = (app ? getFirestore(app) : null) as unknown as ReturnType<typeof getFirestore>;
+export const auth = (app ? getAuth(app) : null) as unknown as ReturnType<typeof getAuth>;
 export const googleProvider = new GoogleAuthProvider();
 
-// Set Firebase Auth to persist sessions across browser restarts
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error('Failed to set Firebase persistence:', error);
-});
+function requireFirebase() {
+  if (!firebaseConfigured) throw new Error(firebaseConfigError);
+}
+
+if (app) {
+  // Set Firebase Auth to persist sessions across browser restarts
+  setPersistence(auth, browserLocalPersistence).catch((error) => {
+    console.error('Failed to set Firebase persistence:', error);
+  });
+}
 
 // Initialize Analytics only in browser environment
 let analytics: any = null;
-if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+if (app && typeof window !== 'undefined' && firebaseConfig.measurementId) {
   analytics = getAnalytics(app);
 }
 
@@ -62,6 +67,7 @@ const isReplit = () => {
 
 // Auth helper functions
 export const signInWithGoogle = async () => {
+  requireFirebase();
   try {
     // Use redirect method in Replit environment to avoid popup blocking
     if (isReplit()) {
@@ -82,6 +88,7 @@ export const signInWithGoogle = async () => {
 
 // Handle redirect result (call this on app initialization)
 export const handleRedirectResult = async () => {
+  requireFirebase();
   try {
     const result = await getRedirectResult(auth);
     if (result) {
@@ -96,6 +103,7 @@ export const handleRedirectResult = async () => {
 };
 
 export const signUpWithEmail = async (email: string, password: string) => {
+  requireFirebase();
   try {
     console.log("Attempting Firebase email signup for:", email);
     const result = await createUserWithEmailAndPassword(auth, email, password);
@@ -122,6 +130,7 @@ export const signUpWithEmail = async (email: string, password: string) => {
 };
 
 export const signInWithEmail = async (email: string, password: string) => {
+  requireFirebase();
   try {
     console.log("Attempting Firebase email signin for:", email);
     const result = await signInWithEmailAndPassword(auth, email, password);
@@ -150,6 +159,7 @@ export const signInWithEmail = async (email: string, password: string) => {
 };
 
 export const logout = async () => {
+  requireFirebase();
   try {
     await signOut(auth);
   } catch (error) {

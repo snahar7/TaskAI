@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navigation } from "@/components/navigation";
+import { DemoBanner } from "@/components/DemoBanner";
 import { AuthProvider } from "@/hooks/useAuth";
 import { NativeAuthProvider } from "@/hooks/useNativeAuth";
 import { ReactiveStateProvider } from "@/store/provider";
@@ -62,6 +63,7 @@ function App() {
           <NativeAuthProvider>
             <TooltipProvider>
               <div className="min-h-screen bg-slate-50 pb-16 md:pb-0">
+                <DemoBanner />
                 <Navigation />
                 <Router />
               </div>
