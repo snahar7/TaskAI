@@ -18,3 +18,22 @@ jobs:
       # TODO: re-enable once the existing ~191 TypeScript errors are fixed
       # - run: npm run check
       - run: npm run build
+
+  demo-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Boot demo mode (no Firebase/OpenAI/Postgres) and hit key endpoints
+        run: |
+          npm run demo > demo.log 2>&1 &
+          node scripts/demo-smoke.mjs
+        env:
+          PORT: 5000
+      - name: Server log
+        if: always()
+        run: cat demo.log
