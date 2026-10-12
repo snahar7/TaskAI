@@ -10,9 +10,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  throw new Error(
+    "SESSION_SECRET is not set. Add it to your .env (see .env.example). " +
+    "Generate one with: openssl rand -hex 32"
+  );
+}
+
 // Simple session configuration (works reliably)
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'taflo-stealth-mode-secret',
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: {

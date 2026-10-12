@@ -25,6 +25,13 @@ npm run dev            # dev server on PORT (default 5000)
 # production: npm run build && npm start
 ```
 
+### Session secret
+`SESSION_SECRET` is required in every environment, including dev. The server refuses to start without it. Generate one with:
+```bash
+openssl rand -hex 32
+```
+and put it in `.env` as `SESSION_SECRET=<value>`.
+
 ## Set up your own Firebase
 TaskAI ships with no Firebase project. Bring your own:
 
