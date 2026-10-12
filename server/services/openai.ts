@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { AIBreakdown } from "@shared/schema";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'demo-mode-no-key' });
 
 export async function generateGoalBreakdown(
   goalInput: string,

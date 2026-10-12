@@ -2,7 +2,10 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { pool } from "./db";
+import createMemoryStore from "memorystore";
+import { randomBytes } from "crypto";
+import { pool, dbReady, databaseDriver } from "./db";
+import { isDemoMode, demoModeReasons, registerDemoRoutes } from "./demo";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
@@ -13,7 +16,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-const sessionSecret = process.env.SESSION_SECRET;
+let sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && isDemoMode()) {
+  // Demo only: a throwaway secret (sessions reset when the server restarts).
+  sessionSecret = randomBytes(32).toString("hex");
+  console.warn("⚠️  SESSION_SECRET not set; using a random one because demo mode is on.");
+}
 if (!sessionSecret) {
   throw new Error(
     "SESSION_SECRET is not set. Add it to your .env (see .env.example). " +
@@ -21,13 +29,17 @@ if (!sessionSecret) {
   );
 }
 
-// Simple session configuration (works reliably)
+// Sessions live in Postgres (table "session", created automatically) so they
+// survive restarts and work across instances. With embedded PGlite there's no
+// pg pool, so fall back to an in-process store.
 const PgSessionStore = connectPgSimple(session);
+const MemoryStore = createMemoryStore(session);
+const sessionStore = pool
+  ? new PgSessionStore({ pool, tableName: "session", createTableIfMissing: true })
+  : new MemoryStore({ checkPeriod: 24 * 60 * 60 * 1000 });
 
 app.use(session({
-  // Sessions live in Postgres (table "session", created automatically) so
-  // they survive restarts and work across multiple server instances.
-  store: new PgSessionStore({ pool, tableName: "session", createTableIfMissing: true }),
+  store: sessionStore,
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
@@ -99,6 +111,13 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 });
 
 (async () => {
+  await dbReady;
+  if (isDemoMode()) {
+    console.log(`🧪 DEMO MODE ON: ${demoModeReasons().join("; ")}`);
+  }
+  console.log(`🗄️  Database driver: ${databaseDriver}`);
+  registerDemoRoutes(app);
+
   // Register authentication routes FIRST (before workspace middleware)
   registerAuthRoutes(app);
   

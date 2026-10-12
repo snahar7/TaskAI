@@ -1,8 +1,12 @@
 import { OpenAI } from 'openai';
 
 // Initialize OpenAI client
+import { isDemoMode, demoBreakdown, demoBreakDownFurther } from '../demo';
+
+// Placeholder key keeps the SDK from throwing at import time in demo mode;
+// no request is made with it because demo mode short-circuits below.
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || 'demo-mode-no-key',
 });
 
 // Define the AIBreakdown interface (simplified version)
@@ -455,6 +459,11 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
       timeAvailable?: string;
     }
   ): Promise<AIBreakdown> {
+    if (isDemoMode()) {
+      console.log('🧪 DEMO MODE: returning canned breakdown');
+      return this.calculateDayBasedDeadlines(demoBreakdown(goalInput), new Date());
+    }
+
     // Analyze goal complexity to determine optimal breakdown depth
     const { complexity, maxDepth, analysis } = this.analyzeGoalComplexity(goalInput);
     
@@ -553,6 +562,9 @@ Create 2-4 logical projects, each with 2-4 tasks, each with 2-4 actionable subta
     };
   }> {
     console.log(`🔧 Breaking down ${itemType}: "${itemData.title}"`);
+    if (isDemoMode()) {
+      return demoBreakDownFurther(itemData.title, options?.targetSubItems);
+    }
     
     // Build context-rich prompt
     const contextText = itemData.parentContext 
@@ -744,6 +756,9 @@ Return JSON in this exact format:
     totalTasks: number;
   }> {
     console.log(`📅 Generating automatic timeline for target date: ${targetDate}`);
+    if (isDemoMode()) {
+      throw new Error('AI timeline is disabled in demo mode');
+    }
     
     const workingDaysPerWeek = options?.workingDaysPerWeek || 5;
     const hoursPerDay = options?.hoursPerDay || 6;
