@@ -14,16 +14,25 @@ Type a high-level goal; an AI agent breaks it into goals → projects → tasks 
 - Firebase auth, team assignment, file upload
 
 ## Tech stack
-React 18 + TypeScript, Vite, wouter, TanStack Query, Tailwind + shadcn/ui · Express (TypeScript) · PostgreSQL (Neon) + Drizzle ORM · OpenAI GPT-4o · Firebase (auth/Firestore)
+React 18 + TypeScript, Vite, wouter, TanStack Query, Tailwind + shadcn/ui · Express (TypeScript) · PostgreSQL (Neon or local) + Drizzle ORM · sessions in Postgres (connect-pg-simple) · OpenAI GPT-4o · Firebase (auth/Firestore)
 
-## Setup
-```bash
-npm install
-cp .env.example .env   # fill in values
-npm run db:push        # drizzle-kit push: create/sync DB schema
-npm run dev            # dev server on PORT (default 5000)
-# production: npm run build && npm start
-```
+## Run in 5 minutes
+You need Node 20+, an [OpenAI API key](https://platform.openai.com/api-keys), a Postgres database, and a Firebase project (see [Set up your own Firebase](#set-up-your-own-firebase)).
+
+1. **Get a database.** Either:
+   - **Neon (no install):** sign up at [neon.tech](https://neon.tech), create a project, and copy the connection string (`postgresql://…neon.tech/neondb?sslmode=require`).
+   - **Local Postgres:** `docker compose up -d` starts one at `postgresql://taflo:taflo@localhost:5432/taflo`.
+2. **Configure:**
+   ```bash
+   git clone https://github.com/snahar7/TaskAI && cd TaskAI
+   npm ci
+   cp .env.example .env
+   ```
+   In `.env`, set `DATABASE_URL`, `OPENAI_API_KEY`, `SESSION_SECRET` (`openssl rand -hex 32`) and the `VITE_FIREBASE_*` values.
+3. **Create the tables:** `npm run db:push`
+4. **Start:** `npm run dev`, then open http://localhost:5000 (or your `PORT`).
+
+Production: `npm run build && npm start`. Sessions are stored in Postgres (the `session` table is created automatically).
 
 ### Session secret
 `SESSION_SECRET` is required in every environment, including dev. The server refuses to start without it. Generate one with:
@@ -63,7 +72,7 @@ service cloud.firestore {
 ```
 
 ## Environment variables
-`DATABASE_URL`, `OPENAI_API_KEY`, `SESSION_SECRET`, `JWT_SECRET`, `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_CLIENT_EMAIL`, `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `PORT`, `NODE_ENV` (see `.env.example`).
+`DATABASE_URL` (Neon or any Postgres; optional `DATABASE_DRIVER=neon|pg`), `OPENAI_API_KEY`, `SESSION_SECRET`, `JWT_SECRET`, `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_CLIENT_EMAIL`, `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `PORT`, `NODE_ENV` (see `.env.example`).
 
 ## License
 MIT

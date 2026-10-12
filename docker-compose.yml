@@ -1,0 +1,14 @@
+# Local Postgres for development: docker compose up -d
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: taflo
+      POSTGRES_PASSWORD: taflo
+      POSTGRES_DB: taflo
+    ports:
+      - "5432:5432"
+    volumes:
+      - taflo-db:/var/lib/postgresql/data
+volumes:
+  taflo-db:
