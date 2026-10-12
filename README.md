@@ -4,7 +4,24 @@ Type a high-level goal; an AI agent breaks it into goals → projects → tasks 
 
 **Why:** planning is the work nobody has time for. This puts an agent on it so you can get to doing.
 
-![Screenshot](docs/screenshot.png) <!-- TODO: add screenshot/GIF -->
+## Try it in 5 minutes (no accounts)
+You only need Node 20+. No Firebase, OpenAI or Postgres required.
+```bash
+git clone https://github.com/snahar7/TaskAI && cd TaskAI
+npm ci
+npm run demo        # builds and serves http://localhost:5000
+```
+Open http://localhost:5000, type a goal (try "Launch a newsletter in 6 weeks") and click **Break Down My Goal**.
+
+What demo mode does:
+- **Login:** you're signed in automatically as a local **Demo User**, and a yellow banner shows that demo mode is on.
+- **AI:** breakdowns are realistic canned templates picked by keywords in your goal (newsletter/content, product launch, learning, fitness, job search), with a generic fallback. AI Assist is disabled.
+- **Database:** with no `DATABASE_URL`, data goes into an embedded Postgres ([PGlite](https://pglite.dev)) in `./.taflo-data`. Delete that folder to reset.
+
+Demo mode turns on automatically when `OPENAI_API_KEY` or the Firebase config is missing, or when you set `DEMO_MODE=true`. Set `DEMO_MODE=false` to require real keys. Demo login only exists while demo mode is on, so never run a public deployment in demo mode.
+
+
+![Taflo dashboard after breaking down a goal (demo mode)](docs/screenshot.png)
 
 ## Features
 - GPT-4o breakdown of goals/tasks into structured subtasks, with an approval step before saving
@@ -16,7 +33,7 @@ Type a high-level goal; an AI agent breaks it into goals → projects → tasks 
 ## Tech stack
 React 18 + TypeScript, Vite, wouter, TanStack Query, Tailwind + shadcn/ui · Express (TypeScript) · PostgreSQL (Neon or local) + Drizzle ORM · sessions in Postgres (connect-pg-simple) · OpenAI GPT-4o · Firebase (auth/Firestore)
 
-## Run in 5 minutes
+## Run with your own accounts
 You need Node 20+, an [OpenAI API key](https://platform.openai.com/api-keys), a Postgres database, and a Firebase project (see [Set up your own Firebase](#set-up-your-own-firebase)).
 
 1. **Get a database.** Either:
