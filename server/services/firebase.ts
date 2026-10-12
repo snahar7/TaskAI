@@ -9,12 +9,14 @@ if (!getApps().length) {
   try {
     // Try to use service account if provided
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_ADMIN_KEY;
-    const projectId = process.env.FIREBASE_PROJECT_ID || 'trak-1c51e';
+    const projectId = process.env.FIREBASE_PROJECT_ID;
     
     if (serviceAccountKey) {
       const serviceAccount = JSON.parse(serviceAccountKey);
       
-      if (serviceAccount.project_id || serviceAccount.projectId) {
+      if (!projectId) {
+        console.error('FIREBASE_PROJECT_ID is not set; Firebase Admin disabled, using database storage');
+      } else if (serviceAccount.project_id || serviceAccount.projectId) {
         initializeApp({
           credential: cert(serviceAccount),
           projectId: projectId,

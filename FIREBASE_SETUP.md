@@ -11,7 +11,7 @@ Your Firebase project doesn't recognize the Replit domain, causing Google sign-i
 ## Steps to Fix in Firebase Console
 
 1. Go to: https://console.firebase.google.com
-2. Select your project: `trak-1c51e`
+2. Select your project: your own Firebase project
 3. Navigate to: **Authentication → Sign-in method**
 4. Scroll to: **Authorized domains** section
 5. Click: **Add domain**

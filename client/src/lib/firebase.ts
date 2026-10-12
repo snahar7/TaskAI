@@ -3,15 +3,35 @@ import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User, setPersistence, browserLocalPersistence } from "firebase/auth";
 
+const env = import.meta.env;
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBmtrCysYltZr_9wESwyu1EJ4f-1yayQA0",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "trak-1c51e.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "trak-1c51e",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "trak-1c51e.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "474964346924",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:474964346924:web:1ac39d8960761931392989",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-1FTRYNJ0DM"
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID, // optional (Analytics)
 };
+
+const REQUIRED_FIREBASE_VARS = [
+  "VITE_FIREBASE_API_KEY",
+  "VITE_FIREBASE_AUTH_DOMAIN",
+  "VITE_FIREBASE_PROJECT_ID",
+  "VITE_FIREBASE_STORAGE_BUCKET",
+  "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  "VITE_FIREBASE_APP_ID",
+] as const;
+
+const missingFirebaseVars = REQUIRED_FIREBASE_VARS.filter((name) => !env[name]);
+if (missingFirebaseVars.length > 0) {
+  const message =
+    `Firebase is not configured. Missing env vars: ${missingFirebaseVars.join(", ")}. ` +
+    `Copy .env.example to .env and fill in your own Firebase web app config (see README: "Set up your own Firebase").`;
+  console.error(message);
+  throw new Error(message);
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -26,7 +46,7 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
 
 // Initialize Analytics only in browser environment
 let analytics: any = null;
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
   analytics = getAnalytics(app);
 }
 
