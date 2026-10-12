@@ -9,6 +9,10 @@ export function registerAuthRoutes(app: Express) {
   
   // DEV: Quick login bypass for development (existing user)
   app.post("/api/auth/dev-login", async (req: Request, res: Response, next: NextFunction) => {
+    // Logs in as any user id without a password: never expose outside local dev.
+    if (process.env.NODE_ENV !== "development") {
+      return res.status(404).json({ error: "Not found" });
+    }
     try {
       const { userId } = req.body;
       
