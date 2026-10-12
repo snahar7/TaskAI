@@ -1,5 +1,8 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
@@ -19,7 +22,12 @@ if (!sessionSecret) {
 }
 
 // Simple session configuration (works reliably)
+const PgSessionStore = connectPgSimple(session);
+
 app.use(session({
+  // Sessions live in Postgres (table "session", created automatically) so
+  // they survive restarts and work across multiple server instances.
+  store: new PgSessionStore({ pool, tableName: "session", createTableIfMissing: true }),
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
@@ -116,10 +124,8 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Serves both the API and the client.
+  const port = Number(process.env.PORT) || 5000;
   server.listen({
     port,
     host: "0.0.0.0",
