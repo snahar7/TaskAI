@@ -3,7 +3,7 @@ import { Express } from "express";
 import { createServer, type Server } from "node:http";
 import multer from "multer";
 import { storage } from "./storage";
-import { gptAgent, type AIBreakdown } from "../src/services/gptAgent";
+import { gptAgent, type AIBreakdown } from "./ai/gptAgent";
 import { insertGoalSchema, insertProjectSchema, insertTaskSchema, insertSubtaskSchema, insertPendingBreakdownSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -1781,7 +1781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       try {
         console.log('🤖 AI ASSIST: Importing AI service...');
-        const aiAssistModule = await import("../src/services/ai-assist/index");
+        const aiAssistModule = await import("./ai/ai-assist/index");
         console.log('🤖 AI ASSIST: Module imported successfully, keys:', Object.keys(aiAssistModule));
         
         const { aiAssistService } = aiAssistModule;
@@ -1914,7 +1914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let result;
       try {
         console.log('🤖 AI ASSIST: Importing AI service for completion...');
-        const aiAssistModule = await import("../src/services/ai-assist/index");
+        const aiAssistModule = await import("./ai/ai-assist/index");
         console.log('🤖 AI ASSIST: Module imported successfully');
         
         const { aiAssistService } = aiAssistModule;
@@ -2062,7 +2062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get deliverables from AI service
-      const { DeliverableManager } = await import("../src/services/ai-assist/deliverable-manager");
+      const { DeliverableManager } = await import("./ai/ai-assist/deliverable-manager");
       const deliverableManager = new DeliverableManager();
       const summary = deliverableManager.exportTaskSummary(taskId);
 

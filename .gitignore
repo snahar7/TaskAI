@@ -9,3 +9,4 @@ vite.config.ts.*
 .env.*
 !.env.example
 cookies.txt
+ai-assist-outputs/
