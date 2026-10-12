@@ -10,3 +10,6 @@ vite.config.ts.*
 !.env.example
 cookies.txt
 ai-assist-outputs/
+
+# Embedded demo database (PGlite)
+.taflo-data/
